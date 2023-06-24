@@ -1,3 +1,5 @@
+//! Interfaces for `Dataset` objects.
+
 use std::fmt::{self, Debug};
 use std::ops::Deref;
 
@@ -329,11 +331,15 @@ where
     }
 }
 
+/// Options for how to chunk data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Chunk {
-    Exact(Vec<Ix>), // exact chunk shape
-    MinKB(usize),   // minimum chunk shape in KB
-    None,           // leave it unchunked
+    /// Exact chunk shape.
+    Exact(Vec<Ix>),
+    /// Minimum chunk shape in kilobytes.
+    MinKB(usize),
+    /// Leave the data unchunked.
+    None,
 }
 
 impl Default for Chunk {
