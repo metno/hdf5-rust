@@ -25,7 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Check spelling
-        uses: crate-ci/typos@d01f29c66d1bf1a08730750f61d86c210b0d039d # v1.27.0
+        uses: crate-ci/typos@b74202f74b4346efdbce7801d187ec57b266bac8 # v1.27.3
 
   lint:
     name: lint
