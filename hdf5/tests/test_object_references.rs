@@ -7,6 +7,7 @@ use common::util::new_in_memory_file;
 #[cfg(feature = "1.12.1")]
 use hdf5::ObjectReference2;
 use hdf5::{H5Type, ObjectReference, ObjectReference1, ReferencedObject};
+use hdf5_metno as hdf5;
 
 fn test_group_references<R: ObjectReference>() {
     let file = new_in_memory_file().unwrap();
