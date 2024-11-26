@@ -14,7 +14,8 @@ use hdf5_sys::h5r::H5R_OBJECT as H5R_OBJECT1;
 #[cfg(feature = "1.12.0")]
 use hdf5_sys::h5r::H5R_OBJECT1;
 
-use crate::{Location, ObjectReference};
+use super::{private::ObjectReferencePrivate, ObjectReference};
+use crate::Location;
 
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone)]
@@ -27,6 +28,8 @@ unsafe impl H5Type for ObjectReference1 {
         hdf5_types::TypeDescriptor::Reference(hdf5_types::Reference::Object)
     }
 }
+
+impl ObjectReferencePrivate for ObjectReference1 {}
 
 impl ObjectReference for ObjectReference1 {
     const REF_TYPE: hdf5_sys::h5r::H5R_type_t = H5R_OBJECT1;

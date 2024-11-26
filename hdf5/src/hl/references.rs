@@ -13,7 +13,15 @@ pub use legacy::ObjectReference1;
 #[cfg(feature = "1.12.1")]
 pub use standard::ObjectReference2;
 
-pub trait ObjectReference: Sized + H5Type {
+mod private {
+    pub trait ObjectReferencePrivate {}
+}
+
+/// The trait for all object references. This provides a common interface
+/// over the legacy and standard reference types.
+///
+/// This trait is sealed and cannot be implemented for types outside `hdf5::hl`.
+pub trait ObjectReference: Sized + H5Type + private::ObjectReferencePrivate {
     const REF_TYPE: H5R_type_t;
     fn ptr(&self) -> *const c_void;
 
