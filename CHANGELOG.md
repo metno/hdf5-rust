@@ -1,8 +1,12 @@
 # Changelog
 
-## hdf5 unreleased
 ## hdf5-derive unreleased
+
+## hdf5 unreleased
+- Added support for references
+
 ## hdf5-types unreleased
+- Added reference types
 
 ## hdf5-sys unreleased
 - Fixed linking to libz
