@@ -84,7 +84,7 @@ impl<T: Copy> Deref for VarLenArray<T> {
     }
 }
 
-impl<'a, T: Copy> From<&'a [T]> for VarLenArray<T> {
+impl<T: Copy> From<&[T]> for VarLenArray<T> {
     #[inline]
     fn from(arr: &[T]) -> Self {
         Self::from_slice(arr)
