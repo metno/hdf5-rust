@@ -1,22 +1,29 @@
 # Changelog
 
-## hdf5-derive unreleased
-
 ## hdf5 unreleased
+## hdf5-types unreleased
+## hdf5-derive unreleased
+## hdf5-sys unreleased
+## hdf5-src unreleased
+
+## hdf5 v0.9.3
+Release date: Dec 6, 2024.
 - Added support for references
 
-## hdf5-types unreleased
+## hdf5-types v0.10.0
+Release date: Dec 6, 2024.
 - Added reference types
 
-## hdf5-sys unreleased
+## hdf5-sys v0.10.0
+Release date: Dec 6, 2024.
 - Fixed linking to libz
 - Added support for hdf5 1.14.5
 - Removed implicit `libz-sys` feature (breaking change)
 
-## hdf5-src unreleased
+## hdf5-src v0.9.3
+Release date: Dec 6, 2024.
 - Fixed linking to libz
 - Bumped bundled hdf5 to 1.14.5
-
 
 ## hdf5-derive v0.9.1
 Release date: Sep 18, 2024.
