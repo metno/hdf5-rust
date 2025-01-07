@@ -6,6 +6,10 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+## hdf5 unreleased v0.9.4
+Release date: Jan 7, 2025.
+- Fixed bundled hdf5 version back to 1.14.5
+
 ## hdf5-derive v0.9.2
 Release date: Dec 9, 2024.
 - Fixed `H5Type` is not local
