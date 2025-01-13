@@ -6,6 +6,7 @@ use std::env;
 use std::error::Error;
 use std::fmt::{self, Debug};
 use std::fs;
+use std::io::Write;
 use std::os::raw::{c_int, c_uint};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -725,6 +726,7 @@ fn main() {
         println!("{:#?}", config);
         config.emit_link_flags();
         config.emit_cfg_flags();
+        write_hdf5_version(config.header.version);
     }
 }
 
@@ -755,4 +757,26 @@ fn get_build_and_emit() {
     let header = Header::parse(&hdf5_incdir);
     let config = Config { header, inc_dir: "".into(), link_paths: Vec::new() };
     config.emit_cfg_flags();
+    write_hdf5_version(header.version);
+}
+
+fn write_hdf5_version(version: Version) {
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let destination = std::path::Path::new(&out_dir).join("version.rs");
+    let mut f = std::fs::File::create(destination).unwrap();
+    let (major, minor, micro) = (version.major, version.minor, version.micro);
+    let string = format!(
+        "
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct Version {{
+        pub major: u8,
+        pub minor: u8,
+        pub micro: u8,
+    }}
+
+    /// HDF5 library version used at link time ({major}.{minor}.{micro})
+    pub const HDF5_VERSION: Version = Version {{ major: {major}, minor: {minor}, micro: {micro} }};
+    "
+    );
+    f.write_all(string.as_bytes()).unwrap();
 }

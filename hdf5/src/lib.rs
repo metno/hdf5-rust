@@ -206,6 +206,8 @@ pub fn is_library_threadsafe() -> bool {
     }
 }
 
+pub const HDF5_VERSION: hdf5_sys::Version = hdf5_sys::HDF5_VERSION;
+
 #[cfg(test)]
 pub mod tests {
     use crate::library_version;
