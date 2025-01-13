@@ -6,7 +6,13 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-## hdf5 unreleased v0.9.4
+## hdf5 unreleased
+- Added `HDF5_VERSION` which contains the version used when building
+
+## hdf5-sys unreleased
+- Added `HDF5_VERSION` which contains the version used when building
+
+## hdf5 v0.9.4
 Release date: Jan 7, 2025.
 - Fixed bundled hdf5 version back to 1.14.5
 
