@@ -76,13 +76,28 @@ use parking_lot::ReentrantMutex;
 /// Lock which can be used to serialise access to the hdf5 library
 pub static LOCK: ReentrantMutex<()> = ReentrantMutex::new(());
 
+include!(concat!(env!("OUT_DIR"), "/version.rs"));
+
 #[cfg(test)]
 mod tests {
+    use super::h5::H5get_libversion;
     use super::h5::H5open;
     use super::h5p::H5P_CLS_ROOT;
+    use super::{Version, HDF5_VERSION, LOCK};
+
+    #[test]
+    fn version_test() {
+        let _lock = LOCK.lock();
+        let (mut major, mut minor, mut micro) = (0, 0, 0);
+        unsafe { H5get_libversion(&mut major, &mut minor, &mut micro) };
+        let runtime_version = Version { major: major as _, minor: minor as _, micro: micro as _ };
+
+        assert_eq!(runtime_version, HDF5_VERSION);
+    }
 
     #[test]
     pub fn test_smoke() {
+        let _lock = LOCK.lock();
         unsafe {
             H5open();
             assert!(*H5P_CLS_ROOT > 0);

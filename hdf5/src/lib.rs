@@ -206,12 +206,25 @@ pub fn is_library_threadsafe() -> bool {
     }
 }
 
+/// HDF5 library version used at link time. See [`hdf5_sys::HDF5_VERSION`]
+pub const HDF5_VERSION: hdf5_sys::Version = hdf5_sys::HDF5_VERSION;
+
 #[cfg(test)]
 pub mod tests {
     use crate::library_version;
+    use crate::HDF5_VERSION;
 
     #[test]
-    pub fn test_library_version() {
+    pub fn test_minimum_library_version() {
         assert!(library_version() >= (1, 8, 4));
+    }
+
+    #[test]
+    fn library_version_eq_compile_version() {
+        use hdf5_sys::Version;
+        let (major, minor, micro) = library_version();
+        let runtime_version = Version { major, minor, micro };
+
+        assert_eq!(runtime_version, HDF5_VERSION);
     }
 }
