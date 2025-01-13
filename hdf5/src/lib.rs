@@ -206,6 +206,7 @@ pub fn is_library_threadsafe() -> bool {
     }
 }
 
+/// HDF5 library version used at link time. See [`hdf5_sys::HDF5_VERSION`]
 pub const HDF5_VERSION: hdf5_sys::Version = hdf5_sys::HDF5_VERSION;
 
 #[cfg(test)]
