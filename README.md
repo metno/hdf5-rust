@@ -181,7 +181,7 @@ unless `HDF5_VERSION` is set.
 ### Windows
 
 `hdf5` crate fully supports MSVC toolchain, which allows using the
-[official releases](https://www.hdfgroup.org/downloads/index.html) of
+[official releases](https://www.hdfgroup.org/download-hdf5/) of
 HDF5 and is generally the recommended way to go. That being said, previous experiments have 
 shown that all tests pass on the `gnu` target as well, one just needs to be careful with 
 building the HDF5 binary itself and configuring the build environment.
