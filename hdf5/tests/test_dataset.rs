@@ -220,7 +220,7 @@ fn test_byte_read_seek_impl(ds: &hdf5::Dataset, arr: &ArrayD<u8>, ndim: usize) -
 
     // Seek from current position
     let orig_pos = reader.seek(SeekFrom::Start(pos)).expect("io::Seek failed") as i64;
-    let rel_pos = rng.random_range(-(arr.len() as i64)..arr.len() as i64 + 1);
+    let rel_pos = rng.random_range(-(orig_pos as i64)..(arr.len() as i64 - orig_pos) + 1);
     let pos_res = reader.seek(SeekFrom::Current(rel_pos));
     if (rel_pos + orig_pos) < 0 {
         assert!(pos_res.is_err()) // We cannot seek before start
