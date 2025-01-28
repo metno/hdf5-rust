@@ -9,13 +9,13 @@ use hdf5_metno as hdf5;
 use half::f16;
 use ndarray::{ArrayD, SliceInfo, SliceInfoElem};
 use num_complex::Complex;
-use rand::distributions::Standard;
-use rand::distributions::{Alphanumeric, Uniform};
-use rand::prelude::Distribution;
-use rand::prelude::{Rng, SliceRandom};
+use rand::distr::StandardUniform;
+use rand::distr::{Alphanumeric, Uniform};
+use rand::prelude::Rng;
+use rand::prelude::{Distribution, IndexedRandom};
 
 pub fn gen_shape<R: Rng + ?Sized>(rng: &mut R, ndim: usize) -> Vec<usize> {
-    iter::repeat(()).map(|_| rng.gen_range(0..11)).take(ndim).collect()
+    iter::repeat(()).map(|_| rng.random_range(0..11)).take(ndim).collect()
 }
 
 pub fn gen_ascii<R: Rng + ?Sized>(rng: &mut R, len: usize) -> String {
@@ -37,35 +37,36 @@ fn gen_slice_one_dim<R: Rng + ?Sized>(rng: &mut R, shape: usize) -> ndarray::Sli
         return ndarray::SliceInfoElem::Slice { start: 0, end: None, step: 1 };
     }
 
-    if rng.gen_bool(0.1) {
-        ndarray::SliceInfoElem::Index(rng.gen_range(0..shape) as isize)
+    if rng.random_bool(0.1) {
+        ndarray::SliceInfoElem::Index(rng.random_range(0..shape) as isize)
     } else {
-        let start = rng.gen_range(0..shape) as isize;
+        let start = rng.random_range(0..shape) as isize;
 
-        let end = if rng.gen_bool(0.5) {
+        let end = if rng.random_bool(0.5) {
             None
-        } else if rng.gen_bool(0.9) {
-            Some(rng.gen_range(start..shape as isize))
+        } else if rng.random_bool(0.9) {
+            Some(rng.random_range(start as i64..shape as i64))
         } else {
             // Occasionally generate a slice with end < start.
-            Some(rng.gen_range(0..shape as isize))
+            Some(rng.random_range(0..shape as i64))
         };
 
-        let step = if rng.gen_bool(0.9) { 1isize } else { rng.gen_range(1..shape * 2) as isize };
+        let step =
+            if rng.random_bool(0.9) { 1isize } else { rng.random_range(1..shape * 2) as isize };
 
-        ndarray::SliceInfoElem::Slice { start, end, step }
+        ndarray::SliceInfoElem::Slice { start, end: end.map(|x| x as isize), step }
     }
 }
 
 pub trait Gen: Sized + fmt::Debug {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self;
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self;
 }
 
 macro_rules! impl_gen_primitive {
     ($ty:ty) => {
         impl Gen for $ty {
-            fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-                rng.gen()
+            fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+                rng.random()
             }
         }
     };
@@ -75,21 +76,21 @@ macro_rules! impl_gen_primitive {
     };
 }
 
-impl_gen_primitive!(usize, isize, u8, u16, u32, u64, i8, i16, i32, i64, bool, f32, f64);
+impl_gen_primitive!(u8, u16, u32, u64, i8, i16, i32, i64, bool, f32, f64);
 
 macro_rules! impl_gen_tuple {
     ($t:ident) => (
         impl<$t> Gen for ($t,) where $t: Gen {
-            fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-                (<$t as Gen>::gen(rng),)
+            fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+                (<$t as Gen>::random(rng),)
             }
         }
     );
 
     ($t:ident, $($tt:ident),*) => (
         impl<$t, $($tt),*> Gen for ($t, $($tt),*) where $t: Gen, $($tt: Gen),* {
-            fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-                (<$t as Gen>::gen(rng), $(<$tt as Gen>::gen(rng)),*)
+            fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+                (<$t as Gen>::random(rng), $(<$tt as Gen>::random(rng)),*)
             }
         }
         impl_gen_tuple!($($tt),*);
@@ -99,22 +100,22 @@ macro_rules! impl_gen_tuple {
 impl_gen_tuple! { A, B, C, D, E, F, G, H, I, J, K, L }
 
 impl Gen for f16 {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Self::from_f32(rng.gen())
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self::from_f32(rng.random())
     }
 }
 
 impl<T: Debug> Gen for Complex<T>
 where
-    Standard: Distribution<T>,
+    StandardUniform: Distribution<T>,
 {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        Self::new(rng.gen(), rng.gen())
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        Self::new(rng.random(), rng.random())
     }
 }
 
 pub fn gen_vec<R: Rng + ?Sized, T: Gen>(rng: &mut R, size: usize) -> Vec<T> {
-    iter::repeat(()).map(|_| T::gen(rng)).take(size).collect()
+    iter::repeat(()).map(|_| T::random(rng)).take(size).collect()
 }
 
 pub fn gen_arr<T, R>(rng: &mut R, ndim: usize) -> ArrayD<T>
@@ -129,9 +130,9 @@ where
 }
 
 impl<const N: usize> Gen for FixedAscii<N> {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        let len = rng.sample(Uniform::new_inclusive(0, N));
-        let dist = Uniform::new_inclusive(0, 127);
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        let len = rng.sample(Uniform::new_inclusive(0, N).unwrap());
+        let dist = Uniform::new_inclusive(0, 127).unwrap();
         let mut v = Vec::with_capacity(len);
         for _ in 0..len {
             v.push(rng.sample(dist));
@@ -141,11 +142,11 @@ impl<const N: usize> Gen for FixedAscii<N> {
 }
 
 impl<const N: usize> Gen for FixedUnicode<N> {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        let len = rng.sample(Uniform::new_inclusive(0, N));
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        let len = rng.sample(Uniform::new_inclusive(0, N).unwrap());
         let mut s = String::new();
         for _ in 0..len {
-            let c = rng.gen::<char>();
+            let c = rng.random::<char>();
             if c != '\0' {
                 if s.as_bytes().len() + c.len_utf8() >= len {
                     break;
@@ -158,9 +159,9 @@ impl<const N: usize> Gen for FixedUnicode<N> {
 }
 
 impl Gen for VarLenAscii {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        let len = rng.sample(Uniform::new_inclusive(0, 8));
-        let dist = Uniform::new_inclusive(0, 127);
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        let len = rng.sample(Uniform::new_inclusive(0, 8).unwrap());
+        let dist = Uniform::new_inclusive(0, 127).unwrap();
         let mut v = Vec::with_capacity(len);
         for _ in 0..len {
             v.push(rng.sample(dist));
@@ -170,11 +171,11 @@ impl Gen for VarLenAscii {
 }
 
 impl Gen for VarLenUnicode {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        let len = rng.sample(Uniform::new_inclusive(0, 8));
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        let len = rng.sample(Uniform::new_inclusive(0, 8).unwrap());
         let mut s = String::new();
         while s.len() < len {
-            let c = rng.gen::<char>();
+            let c = rng.random::<char>();
             if c != '\0' {
                 s.push(c);
             }
@@ -184,11 +185,11 @@ impl Gen for VarLenUnicode {
 }
 
 impl<T: Gen + Copy> Gen for VarLenArray<T> {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        let len = rng.sample(Uniform::new_inclusive(0, 8));
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        let len = rng.sample(Uniform::new_inclusive(0, 8).unwrap());
         let mut v = Vec::with_capacity(len);
         for _ in 0..len {
-            v.push(Gen::gen(rng));
+            v.push(Gen::random(rng));
         }
         VarLenArray::from_slice(&v)
     }
@@ -202,7 +203,7 @@ pub enum Enum {
 }
 
 impl Gen for Enum {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
         *[Enum::X, Enum::Y].choose(rng).unwrap()
     }
 }
@@ -212,8 +213,8 @@ impl Gen for Enum {
 pub struct TupleStruct(bool, Enum);
 
 impl Gen for TupleStruct {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        TupleStruct(Gen::gen(rng), Gen::gen(rng))
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        TupleStruct(Gen::random(rng), Gen::random(rng))
     }
 }
 
@@ -227,12 +228,12 @@ pub struct FixedStruct {
 }
 
 impl Gen for FixedStruct {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
         FixedStruct {
-            fa: Gen::gen(rng),
-            fu: Gen::gen(rng),
-            tuple: (Gen::gen(rng), Gen::gen(rng), Gen::gen(rng)),
-            array: [Gen::gen(rng), Gen::gen(rng)],
+            fa: Gen::random(rng),
+            fu: Gen::random(rng),
+            tuple: (Gen::random(rng), Gen::random(rng), Gen::random(rng)),
+            array: [Gen::random(rng), Gen::random(rng)],
         }
     }
 }
@@ -246,8 +247,8 @@ pub struct VarLenStruct {
 }
 
 impl Gen for VarLenStruct {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        VarLenStruct { va: Gen::gen(rng), vu: Gen::gen(rng), vla: Gen::gen(rng) }
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        VarLenStruct { va: Gen::random(rng), vu: Gen::random(rng), vla: Gen::random(rng) }
     }
 }
 
@@ -260,8 +261,8 @@ pub struct RenameStruct {
 }
 
 impl Gen for RenameStruct {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        RenameStruct { first: Gen::gen(rng), second: Gen::gen(rng) }
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        RenameStruct { first: Gen::random(rng), second: Gen::random(rng) }
     }
 }
 
@@ -270,8 +271,8 @@ impl Gen for RenameStruct {
 pub struct RenameTupleStruct(#[hdf5(rename = "my_boolean")] bool, #[hdf5(rename = "my_enum")] Enum);
 
 impl Gen for RenameTupleStruct {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        RenameTupleStruct(Gen::gen(rng), Gen::gen(rng))
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        RenameTupleStruct(Gen::random(rng), Gen::random(rng))
     }
 }
 
@@ -285,7 +286,7 @@ pub enum RenameEnum {
 }
 
 impl Gen for RenameEnum {
-    fn gen<R: Rng + ?Sized>(rng: &mut R) -> Self {
+    fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
         *[RenameEnum::X, RenameEnum::Y].choose(rng).unwrap()
     }
 }

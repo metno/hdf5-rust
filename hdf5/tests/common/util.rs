@@ -3,7 +3,7 @@ use super::gen::gen_ascii;
 use hdf5_metno as hdf5;
 
 pub fn random_filename() -> String {
-    gen_ascii(&mut rand::thread_rng(), 8)
+    gen_ascii(&mut rand::rng(), 8)
 }
 
 pub fn new_in_memory_file() -> hdf5::Result<hdf5::File> {

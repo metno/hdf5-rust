@@ -194,7 +194,7 @@ fn test_byte_read_seek_impl(ds: &hdf5::Dataset, arr: &ArrayD<u8>, ndim: usize) -
     reader.seek(std::io::SeekFrom::Start(0)).expect("io::Seek failed");
     let mut pos = 0;
     while pos < arr.len() {
-        let chunk_len: usize = rng.gen_range(1..arr.len() + 1);
+        let chunk_len: usize = rng.random_range(1..arr.len() + 1);
         let mut chunk = vec![0u8; chunk_len];
         let n_read = reader.read(&mut chunk).expect("io::Read failed");
         if pos + chunk_len < arr.len() {
@@ -212,7 +212,7 @@ fn test_byte_read_seek_impl(ds: &hdf5::Dataset, arr: &ArrayD<u8>, ndim: usize) -
     assert_eq!(out_bytes.as_slice(), arr.as_slice().unwrap());
 
     // Seek to a random position from start
-    let pos = rng.gen_range(0..arr.len() + 1) as u64;
+    let pos = rng.random_range(0..arr.len() + 1) as u64;
     let seek_pos = reader.seek(SeekFrom::Start(pos)).expect("io::Seek failed") as usize;
     let mut out_bytes = vec![0u8; arr.len() - seek_pos];
     reader.read(&mut out_bytes.as_mut_slice()).expect("io::Read failed");
@@ -220,7 +220,7 @@ fn test_byte_read_seek_impl(ds: &hdf5::Dataset, arr: &ArrayD<u8>, ndim: usize) -
 
     // Seek from current position
     let orig_pos = reader.seek(SeekFrom::Start(pos)).expect("io::Seek failed") as i64;
-    let rel_pos = rng.gen_range(-(arr.len() as i64)..arr.len() as i64 + 1);
+    let rel_pos = rng.random_range(-(arr.len() as i64)..arr.len() as i64 + 1);
     let pos_res = reader.seek(SeekFrom::Current(rel_pos));
     if (rel_pos + orig_pos) < 0 {
         assert!(pos_res.is_err()) // We cannot seek before start
@@ -233,7 +233,7 @@ fn test_byte_read_seek_impl(ds: &hdf5::Dataset, arr: &ArrayD<u8>, ndim: usize) -
     }
 
     // Seek to a random position from end
-    let pos = -(rng.gen_range(0..arr.len() + 1) as i64);
+    let pos = -(rng.random_range(0..arr.len() + 1) as i64);
     let seek_pos = reader.seek(SeekFrom::End(pos)).expect("io::Seek failed") as usize;
     assert_eq!(pos, seek_pos as i64 - arr.len() as i64);
     let mut out_bytes = vec![0u8; arr.len() - seek_pos];
@@ -285,7 +285,7 @@ where
                     } else if mode == 2 {
                         test_read_slice(&mut rng, &ds, &arr, ndim)?;
                     } else if mode == 3 {
-                        let default_value = T::gen(&mut rng);
+                        let default_value = T::random(&mut rng);
                         test_write_slice(&mut rng, &ds, &arr, &default_value, ndim)?;
                     }
                 }
@@ -306,8 +306,6 @@ fn test_read_write_primitive() -> hdf5::Result<()> {
     test_read_write::<u16>()?;
     test_read_write::<u32>()?;
     test_read_write::<u64>()?;
-    test_read_write::<isize>()?;
-    test_read_write::<usize>()?;
     test_read_write::<bool>()?;
     test_read_write::<f32>()?;
     test_read_write::<f64>()?;
