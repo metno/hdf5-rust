@@ -39,6 +39,7 @@ pub enum ScaleOffset {
 mod blosc_impl {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     #[cfg(feature = "blosc")]
+    #[non_exhaustive]
     pub enum Blosc {
         BloscLZ,
         #[cfg(feature = "blosc-lz4")]
