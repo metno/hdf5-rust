@@ -23,6 +23,16 @@ zlib = ["hdf5-sys/zlib"]
 lzf = ["dep:lzf-sys", "dep:errno"]
 # Enable blosc compression filters.
 blosc = ["dep:blosc-sys"]
+# Enable blosc LZ4 compression filter.
+blosc-lz4 = ["blosc", "blosc-sys/lz4"]
+# Enable blosc zlib compression filter.
+blosc-zlib = ["blosc", "blosc-sys/zlib"]
+# Enable blosc zstd compression filter.
+blosc-zstd = ["blosc", "blosc-sys/zstd"]
+# Enable blosc snappy compression filter.
+blosc-snappy = ["blosc", "blosc-sys/snappy"]
+# Enable all blosc compression filters.
+blosc-all = ["blosc", "blosc-lz4", "blosc-zlib", "blosc-zstd", "blosc-snappy"]
 # Enable MPI support.
 mpio = ["dep:mpi-sys", "hdf5-sys/mpio"]
 # Enable complex number type support.
