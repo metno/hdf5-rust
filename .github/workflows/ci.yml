@@ -59,7 +59,7 @@ jobs:
       - name: Document workspace
         env:
           RUSTDOCFLAGS: "--cfg docsrs"
-        run: cargo doc --features static,zlib,blosc,lzf,f16,complex
+        run: cargo doc --features static,zlib,blosc-all,lzf,f16,complex
 
   brew:
     name: brew
@@ -163,12 +163,12 @@ jobs:
       - name: Build and test all crates
         run: cargo test --workspace -vvv --features hdf5-sys/static,hdf5-sys/zlib --exclude hdf5-metno-derive
       - name: Build and test with filters and other features
-        run: cargo test --workspace -v --features hdf5-sys/static,hdf5-sys/zlib,lzf,blosc,f16,complex --exclude hdf5-metno-derive
+        run: cargo test --workspace -v --features hdf5-sys/static,hdf5-sys/zlib,lzf,blosc-all,f16,complex --exclude hdf5-metno-derive
         if: matrix.rust != 'stable-gnu'
       - name: Run examples
         run: |
-          cargo r --example simple --features hdf5-sys/static,hdf5-sys/zlib,lzf,blosc
-          cargo r --example chunking --features hdf5-sys/static,hdf5-sys/zlib,lzf,blosc
+          cargo r --example simple --features hdf5-sys/static,hdf5-sys/zlib,lzf,blosc-all
+          cargo r --example chunking --features hdf5-sys/static,hdf5-sys/zlib,lzf,blosc-all
         if: matrix.rust != 'stable-gnu'
 
   apt:
