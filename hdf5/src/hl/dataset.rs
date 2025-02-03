@@ -665,31 +665,31 @@ impl DatasetBuilderInner {
         self.with_dcpl(|pl| pl.blosc_blosclz(clevel, shuffle));
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-lz4")]
     pub fn blosc_lz4(&mut self, clevel: u8, shuffle: impl Into<BloscShuffle>) {
         let shuffle = shuffle.into();
         self.with_dcpl(|pl| pl.blosc_lz4(clevel, shuffle));
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-lz4")]
     pub fn blosc_lz4hc(&mut self, clevel: u8, shuffle: impl Into<BloscShuffle>) {
         let shuffle = shuffle.into();
         self.with_dcpl(|pl| pl.blosc_lz4hc(clevel, shuffle));
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-snappy")]
     pub fn blosc_snappy(&mut self, clevel: u8, shuffle: impl Into<BloscShuffle>) {
         let shuffle = shuffle.into();
         self.with_dcpl(|pl| pl.blosc_snappy(clevel, shuffle));
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-zlib")]
     pub fn blosc_zlib(&mut self, clevel: u8, shuffle: impl Into<BloscShuffle>) {
         let shuffle = shuffle.into();
         self.with_dcpl(|pl| pl.blosc_zlib(clevel, shuffle));
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-zstd")]
     pub fn blosc_zstd(&mut self, clevel: u8, shuffle: impl Into<BloscShuffle>) {
         let shuffle = shuffle.into();
         self.with_dcpl(|pl| pl.blosc_zstd(clevel, shuffle));
@@ -935,23 +935,23 @@ macro_rules! impl_builder_methods {
             DatasetCreate: blosc_blosclz(clevel: u8, shuffle: impl Into<BloscShuffle>)
         );
         impl_builder!(
-            #[cfg(feature = "blosc")]
+            #[cfg(feature = "blosc-lz4")]
             DatasetCreate: blosc_lz4(clevel: u8, shuffle: impl Into<BloscShuffle>)
         );
         impl_builder!(
-            #[cfg(feature = "blosc")]
+            #[cfg(feature = "blosc-lz4")]
             DatasetCreate: blosc_lz4hc(clevel: u8, shuffle: impl Into<BloscShuffle>)
         );
         impl_builder!(
-            #[cfg(feature = "blosc")]
+            #[cfg(feature = "blosc-snappy")]
             DatasetCreate: blosc_snappy(clevel: u8, shuffle: impl Into<BloscShuffle>)
         );
         impl_builder!(
-            #[cfg(feature = "blosc")]
+            #[cfg(feature = "blosc-zlib")]
             DatasetCreate: blosc_zlib(clevel: u8, shuffle: impl Into<BloscShuffle>)
         );
         impl_builder!(
-            #[cfg(feature = "blosc")]
+            #[cfg(feature = "blosc-zstd")]
             DatasetCreate: blosc_zstd(clevel: u8, shuffle: impl Into<BloscShuffle>)
         );
         impl_builder!(DatasetCreate: add_filter(id: H5Z_filter_t, cdata: &[c_uint]));
@@ -1034,7 +1034,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-zstd")]
     fn test_blosc() {
         check_filter(|d| d.blosc_zstd(9, true), Filter::Blosc(Blosc::ZStd, 9, BloscShuffle::Byte));
     }

@@ -12,9 +12,20 @@ use crate::globals::{H5E_CALLBACK, H5E_PLIST};
 use crate::internal_prelude::*;
 
 pub use blosc_sys::{
-    BLOSC_BITSHUFFLE, BLOSC_BLOSCLZ, BLOSC_LZ4, BLOSC_LZ4HC, BLOSC_MAX_TYPESIZE, BLOSC_NOSHUFFLE,
-    BLOSC_SHUFFLE, BLOSC_SNAPPY, BLOSC_VERSION_FORMAT, BLOSC_ZLIB, BLOSC_ZSTD,
+    BLOSC_BITSHUFFLE, BLOSC_BLOSCLZ, BLOSC_MAX_TYPESIZE, BLOSC_NOSHUFFLE, BLOSC_SHUFFLE,
+    BLOSC_VERSION_FORMAT,
 };
+
+#[cfg(feature = "blosc-lz4")]
+pub use blosc_sys::BLOSC_LZ4;
+#[cfg(feature = "blosc-lz4")]
+pub use blosc_sys::BLOSC_LZ4HC;
+#[cfg(feature = "blosc-snappy")]
+pub use blosc_sys::BLOSC_SNAPPY;
+#[cfg(feature = "blosc-zlib")]
+pub use blosc_sys::BLOSC_ZLIB;
+#[cfg(feature = "blosc-zstd")]
+pub use blosc_sys::BLOSC_ZSTD;
 
 pub use blosc_sys::{
     blosc_cbuffer_sizes, blosc_compcode_to_compname, blosc_compress, blosc_decompress,
