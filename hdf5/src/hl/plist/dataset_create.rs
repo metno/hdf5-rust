@@ -430,7 +430,7 @@ impl DatasetCreateBuilder {
         self
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-lz4")]
     pub fn blosc_lz4<T>(&mut self, clevel: u8, shuffle: T) -> &mut Self
     where
         T: Into<BloscShuffle>,
@@ -439,7 +439,7 @@ impl DatasetCreateBuilder {
         self
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-lz4")]
     pub fn blosc_lz4hc<T>(&mut self, clevel: u8, shuffle: T) -> &mut Self
     where
         T: Into<BloscShuffle>,
@@ -448,7 +448,7 @@ impl DatasetCreateBuilder {
         self
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-snappy")]
     pub fn blosc_snappy<T>(&mut self, clevel: u8, shuffle: T) -> &mut Self
     where
         T: Into<BloscShuffle>,
@@ -457,7 +457,7 @@ impl DatasetCreateBuilder {
         self
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-zlib")]
     pub fn blosc_zlib<T>(&mut self, clevel: u8, shuffle: T) -> &mut Self
     where
         T: Into<BloscShuffle>,
@@ -466,7 +466,7 @@ impl DatasetCreateBuilder {
         self
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-zstd")]
     pub fn blosc_zstd<T>(&mut self, clevel: u8, shuffle: T) -> &mut Self
     where
         T: Into<BloscShuffle>,

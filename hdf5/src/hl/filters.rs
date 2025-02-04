@@ -39,12 +39,18 @@ pub enum ScaleOffset {
 mod blosc_impl {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     #[cfg(feature = "blosc")]
+    #[non_exhaustive]
     pub enum Blosc {
         BloscLZ,
+        #[cfg(feature = "blosc-lz4")]
         LZ4,
+        #[cfg(feature = "blosc-lz4")]
         LZ4HC,
+        #[cfg(feature = "blosc-snappy")]
         Snappy,
+        #[cfg(feature = "blosc-zlib")]
         ZLib,
+        #[cfg(feature = "blosc-zstd")]
         ZStd,
     }
 
@@ -245,7 +251,7 @@ impl Filter {
         Self::blosc(Blosc::BloscLZ, clevel, shuffle)
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-lz4")]
     pub fn blosc_lz4<T>(clevel: u8, shuffle: T) -> Self
     where
         T: Into<BloscShuffle>,
@@ -253,7 +259,7 @@ impl Filter {
         Self::blosc(Blosc::LZ4, clevel, shuffle)
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-lz4")]
     pub fn blosc_lz4hc<T>(clevel: u8, shuffle: T) -> Self
     where
         T: Into<BloscShuffle>,
@@ -261,7 +267,7 @@ impl Filter {
         Self::blosc(Blosc::LZ4HC, clevel, shuffle)
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-snappy")]
     pub fn blosc_snappy<T>(clevel: u8, shuffle: T) -> Self
     where
         T: Into<BloscShuffle>,
@@ -269,7 +275,7 @@ impl Filter {
         Self::blosc(Blosc::Snappy, clevel, shuffle)
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-zlib")]
     pub fn blosc_zlib<T>(clevel: u8, shuffle: T) -> Self
     where
         T: Into<BloscShuffle>,
@@ -277,7 +283,7 @@ impl Filter {
         Self::blosc(Blosc::ZLib, clevel, shuffle)
     }
 
-    #[cfg(feature = "blosc")]
+    #[cfg(feature = "blosc-zstd")]
     pub fn blosc_zstd<T>(clevel: u8, shuffle: T) -> Self
     where
         T: Into<BloscShuffle>,
@@ -373,10 +379,15 @@ impl Filter {
         let complib = if cdata.len() >= 7 {
             match cdata[6] {
                 blosc::BLOSC_BLOSCLZ => Blosc::BloscLZ,
+                #[cfg(feature = "blosc-lz4")]
                 blosc::BLOSC_LZ4 => Blosc::LZ4,
+                #[cfg(feature = "blosc-lz4")]
                 blosc::BLOSC_LZ4HC => Blosc::LZ4HC,
+                #[cfg(feature = "blosc-snappy")]
                 blosc::BLOSC_SNAPPY => Blosc::Snappy,
+                #[cfg(feature = "blosc-zlib")]
                 blosc::BLOSC_ZLIB => Blosc::ZLib,
+                #[cfg(feature = "blosc-zstd")]
                 blosc::BLOSC_ZSTD => Blosc::ZStd,
                 _ => fail!("invalid blosc complib: {}", cdata[6]),
             }
@@ -453,10 +464,15 @@ impl Filter {
         };
         cdata[6] = match complib {
             Blosc::BloscLZ => blosc::BLOSC_BLOSCLZ,
+            #[cfg(feature = "blosc-lz4")]
             Blosc::LZ4 => blosc::BLOSC_LZ4,
+            #[cfg(feature = "blosc-lz4")]
             Blosc::LZ4HC => blosc::BLOSC_LZ4HC,
+            #[cfg(feature = "blosc-snappy")]
             Blosc::Snappy => blosc::BLOSC_SNAPPY,
+            #[cfg(feature = "blosc-zlib")]
             Blosc::ZLib => blosc::BLOSC_ZLIB,
+            #[cfg(feature = "blosc-zstd")]
             Blosc::ZStd => blosc::BLOSC_ZSTD,
         };
         Self::apply_user(plist_id, blosc::BLOSC_FILTER_ID, &cdata)
@@ -594,8 +610,8 @@ mod tests {
         {
             comp_filters.push(Filter::lzf());
         }
-        assert_eq!(cfg!(feature = "blosc"), blosc_available());
-        #[cfg(feature = "blosc")]
+        assert_eq!(cfg!(feature = "blosc-all"), blosc_available());
+        #[cfg(feature = "blosc-all")]
         {
             use super::BloscShuffle;
             comp_filters.push(Filter::blosc_blosclz(1, false));
