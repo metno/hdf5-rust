@@ -15,13 +15,14 @@ pub enum Color {
 #[derive(H5Type, Clone, PartialEq, Debug)] // register with HDF5
 #[repr(C)]
 pub struct Pixel {
-    xy: (i64, i64),
+    x: i64,
+    y: i64,
     color: Color,
 }
 
 impl Pixel {
     pub fn new(x: i64, y: i64, color: Color) -> Self {
-        Self { xy: (x, y), color }
+        Self { x, y, color }
     }
 }
 

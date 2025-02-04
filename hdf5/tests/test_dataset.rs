@@ -348,14 +348,6 @@ fn test_read_write_varlen_struct() -> hdf5::Result<()> {
 }
 
 #[test]
-fn test_read_write_tuples() -> hdf5::Result<()> {
-    test_read_write::<(u8,)>()?;
-    test_read_write::<(u64, f32)>()?;
-    test_read_write::<(i8, u64, f32)>()?;
-    Ok(())
-}
-
-#[test]
 fn test_create_on_databuilder() {
     let file = new_in_memory_file().unwrap();
 

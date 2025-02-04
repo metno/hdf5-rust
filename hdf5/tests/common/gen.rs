@@ -223,7 +223,6 @@ impl Gen for TupleStruct {
 pub struct FixedStruct {
     fa: FixedAscii<3>,
     fu: FixedUnicode<11>,
-    tuple: (i8, u64, f32),
     array: [TupleStruct; 2],
 }
 
@@ -232,7 +231,6 @@ impl Gen for FixedStruct {
         FixedStruct {
             fa: Gen::random(rng),
             fu: Gen::random(rng),
-            tuple: (Gen::random(rng), Gen::random(rng), Gen::random(rng)),
             array: [Gen::random(rng), Gen::random(rng)],
         }
     }

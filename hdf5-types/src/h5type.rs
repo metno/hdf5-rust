@@ -1,7 +1,6 @@
 use std::fmt::{self, Display};
 use std::mem;
 use std::os::raw::c_void;
-use std::ptr;
 
 use crate::array::VarLenArray;
 use crate::references::Reference;
@@ -288,57 +287,57 @@ unsafe impl H5Type for bool {
     }
 }
 
-macro_rules! impl_tuple {
-    (@second $a:tt $b:tt) => ($b);
+// macro_rules! impl_tuple {
+//     (@second $a:tt $b:tt) => ($b);
 
-    (@parse_fields [$($s:ident)*] $origin:ident $fields:ident | $t:ty $(,$tt:ty)*) => (
-        let &$($s)*(.., ref f, $(impl_tuple!(@second $tt _),)*) = unsafe { &*$origin };
-        let index = $fields.len();
-        $fields.push(CompoundField {
-            name: format!("{}", index),
-            ty: <$t as H5Type>::type_descriptor(),
-            offset: f as *const _ as _,
-            index,
-        });
-        impl_tuple!(@parse_fields [$($s)*] $origin $fields | $($tt),*);
-    );
+//     (@parse_fields [$($s:ident)*] $origin:ident $fields:ident | $t:ty $(,$tt:ty)*) => (
+//         let &$($s)*(.., ref f, $(impl_tuple!(@second $tt _),)*) = unsafe { &*$origin };
+//         let index = $fields.len();
+//         $fields.push(CompoundField {
+//             name: format!("{}", index),
+//             ty: <$t as H5Type>::type_descriptor(),
+//             offset: f as *const _ as _,
+//             index,
+//         });
+//         impl_tuple!(@parse_fields [$($s)*] $origin $fields | $($tt),*);
+//     );
 
-    (@parse_fields [$($s:ident)*] $origin:ident $fields:ident |) => ();
+//     (@parse_fields [$($s:ident)*] $origin:ident $fields:ident |) => ();
 
-    ($t:ident) => (
-        unsafe impl<$t> H5Type for ($t,) where $t: H5Type {
-            #[inline]
-            fn type_descriptor() -> TypeDescriptor {
-                let size = mem::size_of::<($t,)>();
-                assert_eq!(size, mem::size_of::<$t>());
-                TypeDescriptor::Compound(CompoundType {
-                    fields: vec![CompoundField::typed::<$t>("0", 0, 0)],
-                    size,
-                })
-            }
-        }
-    );
+//     ($t:ident) => (
+//         unsafe impl<$t> H5Type for ($t,) where $t: H5Type {
+//             #[inline]
+//             fn type_descriptor() -> TypeDescriptor {
+//                 let size = mem::size_of::<($t,)>();
+//                 assert_eq!(size, mem::size_of::<$t>());
+//                 TypeDescriptor::Compound(CompoundType {
+//                     fields: vec![CompoundField::typed::<$t>("0", 0, 0)],
+//                     size,
+//                 })
+//             }
+//         }
+//     );
 
-    ($t:ident, $($tt:ident),*) => (
-        #[allow(dead_code, unused_variables)]
-        unsafe impl<$t, $($tt),*> H5Type for ($t, $($tt),*)
-            where $t: H5Type, $($tt: H5Type),*
-        {
-            fn type_descriptor() -> TypeDescriptor {
-                let origin: *const Self = ptr::null();
-                let mut fields = Vec::new();
-                impl_tuple!(@parse_fields [] origin fields | $t, $($tt),*);
-                let size = mem::size_of::<Self>();
-                fields.sort_by_key(|f| f.offset);
-                TypeDescriptor::Compound(CompoundType { fields, size })
-            }
-        }
+//     ($t:ident, $($tt:ident),*) => (
+//         #[allow(dead_code, unused_variables)]
+//         unsafe impl<$t, $($tt),*> H5Type for ($t, $($tt),*)
+//             where $t: H5Type, $($tt: H5Type),*
+//         {
+//             fn type_descriptor() -> TypeDescriptor {
+//                 let origin: *const Self = std::ptr::null();
+//                 let mut fields = Vec::new();
+//                 impl_tuple!(@parse_fields [] origin fields | $t, $($tt),*);
+//                 let size = mem::size_of::<Self>();
+//                 fields.sort_by_key(|f| f.offset);
+//                 TypeDescriptor::Compound(CompoundType { fields, size })
+//             }
+//         }
 
-        impl_tuple!($($tt),*);
-    );
-}
+//         impl_tuple!($($tt),*);
+//     );
+// }
 
-impl_tuple! { A, B, C, D, E, F, G, H, I, J, K, L }
+// impl_tuple! { A, B, C, D, E, F, G, H, I, J, K, L }
 
 unsafe impl<T: H5Type, const N: usize> H5Type for [T; N] {
     #[inline]
@@ -385,7 +384,7 @@ unsafe impl H5Type for VarLenUnicode {
 #[cfg(test)]
 pub mod tests {
     use super::TypeDescriptor as TD;
-    use super::{hvl_t, CompoundField, CompoundType, FloatSize, H5Type, IntSize};
+    use super::{hvl_t, FloatSize, H5Type, IntSize};
     use crate::array::VarLenArray;
     use crate::string::{FixedAscii, FixedUnicode, VarLenAscii, VarLenUnicode};
     use std::mem;
@@ -453,93 +452,93 @@ pub mod tests {
         assert_eq!(VarLenUnicode::type_descriptor(), TD::VarLenUnicode);
     }
 
-    #[test]
-    pub fn test_tuples() {
-        type T1 = (u16,);
-        let td = T1::type_descriptor();
-        assert_eq!(
-            td,
-            TD::Compound(CompoundType {
-                fields: vec![CompoundField::typed::<u16>("0", 0, 0),],
-                size: 2,
-            })
-        );
-        assert_eq!(td.size(), 2);
-        assert_eq!(mem::size_of::<T1>(), 2);
+    // #[test]
+    // pub fn test_tuples() {
+    //     type T1 = (u16,);
+    //     let td = T1::type_descriptor();
+    //     assert_eq!(
+    //         td,
+    //         TD::Compound(CompoundType {
+    //             fields: vec![CompoundField::typed::<u16>("0", 0, 0),],
+    //             size: 2,
+    //         })
+    //     );
+    //     assert_eq!(td.size(), 2);
+    //     assert_eq!(mem::size_of::<T1>(), 2);
 
-        type T2 = (i32, f32, (u64,));
-        let td = T2::type_descriptor();
-        assert_eq!(
-            td,
-            TD::Compound(CompoundType {
-                fields: vec![
-                    CompoundField::typed::<i32>("0", 0, 0),
-                    CompoundField::typed::<f32>("1", 4, 1),
-                    CompoundField::new(
-                        "2",
-                        TD::Compound(CompoundType {
-                            fields: vec![CompoundField::typed::<u64>("0", 0, 0),],
-                            size: 8,
-                        }),
-                        8,
-                        2
-                    ),
-                ],
-                size: 16,
-            })
-        );
-        assert_eq!(td.size(), 16);
-        assert_eq!(mem::size_of::<T2>(), 16);
-    }
+    //     type T2 = (i32, f32, (u64,));
+    //     let td = T2::type_descriptor();
+    //     assert_eq!(
+    //         td,
+    //         TD::Compound(CompoundType {
+    //             fields: vec![
+    //                 CompoundField::typed::<i32>("0", 0, 0),
+    //                 CompoundField::typed::<f32>("1", 4, 1),
+    //                 CompoundField::new(
+    //                     "2",
+    //                     TD::Compound(CompoundType {
+    //                         fields: vec![CompoundField::typed::<u64>("0", 0, 0),],
+    //                         size: 8,
+    //                     }),
+    //                     8,
+    //                     2
+    //                 ),
+    //             ],
+    //             size: 16,
+    //         })
+    //     );
+    //     assert_eq!(td.size(), 16);
+    //     assert_eq!(mem::size_of::<T2>(), 16);
+    // }
 
-    #[test]
-    pub fn test_tuple_various_reprs() {
-        type T = (i8, u64, f32, bool);
-        assert_eq!(mem::size_of::<T>(), 16);
+    // #[test]
+    // pub fn test_tuple_various_reprs() {
+    //     type T = (i8, u64, f32, bool);
+    //     assert_eq!(mem::size_of::<T>(), 16);
 
-        let td = T::type_descriptor();
-        assert_eq!(
-            td,
-            TD::Compound(CompoundType {
-                fields: vec![
-                    CompoundField::typed::<u64>("1", 0, 1),
-                    CompoundField::typed::<f32>("2", 8, 2),
-                    CompoundField::typed::<i8>("0", 12, 0),
-                    CompoundField::typed::<bool>("3", 13, 3),
-                ],
-                size: 16,
-            })
-        );
-        assert_eq!(td.size(), 16);
+    //     let td = T::type_descriptor();
+    //     assert_eq!(
+    //         td,
+    //         TD::Compound(CompoundType {
+    //             fields: vec![
+    //                 CompoundField::typed::<u64>("1", 0, 1),
+    //                 CompoundField::typed::<f32>("2", 8, 2),
+    //                 CompoundField::typed::<i8>("0", 12, 0),
+    //                 CompoundField::typed::<bool>("3", 13, 3),
+    //             ],
+    //             size: 16,
+    //         })
+    //     );
+    //     assert_eq!(td.size(), 16);
 
-        let td = T::type_descriptor().to_c_repr();
-        assert_eq!(
-            td,
-            TD::Compound(CompoundType {
-                fields: vec![
-                    CompoundField::typed::<i8>("0", 0, 0),
-                    CompoundField::typed::<u64>("1", 8, 1),
-                    CompoundField::typed::<f32>("2", 16, 2),
-                    CompoundField::typed::<bool>("3", 20, 3),
-                ],
-                size: 24,
-            })
-        );
-        assert_eq!(td.size(), 24);
+    //     let td = T::type_descriptor().to_c_repr();
+    //     assert_eq!(
+    //         td,
+    //         TD::Compound(CompoundType {
+    //             fields: vec![
+    //                 CompoundField::typed::<i8>("0", 0, 0),
+    //                 CompoundField::typed::<u64>("1", 8, 1),
+    //                 CompoundField::typed::<f32>("2", 16, 2),
+    //                 CompoundField::typed::<bool>("3", 20, 3),
+    //             ],
+    //             size: 24,
+    //         })
+    //     );
+    //     assert_eq!(td.size(), 24);
 
-        let td = T::type_descriptor().to_packed_repr();
-        assert_eq!(
-            td,
-            TD::Compound(CompoundType {
-                fields: vec![
-                    CompoundField::typed::<i8>("0", 0, 0),
-                    CompoundField::typed::<u64>("1", 1, 1),
-                    CompoundField::typed::<f32>("2", 9, 2),
-                    CompoundField::typed::<bool>("3", 13, 3),
-                ],
-                size: 14,
-            })
-        );
-        assert_eq!(td.size(), 14);
-    }
+    //     let td = T::type_descriptor().to_packed_repr();
+    //     assert_eq!(
+    //         td,
+    //         TD::Compound(CompoundType {
+    //             fields: vec![
+    //                 CompoundField::typed::<i8>("0", 0, 0),
+    //                 CompoundField::typed::<u64>("1", 1, 1),
+    //                 CompoundField::typed::<f32>("2", 9, 2),
+    //                 CompoundField::typed::<bool>("3", 13, 3),
+    //             ],
+    //             size: 14,
+    //         })
+    //     );
+    //     assert_eq!(td.size(), 14);
+    // }
 }
