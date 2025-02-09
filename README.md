@@ -5,7 +5,7 @@ HDF5 for Rust.
 [![Build](https://github.com/metno/hdf5-rust/workflows/CI/badge.svg)](https://github.com/metno/hdf5-rust/actions?query=branch%3Amain)
 [![Latest Version](https://img.shields.io/crates/v/hdf5-metno.svg)](https://crates.io/crates/hdf5-metno)
 [![Documentation](https://docs.rs/hdf5-metno/badge.svg)](https://docs.rs/hdf5-metno)
-[![Changelog](https://img.shields.io/github/v/release/metno/hdf5-rust)](https://github.com/metno/hdf5-rust/blob/master/CHANGELOG.md)
+[![Changelog](https://img.shields.io/github/v/release/metno/hdf5-rust)](https://github.com/metno/hdf5-rust/blob/main/CHANGELOG.md)
 ![hdf5: rustc 1.77+](https://img.shields.io/badge/hdf5-rustc_1.77+-lightblue.svg)
 [![Total Lines](https://tokei.rs/b1/github/metno/hdf5-rust)](https://github.com/metno/hdf5-rust)
 [![Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -26,7 +26,7 @@ Requires HDF5 library of version 1.8.4 or later.
 ## Fork
 This is a fork of https://github.com/aldanor/hdf5-rust used for publishing newer versions of the crate. This includes a change in the crate name to allow publishing on crates.io. For backwards compatibility consider using the following in your `Cargo.toml`:
 ```yaml
-hdf5 = { package = "hdf5-metno", version = "0.9.0" }
+hdf5 = { package = "hdf5-metno", version = "0.10.0" }
 ```
 
 ## Example

@@ -6,7 +6,8 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-## hdf5 unreleased
+## hdf5 v0.10.0
+Release date: Feb 09, 2025.
 - Removed H5Type impl for tuples. It is recommended instead to use a struct and `derive` `H5Type` on this. See [`#54`](https://github.com/metno/hdf5-rust/issues/54) for an explanation of the issue with the old implementation (breaking change)
 - Added features for each blosc filter type. Without enabling the blosc filter one can not set the corresponding filter flag (breaking change)
 
