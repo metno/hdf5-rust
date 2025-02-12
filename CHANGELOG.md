@@ -7,7 +7,8 @@
 ## hdf5-src unreleased
 
 
-## hdf5 unreleased
+## hdf5 v0.10.1
+Release date: Feb 12, 2025
 - Added `delete_attr` to allow for deletion of attributes
 
 ## hdf5 v0.10.0
