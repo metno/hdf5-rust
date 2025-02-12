@@ -6,6 +6,10 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+
+## hdf5 unreleased
+- Added `delete_attr` to allow for deletion of attributes
+
 ## hdf5 v0.10.0
 Release date: Feb 09, 2025.
 - Removed H5Type impl for tuples. It is recommended instead to use a struct and `derive` `H5Type` on this. See [`#54`](https://github.com/metno/hdf5-rust/issues/54) for an explanation of the issue with the old implementation (breaking change)
