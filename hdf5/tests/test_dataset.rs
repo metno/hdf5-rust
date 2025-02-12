@@ -464,3 +464,19 @@ fn test_blosc_filters_write_compressed() {
         assert_eq!(_ds.filters(), vec![hdf5::filters::Filter::blosc_snappy(9, true)]);
     }
 }
+
+#[test]
+fn remove_attr() {
+    let file = new_in_memory_file().unwrap();
+
+    file.new_attr::<i32>().create("foo").unwrap();
+    assert!(file.attr("foo").is_ok());
+    file.delete_attr("foo").unwrap();
+    assert!(file.attr("foo").is_err());
+
+    let ds = file.new_dataset::<u8>().create("ds").unwrap();
+    ds.new_attr::<i8>().create("bar").unwrap();
+    assert!(ds.attr("bar").is_ok());
+    ds.delete_attr("bar").unwrap();
+    assert!(ds.attr("bar").is_err());
+}

@@ -18,7 +18,7 @@ use hdf5_sys::h5o::{H5O_INFO_BASIC, H5O_INFO_NUM_ATTRS, H5O_INFO_TIME};
 #[cfg(not(feature = "1.12.0"))]
 use hdf5_sys::{h5::haddr_t, h5o::H5O_info1_t, h5o::H5Oopen_by_addr};
 use hdf5_sys::{
-    h5a::H5Aopen,
+    h5a::{H5Adelete, H5Aopen},
     h5f::H5Fget_name,
     h5i::{H5Iget_file_id, H5Iget_name},
     h5o::{H5O_type_t, H5Oget_comment},
@@ -123,6 +123,12 @@ impl Location {
 
     pub fn attr_names(&self) -> Result<Vec<String>> {
         Attribute::attr_names(self)
+    }
+
+    pub fn delete_attr(&self, name: &str) -> Result<()> {
+        let name = to_cstring(name)?;
+        h5call!(H5Adelete(self.id(), name.as_ptr()))?;
+        Ok(())
     }
 
     pub fn loc_info(&self) -> Result<LocationInfo> {
