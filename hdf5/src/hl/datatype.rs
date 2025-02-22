@@ -174,6 +174,7 @@ impl Datatype {
         let mut cdata = H5T_cdata_t::default();
         h5lock!({
             let noop = H5Tfind(*H5T_NATIVE_INT, *H5T_NATIVE_INT, &mut addr_of_mut!(cdata));
+            #[allow(unpredictable_function_pointer_comparisons)]
             if H5Tfind(self.id(), dst.id(), &mut addr_of_mut!(cdata)) == noop {
                 Some(Conversion::NoOp)
             } else {
