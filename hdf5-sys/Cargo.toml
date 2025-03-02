@@ -5,7 +5,7 @@ description = "Native bindings to the HDF5 library."
 links = "hdf5"
 readme = "README.md"
 categories = ["development-tools::ffi", "filesystem", "science"]
-version = "0.10.1"  # !V
+version = "0.10.1"                                               # !V
 rust-version.workspace = true
 authors.workspace = true
 keywords.workspace = true
@@ -28,7 +28,7 @@ mpio = ["dep:mpi-sys"]
 hl = ["hdf5-src?/hl"]
 threadsafe = ["hdf5-src?/threadsafe"]
 zlib = ["dep:libz-sys", "hdf5-src?/zlib"]
-static = ["dep:hdf5-src"]
+static = ["hdf5-src/threadsafe"]
 deprecated = ["hdf5-src?/deprecated"]
 
 [build-dependencies]
