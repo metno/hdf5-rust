@@ -48,7 +48,7 @@ pub enum Color {
 #[derive(H5Type, Clone, PartialEq, Debug)] // register with HDF5
 #[repr(C)]
 pub struct Pixel {
-    x,: i64,
+    x: i64,
     y: i64,
     color: Color,
 }
