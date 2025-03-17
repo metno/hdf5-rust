@@ -289,9 +289,15 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with: {toolchain: "1.80"}
+      - name: Create lock-file
+        run:
+          cargo update
+      - name: Override deps
+        run:
+          cargo update half@2.5.0 --precise 2.4.1
       - name: Build and test all crates
         run:
-          cargo test --workspace -vv --features=hdf5-sys/static,hdf5-sys/zlib --exclude=hdf5-metno-derive
+          cargo test --locked --workspace -vv --features=hdf5-sys/static,hdf5-sys/zlib --exclude=hdf5-metno-derive
 
   # wine:
   #   name: wine
