@@ -222,6 +222,11 @@ impl VarLenAscii {
 
     #[inline]
     pub fn len(&self) -> usize {
+        if self.ptr.is_null() {
+            return 0;
+        }
+        // Safety: Pointer null is checked above.
+        // Could still have issues if string is missing null termination.
         unsafe { libc::strlen(self.ptr as *const _) }
     }
 
@@ -237,6 +242,11 @@ impl VarLenAscii {
 
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
+        // Treat null as empty. This could be changed to option
+        // in the future but would be a breaking change.
+        if self.ptr.is_null() {
+            return &[];
+        }
         unsafe { slice::from_raw_parts(self.ptr as *const _, self.len()) }
     }
 
@@ -330,6 +340,11 @@ impl VarLenUnicode {
 
     #[inline]
     unsafe fn raw_len(&self) -> usize {
+        if self.ptr.is_null() {
+            return 0;
+        }
+        // Safety: Pointer null is checked above.
+        // Could still have issues if string is missing null termination.
         libc::strlen(self.ptr as *const _)
     }
 
@@ -350,6 +365,11 @@ impl VarLenUnicode {
 
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
+        // Treat null as empty. This could be changed to option
+        // in the future but would be a breaking change.
+        if self.ptr.is_null() {
+            return &[];
+        }
         unsafe { slice::from_raw_parts(self.ptr as *const _, self.raw_len()) }
     }
 
@@ -761,4 +781,26 @@ pub mod tests {
 
     test_quickcheck_unicode!(test_quickcheck_vu, VU);
     test_quickcheck_unicode!(test_quickcheck_fu, FU);
+
+    #[test]
+    fn test_null_pointer_var_len_ascii() {
+        let ascii = VarLenAscii {
+            ptr: ptr::null_mut()
+        };
+
+        assert_eq!(ascii.len(), 0);
+        let string = ascii.as_str();
+        assert_eq!(string, "");
+
+    }
+
+    #[test]
+    fn test_null_pointer_var_len_unicode() {
+        let unicode = VarLenUnicode {
+            ptr: ptr::null_mut()
+        };
+        assert_eq!(unicode.len(), 0);
+        let string = unicode.as_str();
+        assert_eq!(string, "");
+    }
 }
