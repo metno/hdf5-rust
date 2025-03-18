@@ -784,9 +784,7 @@ pub mod tests {
 
     #[test]
     fn test_null_pointer_var_len_ascii() {
-        let ascii = VarLenAscii {
-            ptr: ptr::null_mut()
-        };
+        let ascii = VarLenAscii { ptr: ptr::null_mut() };
 
         assert_eq!(ascii.len(), 0);
         let string = ascii.as_str();
@@ -796,9 +794,7 @@ pub mod tests {
 
     #[test]
     fn test_null_pointer_var_len_unicode() {
-        let unicode = VarLenUnicode {
-            ptr: ptr::null_mut()
-        };
+        let unicode = VarLenUnicode { ptr: ptr::null_mut() };
         assert_eq!(unicode.len(), 0);
         let string = unicode.as_str();
         assert_eq!(string, "");
