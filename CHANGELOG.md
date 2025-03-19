@@ -6,6 +6,9 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+## hdf5-types v0.10.1
+Release date: Mar 19, 2025
+- Fixed deref of null ptr in `VarLenAscii`/`VarLenUnicode`
 
 ## hdf5 v0.10.1
 Release date: Feb 12, 2025
