@@ -789,7 +789,6 @@ pub mod tests {
         assert_eq!(ascii.len(), 0);
         let string = ascii.as_str();
         assert_eq!(string, "");
-
     }
 
     #[test]
