@@ -8,10 +8,10 @@
 //!
 //! Crate features:
 //! * `h5-alloc`: Use the `hdf5` allocator for varlen types and dynamic values.
-//!                     This is necessary on platforms which uses different allocators
-//!                     in different libraries (e.g. dynamic libraries on windows),
-//!                     or if `hdf5-c` is compiled with the MEMCHECKER option.
-//!                     This option is forced on in the case of using a `windows` DLL.
+//!   This is necessary on platforms which uses different allocators
+//!   in different libraries (e.g. dynamic libraries on windows),
+//!   or if `hdf5-c` is compiled with the MEMCHECKER option.
+//!   This option is forced on in the case of using a `windows` DLL.
 
 #[cfg(test)]
 #[macro_use]
