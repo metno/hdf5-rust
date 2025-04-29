@@ -5,8 +5,8 @@ use ndarray::{self, ArrayView};
 
 use hdf5_sys::h5::HADDR_UNDEF;
 use hdf5_sys::h5d::{
-    H5Dcreate2, H5Dcreate_anon, H5Dget_access_plist, H5Dget_create_plist, H5Dget_offset,
-    H5Dset_extent,
+    H5Dcreate2, H5Dcreate_anon, H5Dflush, H5Dget_access_plist, H5Dget_create_plist, H5Dget_offset,
+    H5Drefresh, H5Dset_extent,
 };
 use hdf5_sys::h5l::H5Ldelete;
 use hdf5_sys::h5p::H5P_DEFAULT;
@@ -153,6 +153,20 @@ impl Dataset {
     /// Returns the pipeline of filters used in this dataset.
     pub fn filters(&self) -> Vec<Filter> {
         self.dcpl().map_or(Vec::default(), |pl| pl.filters())
+    }
+
+    /// Flush the dataset metadata from the metadata cache to the file
+    pub fn flush(&self) -> Result<()> {
+        let id = self.id();
+        h5call!(H5Dflush(id))?;
+        Ok(())
+    }
+
+    /// Refresh metadata items assosicated with the dataset
+    pub fn refresh(&self) -> Result<()> {
+        let id = self.id();
+        h5call!(H5Drefresh(id))?;
+        Ok(())
     }
 }
 

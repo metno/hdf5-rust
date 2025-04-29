@@ -5,8 +5,9 @@ use std::path::Path;
 
 use hdf5_sys::h5f::{
     H5Fclose, H5Fcreate, H5Fflush, H5Fget_access_plist, H5Fget_create_plist, H5Fget_filesize,
-    H5Fget_freespace, H5Fget_intent, H5Fget_obj_count, H5Fget_obj_ids, H5Fopen, H5F_ACC_DEFAULT,
-    H5F_ACC_EXCL, H5F_ACC_RDONLY, H5F_ACC_RDWR, H5F_ACC_TRUNC, H5F_SCOPE_LOCAL,
+    H5Fget_freespace, H5Fget_intent, H5Fget_obj_count, H5Fget_obj_ids, H5Fopen,
+    H5Fstart_swmr_write, H5F_ACC_DEFAULT, H5F_ACC_EXCL, H5F_ACC_RDONLY, H5F_ACC_RDWR,
+    H5F_ACC_SWMR_READ, H5F_ACC_TRUNC, H5F_SCOPE_LOCAL,
 };
 
 use crate::hl::plist::{
@@ -20,6 +21,8 @@ use crate::internal_prelude::*;
 pub enum OpenMode {
     /// Open a file as read-only, file must exist.
     Read,
+    /// Open a file as read-only in SWMR mode, file must exist.
+    ReadSWMR,
     /// Open a file as read/write, file must exist.
     ReadWrite,
     /// Create a file, truncate if exists.
@@ -178,6 +181,12 @@ impl File {
     pub fn fcpl(&self) -> Result<FileCreate> {
         self.create_plist()
     }
+
+    pub fn start_swmr(&self) -> Result<()> {
+        let id = self.id();
+        h5call!(H5Fstart_swmr_write(id))?;
+        Ok(())
+    }
 }
 
 /// File builder allowing to customize file access/creation property lists.
@@ -231,6 +240,7 @@ impl FileBuilder {
         )?;
         let flags = match mode {
             OpenMode::Read => H5F_ACC_RDONLY,
+            OpenMode::ReadSWMR => H5F_ACC_RDONLY | H5F_ACC_SWMR_READ,
             OpenMode::ReadWrite => H5F_ACC_RDWR,
             OpenMode::Create => H5F_ACC_TRUNC,
             OpenMode::CreateExcl | OpenMode::Append => H5F_ACC_EXCL,
@@ -239,7 +249,7 @@ impl FileBuilder {
         h5lock!({
             let fapl = self.fapl.finish()?;
             match mode {
-                OpenMode::Read | OpenMode::ReadWrite => {
+                OpenMode::Read | OpenMode::ReadWrite | OpenMode::ReadSWMR => {
                     File::from_id(h5try!(H5Fopen(fname_ptr, flags, fapl.id())))
                 }
                 _ => {
