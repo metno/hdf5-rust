@@ -5,9 +5,11 @@ use ndarray::{self, ArrayView};
 
 use hdf5_sys::h5::HADDR_UNDEF;
 use hdf5_sys::h5d::{
-    H5Dcreate2, H5Dcreate_anon, H5Dflush, H5Dget_access_plist, H5Dget_create_plist, H5Dget_offset,
-    H5Drefresh, H5Dset_extent,
+    H5Dcreate2, H5Dcreate_anon, H5Dget_access_plist, H5Dget_create_plist, H5Dget_offset,
+    H5Dset_extent,
 };
+#[cfg(feature = "1.10.0")]
+use hdf5_sys::h5d::{H5Dflush, H5Drefresh};
 use hdf5_sys::h5l::H5Ldelete;
 use hdf5_sys::h5p::H5P_DEFAULT;
 use hdf5_sys::h5z::H5Z_filter_t;
@@ -156,6 +158,7 @@ impl Dataset {
     }
 
     /// Flush the dataset metadata from the metadata cache to the file
+    #[cfg(feature = "1.10.0")]
     pub fn flush(&self) -> Result<()> {
         let id = self.id();
         h5call!(H5Dflush(id))?;
@@ -163,6 +166,7 @@ impl Dataset {
     }
 
     /// Refresh metadata items assosicated with the dataset
+    #[cfg(feature = "1.10.0")]
     pub fn refresh(&self) -> Result<()> {
         let id = self.id();
         h5call!(H5Drefresh(id))?;
