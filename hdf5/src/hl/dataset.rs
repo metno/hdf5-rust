@@ -825,7 +825,7 @@ impl DatasetBuilderInner {
 
 macro_rules! impl_builder {
     ($plist:ident: $name:ident/$short:ident) => {
-        paste::paste! {
+        paste2::paste! {
             #[inline] #[must_use]
             pub fn [<set_ $name _plist>](mut self, $short: &$plist) -> Self {
                 self.builder.[<set_ $name _plist>]($short); self
@@ -873,7 +873,7 @@ macro_rules! impl_builder {
         $(#[$meta:meta])*
         $plist:ident: $name:ident($($var:ident: $ty:ty),*)
     ) => {
-        paste::paste! {
+        paste2::paste! {
             $(#[$meta])*
             #[inline] #[must_use] #[doc =
                 "\u{21b3} [`" $plist "Builder::" $name "`]"
@@ -888,7 +888,7 @@ macro_rules! impl_builder {
         $(#[$meta:meta])*
         $plist:ident: $name:ident<$($gid:ident: $gty:path),+>($($var:ident: $ty:ty),*)
     ) => {
-        paste::paste! {
+        paste2::paste! {
             $(#[$meta])*
             #[inline] #[must_use] #[doc =
                 "\u{21b3} [`" $plist "Builder::" $name "`]"

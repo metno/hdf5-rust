@@ -16,7 +16,7 @@ macro_rules! test_pl {
         b.$field($($arg,)+);
         let fapl = b.finish()?;
         $(assert_eq!(fapl.$field().$name, $value);)+
-        paste::paste! { $(assert_eq!(fapl.[<get_ $field>]()?.$name, $value);)+ }
+        paste2::paste! { $(assert_eq!(fapl.[<get_ $field>]()?.$name, $value);)+ }
     });
 
     ($ty:ident, $field:ident: $($name:ident=$value:expr),+) => (
@@ -32,7 +32,7 @@ macro_rules! test_pl {
         b.$field($arg);
         let fapl = b.finish()?;
         assert_eq!(fapl.$field(), $value);
-        paste::paste! { assert_eq!(fapl.[<get_ $field>]()?, $value); }
+        paste2::paste! { assert_eq!(fapl.[<get_ $field>]()?, $value); }
     });
 
     ($ty:ident, $field:ident: $value:expr) => ({
