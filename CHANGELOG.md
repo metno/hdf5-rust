@@ -1,10 +1,12 @@
 # Changelog
 
-## hdf5 unreleased
 ## hdf5-types unreleased
 ## hdf5-derive unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
+
+## hdf5 unreleased
+- Added support for Single Writer Multiple Readers (SWMR) (breaking change, OpenMode has extra variant)
 
 ## hdf5-types v0.10.1
 Release date: Mar 19, 2025
