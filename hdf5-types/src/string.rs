@@ -36,7 +36,7 @@ impl fmt::Display for StringError {
             StringError::InsufficientCapacity => {
                 write!(f, "string error: insufficient capacity for fixed sized string")
             }
-            StringError::AsciiError(err) => write!(f, "string error: {}", err),
+            StringError::AsciiError(err) => write!(f, "string error: {err}"),
         }
     }
 }

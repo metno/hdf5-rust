@@ -35,8 +35,8 @@ fn main() {
     }
     println!("cargo::rustc-check-cfg=cfg(msvc_dll_indirection)");
 
-    let print_feature = |key: &str| println!("cargo::rustc-cfg=feature=\"{}\"", key);
-    let print_cfg = |key: &str| println!("cargo::rustc-cfg={}", key);
+    let print_feature = |key: &str| println!("cargo::rustc-cfg=feature=\"{key}\"");
+    let print_cfg = |key: &str| println!("cargo::rustc-cfg={key}");
     for (key, _) in env::vars() {
         match key.as_str() {
             // public features
