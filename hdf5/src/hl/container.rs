@@ -479,13 +479,13 @@ impl Container {
 
     /// Creates a reader wrapper for this dataset/attribute, allowing to
     /// set custom type conversion options when reading.
-    pub fn as_reader(&self) -> Reader {
+    pub fn as_reader(&self) -> Reader<'_> {
         Reader::new(self)
     }
 
     /// Creates a writer wrapper for this dataset/attribute, allowing to
     /// set custom type conversion options when writing.
-    pub fn as_writer(&self) -> Writer {
+    pub fn as_writer(&self) -> Writer<'_> {
         Writer::new(self)
     }
 
