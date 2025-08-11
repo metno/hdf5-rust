@@ -279,7 +279,7 @@ impl<'a> DynCompound<'a> {
         Self { tp, buf }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&str, DynValue)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&str, DynValue<'a>)> {
         self.tp.fields.iter().map(move |field| {
             (
                 field.name.as_ref(),
@@ -379,7 +379,7 @@ impl<'a> DynArray<'a> {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = DynValue> {
+    pub fn iter(&self) -> impl Iterator<Item = DynValue<'_>> {
         let ptr = self.get_ptr();
         let len = self.get_len();
         let size = self.tp.size();
@@ -763,7 +763,7 @@ impl OwnedDynValue {
         Self { tp: T::type_descriptor(), buf: buf.to_owned().into_boxed_slice() }
     }
 
-    pub fn get(&self) -> DynValue {
+    pub fn get(&self) -> DynValue<'_> {
         DynValue::new(&self.tp, &self.buf)
     }
 
