@@ -1,7 +1,6 @@
 use std::ptr::{self, addr_of_mut};
 use std::slice;
-
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
 use hdf5_sys::h5p::{H5Pget_chunk, H5Pget_filter_by_id2, H5Pmodify_filter};
 use hdf5_sys::h5t::{H5Tclose, H5Tget_class, H5Tget_size, H5Tget_super, H5T_ARRAY};
@@ -48,18 +47,16 @@ const BLOSC_FILTER_INFO: &H5Z_class2_t = &H5Z_class2_t {
     filter: Some(filter_blosc),
 };
 
-lazy_static! {
-    static ref BLOSC_INIT: Result<(), &'static str> = {
-        unsafe {
-            blosc_init();
-        }
-        let ret = unsafe { H5Zregister((BLOSC_FILTER_INFO as *const H5Z_class2_t).cast()) };
-        if H5ErrorCode::is_err_code(ret) {
-            return Err("Can't register Blosc filter");
-        }
-        Ok(())
-    };
-}
+static BLOSC_INIT: LazyLock<Result<(), &'static str>> = LazyLock::new(|| {
+    unsafe {
+        blosc_init();
+    }
+    let ret = unsafe { H5Zregister((BLOSC_FILTER_INFO as *const H5Z_class2_t).cast()) };
+    if H5ErrorCode::is_err_code(ret) {
+        return Err("Can't register Blosc filter");
+    }
+    Ok(())
+});
 
 pub fn register_blosc() -> Result<(), &'static str> {
     *BLOSC_INIT

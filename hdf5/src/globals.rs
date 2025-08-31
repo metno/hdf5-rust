@@ -3,8 +3,6 @@
 use std::mem;
 use std::sync::LazyLock;
 
-use lazy_static::lazy_static;
-
 #[cfg(feature = "have-direct")]
 use hdf5_sys::h5fd::H5FD_direct_init;
 #[cfg(feature = "have-parallel")]
@@ -325,45 +323,32 @@ link_hid!(H5E_CANTCONVERT, h5e::H5E_CANTCONVERT);
 link_hid!(H5E_BADSIZE, h5e::H5E_BADSIZE);
 
 // H5R constants
-lazy_static! {
-    pub static ref H5R_OBJ_REF_BUF_SIZE: usize = mem::size_of::<haddr_t>();
-    pub static ref H5R_DSET_REG_REF_BUF_SIZE: usize = mem::size_of::<haddr_t>() + 4;
-}
+pub static H5R_OBJ_REF_BUF_SIZE: LazyLock<usize> = LazyLock::new(|| mem::size_of::<haddr_t>());
+pub static H5R_DSET_REG_REF_BUF_SIZE: LazyLock<usize> =
+    LazyLock::new(|| mem::size_of::<haddr_t>() + 4);
 
 // File drivers
-lazy_static! {
-    pub static ref H5FD_CORE: hid_t = h5lock!(H5FD_core_init());
-    pub static ref H5FD_SEC2: hid_t = h5lock!(H5FD_sec2_init());
-    pub static ref H5FD_STDIO: hid_t = h5lock!(H5FD_stdio_init());
-    pub static ref H5FD_FAMILY: hid_t = h5lock!(H5FD_family_init());
-    pub static ref H5FD_LOG: hid_t = h5lock!(H5FD_log_init());
-    pub static ref H5FD_MULTI: hid_t = h5lock!(H5FD_multi_init());
-}
+pub static H5FD_CORE: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_core_init()));
+pub static H5FD_SEC2: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_sec2_init()));
+pub static H5FD_STDIO: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_stdio_init()));
+pub static H5FD_FAMILY: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_family_init()));
+pub static H5FD_LOG: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_log_init()));
+pub static H5FD_MULTI: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_multi_init()));
 
 // MPI-IO file driver
 #[cfg(feature = "have-parallel")]
-lazy_static! {
-    pub static ref H5FD_MPIO: hid_t = h5lock!(H5FD_mpio_init());
-}
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_mpio_init()));
 #[cfg(not(feature = "have-parallel"))]
-lazy_static! {
-    pub static ref H5FD_MPIO: hid_t = H5I_INVALID_HID;
-}
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
 
 // Direct VFD
 #[cfg(feature = "have-direct")]
-lazy_static! {
-    pub static ref H5FD_DIRECT: hid_t = h5lock!(H5FD_direct_init());
-}
+pub static H5FD_DIRECT: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_direct_init()));
 #[cfg(not(feature = "have-direct"))]
-lazy_static! {
-    pub static ref H5FD_DIRECT: hid_t = H5I_INVALID_HID;
-}
+pub static H5FD_DIRECT: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
 
 #[cfg(target_os = "windows")]
-lazy_static! {
-    pub static ref H5FD_WINDOWS: hid_t = *H5FD_SEC2;
-}
+pub static H5FD_WINDOWS: LazyLock<hid_t> = *LazyLock::new(|| H5FD_SEC2);
 
 #[cfg(test)]
 mod tests {
