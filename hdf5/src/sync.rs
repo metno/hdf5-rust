@@ -43,14 +43,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use lazy_static::lazy_static;
     use parking_lot::ReentrantMutex;
+    use std::sync::LazyLock;
 
     #[test]
     pub fn test_reentrant_mutex() {
-        lazy_static! {
-            static ref LOCK: ReentrantMutex<()> = ReentrantMutex::new(());
-        }
+        static LOCK: LazyLock<ReentrantMutex<()>> = LazyLock::new(|| ReentrantMutex::new(()));
         let g1 = LOCK.try_lock();
         assert!(g1.is_some());
         let g2 = LOCK.lock();
