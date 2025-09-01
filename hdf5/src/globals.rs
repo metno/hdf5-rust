@@ -348,7 +348,7 @@ pub static H5FD_DIRECT: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_direct_i
 pub static H5FD_DIRECT: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
 
 #[cfg(target_os = "windows")]
-pub static H5FD_WINDOWS: LazyLock<hid_t> = LazyLock::new(|| H5FD_SEC2);
+pub static H5FD_WINDOWS: LazyLock<hid_t> = LazyLock::new(|| *H5FD_SEC2);
 
 #[cfg(test)]
 mod tests {
