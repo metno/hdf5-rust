@@ -53,9 +53,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with: {submodules: true}
-      - name: Install Rust (${{matrix.rust}})
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with: {toolchain: nightly}
+        with: {toolchain: "nightly-2025-09-01"}
       - name: Document workspace
         env:
           RUSTDOCFLAGS: "--cfg docsrs"
