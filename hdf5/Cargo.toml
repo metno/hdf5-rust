@@ -74,4 +74,3 @@ tempfile = "3.9"
 
 [package.metadata.docs.rs]
 features = ["static", "zlib", "blosc", "lzf", "f16", "complex"]
-rustdoc-args = ["--cfg", "docsrs"]
