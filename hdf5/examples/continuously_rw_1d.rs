@@ -27,7 +27,7 @@ fn write_hdf5() -> Result<()> {
     // Simulate continuously accumulating data in a buffer
     // and writing it to the dataset anytime there's enough to fill a chunk
     let mut buf = Vec::with_capacity(CHUNK_SIZE);
-    for i in 0..NUM_CHUNKS * 5 {
+    for i in 0..NUM_CHUNKS * CHUNK_SIZE {
         buf.push(i);
         if buf.len() == CHUNK_SIZE {
             let current_size = ds.size();
@@ -65,7 +65,7 @@ fn read_hdf5() -> Result<()> {
         let chunk_start = chunk_idx * chunk_size;
         let arr: Array1<usize> = ds.read_slice(chunk_start..chunk_start + chunk_size)?;
         println!("Dataset Chunk #{chunk_idx}: {arr:?}");
-        assert_eq!(arr, Array1::from_iter(chunk_idx * 5..chunk_idx * 5 + 5));
+        assert_eq!(arr, Array1::from_iter(chunk_start..chunk_start + chunk_size));
     }
 
     // Read the full dataset in one go
