@@ -108,6 +108,9 @@ fn main() -> Result<()> {
 }
 ```
 
+You can find this [example][readme-example] as well as other example projects in
+the [example directory][examples].
+
 ## Compatibility
 
 ### Platforms
@@ -206,3 +209,7 @@ Few things to note when building on Windows:
 `hdf5` crate is primarily distributed under the terms of both the MIT license and the
 Apache License (Version 2.0). See [LICENSE-APACHE](LICENSE-APACHE) and
 [LICENSE-MIT](LICENSE-MIT) for details.
+
+
+[readme-example]: https://github.com/metno/hdf5-rust/blob/main/hdf5/examples/simple.rs
+[examples]: https://github.com/metno/hdf5-rust/tree/main/hdf5/examples
