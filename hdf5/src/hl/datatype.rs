@@ -62,12 +62,39 @@ impl ObjectClass for Datatype {
         &self.0
     }
 
-    // TODO: short_repr()
+    fn short_repr(&self) -> Option<String> {
+        let repr = match self.to_descriptor() {
+            Ok(s) => s.to_string(),
+            Err(e) => {
+                // Fallback: show basic HDF5 info if descriptor conversion fails
+                h5lock!({
+                    let class = H5Tget_class(self.id());
+                    let size = H5Tget_size(self.id());
+                    format!("Invalid datatype: {e} <HDF5 id: {class:?} size: {size}>)")
+                })
+            }
+        };
+        Some(repr)
+    }
+}
+
+impl Display for Datatype {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.short_repr().expect("short_repr is always implemented"))
+    }
 }
 
 impl Debug for Datatype {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.debug_fmt(f)
+        if f.alternate() {
+            write!(
+                f,
+                "<HDF5 Datatype {}>",
+                self.short_repr().expect("short_repr is always implemented")
+            )
+        } else {
+            write!(f, "{self}")
+        }
     }
 }
 
@@ -203,9 +230,7 @@ impl Datatype {
         // TODO: more detailed error messages after Debug/Display are implemented for Datatype
         if let Some(conv) = self.conv_path(dst) {
             ensure!(
-                conv <= required,
-                "{required} conversion path required; available: {conv} conversion",
-            );
+                conv <= required,"Cannot convert from {self} to {dst}, required conversion {required}; available: {conv}");
             Ok(())
         } else {
             fail!("no conversion paths found")
