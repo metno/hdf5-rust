@@ -204,9 +204,7 @@ impl Datatype {
         if let Some(conv) = self.conv_path(dst) {
             ensure!(
                 conv <= required,
-                "{} conversion path required; available: {} conversion",
-                required,
-                conv
+                "{required} conversion path required; available: {conv} conversion",
             );
             Ok(())
         } else {

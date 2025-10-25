@@ -196,6 +196,7 @@ impl Display for TypeDescriptor {
 }
 
 impl TypeDescriptor {
+    /// Returns the size of the [`TypeDescriptor`] variant in bytes
     pub fn size(&self) -> usize {
         match *self {
             Self::Integer(size) | Self::Unsigned(size) => size as _,
