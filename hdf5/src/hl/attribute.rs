@@ -3,6 +3,7 @@ use std::ops::Deref;
 use std::ptr::addr_of_mut;
 
 use hdf5_sys::h5a::H5Aget_name;
+use hdf5_sys::h5p::H5Pcreate;
 use hdf5_sys::{
     h5::{H5_index_t, H5_iter_order_t},
     h5a::{H5A_info_t, H5A_operator2_t, H5Acreate2, H5Adelete, H5Aiterate2},
@@ -10,6 +11,7 @@ use hdf5_sys::{
 use hdf5_types::TypeDescriptor;
 use ndarray::ArrayView;
 
+use crate::globals::H5P_ATTRIBUTE_CREATE;
 use crate::internal_prelude::*;
 
 /// Represents the HDF5 attribute object.
@@ -271,9 +273,7 @@ impl AttributeBuilderInner {
 
         let dataspace = Dataspace::try_new(extents)?;
 
-        let acpl = PropertyList::from_id(h5call!(hdf5_sys::h5p::H5Pcreate(
-            *crate::globals::H5P_ATTRIBUTE_CREATE
-        ))?)?;
+        let acpl = PropertyList::from_id(h5call!(H5Pcreate(*H5P_ATTRIBUTE_CREATE))?)?;
         // Set UTF-8 encoding for the attribute name, as Rust strings are UTF-8.
         h5call!(hdf5_sys::h5p::H5Pset_char_encoding(
             acpl.id(),
