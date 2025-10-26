@@ -271,13 +271,24 @@ impl AttributeBuilderInner {
 
         let dataspace = Dataspace::try_new(extents)?;
 
+        let acpl = PropertyList::from_id(h5call!(hdf5_sys::h5p::H5Pcreate(
+            *crate::globals::H5P_ATTRIBUTE_CREATE
+        ))?)?;
+        // Set UTF-8 encoding for the attribute name, as Rust strings are UTF-8.
+        h5call!(hdf5_sys::h5p::H5Pset_char_encoding(
+            acpl.id(),
+            hdf5_sys::h5t::H5T_cset_t::H5T_CSET_UTF8
+        ))?;
+
         let name = to_cstring(name)?;
         Attribute::from_id(h5try!(H5Acreate2(
             parent.id(),
             name.as_ptr(),
             datatype.id(),
             dataspace.id(),
-            H5P_DEFAULT,
+            acpl.id(),
+            // Unused as of v1.14
+            // see more: https://hdfgroup.github.io/hdf5/v1_14/group___h5_a.html#ga4f4e5248c09f689633079ed8afc0b308
             H5P_DEFAULT,
         )))
     }
