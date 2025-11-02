@@ -3,6 +3,7 @@ use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::ptr;
 
+use hdf5_sys::h5o::H5Ocopy;
 #[allow(deprecated)]
 use hdf5_sys::h5o::H5Oset_comment;
 #[cfg(feature = "1.12.0")]
@@ -91,7 +92,7 @@ impl Location {
         comment.and_then(|c| if c.is_empty() { None } else { Some(c) })
     }
 
-    /// Set or the comment attached to the named object.
+    /// Set the comment attached to the named object.
     #[deprecated(note = "attributes are preferred to comments")]
     pub fn set_comment(&self, comment: &str) -> Result<()> {
         // TODO: &mut self?
@@ -165,6 +166,49 @@ impl Location {
     /// This can be called against any object in the same file as the referenced object.
     pub fn dereference<R: ObjectReference>(&self, reference: &R) -> Result<ReferencedObject> {
         reference.dereference(self)
+    }
+
+    /// Copy this object to a destination location with default properties
+    pub fn copy_to(&self, dst_loc: &Location, dst_name: &str) -> Result<()> {
+        self.copy_to_with_props(dst_loc, dst_name, None, None)
+    }
+
+    /// Copy this object to a destination location with custom property lists
+    ///
+    /// # Arguments
+    /// * `dst_loc` - Destination location (file or group)
+    /// * `dst_name` - Name for the copied object at the destination
+    /// * `ocpypl` - Optional object copy property list (controls copy behavior)
+    /// * `lcpl` - Optional link creation property list (controls link properties)
+    pub fn copy_to_with_props(
+        &self, dst_loc: &Location, dst_name: &str, ocpypl: Option<&PropertyList>,
+        lcpl: Option<&PropertyList>,
+    ) -> Result<()> {
+        // Validate property list classes if provided
+        if let Some(pl) = ocpypl {
+            if !pl.is_class(PropertyListClass::ObjectCopy) {
+                fail!("Property list must be of class ObjectCopy");
+            }
+        }
+        if let Some(pl) = lcpl {
+            if !pl.is_class(PropertyListClass::LinkCreate) {
+                fail!("Property list must be of class LinkCreate");
+            }
+        }
+
+        let dst_name = to_cstring(dst_name)?;
+        let ocpypl_id = ocpypl.map_or(H5P_DEFAULT, |p| p.id());
+        let lcpl_id = lcpl.map_or(H5P_DEFAULT, |p| p.id());
+
+        h5call!(H5Ocopy(
+            self.id(),                        // src_loc_id
+            b".\0".as_ptr() as *const c_char, // src_name (current object)
+            dst_loc.id(),                     // dst_loc_id
+            dst_name.as_ptr(),                // dst_name
+            ocpypl_id,                        // ocpypl_id
+            lcpl_id                           // lcpl_id
+        ))?;
+        Ok(())
     }
 }
 
@@ -320,7 +364,7 @@ fn H5O_open_by_token(loc_id: hid_t, token: LocationToken) -> Result<Location> {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::internal_prelude::*;
+    use crate::{hl::plist::object_copy::ObjectCopy, internal_prelude::*, plist::LinkCreate};
 
     #[test]
     pub fn test_filename() {
@@ -435,6 +479,145 @@ pub mod tests {
             assert!(var.name().starts_with("/group/hard"));
 
             assert!(file.loc_info_by_name("gibberish").is_err());
+        })
+    }
+
+    #[test]
+    pub fn test_copy_dataset_between_files() {
+        with_tmp_path(|src_path| {
+            with_tmp_path(|dst_path| {
+                // Create source file with a dataset
+                let src_file = File::create(&src_path).unwrap();
+                let src_group = src_file.create_group("src_group").unwrap();
+
+                let src_dataset =
+                    src_group.new_dataset::<i32>().shape([5]).create("src_group").unwrap();
+                src_dataset.write(&[1, 2, 3, 4, 5]).unwrap();
+
+                let src_attr = src_dataset.new_attr::<f64>().create("src_attr").unwrap();
+                src_attr.write_scalar(&42.0).unwrap();
+
+                let dst_file = File::create(&dst_path).unwrap();
+                let dst_group = dst_file.create_group("dst_group").unwrap();
+
+                // Copy the dataset from source to destination and verify contents
+                src_dataset.copy_to(&dst_group, "copied_dataset").unwrap();
+
+                let copied_dataset = dst_group.dataset("copied_dataset").unwrap();
+                let read_data: Vec<i32> = copied_dataset.read_1d().unwrap().to_vec();
+                assert_eq!(read_data, &[1, 2, 3, 4, 5]);
+
+                let copied_attr = copied_dataset.attr("src_attr").unwrap();
+                let attr_value: f64 = copied_attr.read_scalar().unwrap();
+                assert_eq!(attr_value, 42.0);
+            })
+        })
+    }
+
+    #[test]
+    pub fn test_copy_group_with_nested_content() {
+        with_tmp_path(|src_path| {
+            with_tmp_path(|dst_path| {
+                // Create source file with nested structure
+                let src_file = File::create(&src_path).unwrap();
+                let group1 = src_file.create_group("group1").unwrap();
+                let subgroup = group1.create_group("subgroup").unwrap();
+
+                let ds1 = group1.new_dataset::<i32>().shape([3]).create("dataset1").unwrap();
+                ds1.write(&[10, 20, 30]).unwrap();
+                let ds2 = subgroup.new_dataset::<f64>().shape([2]).create("dataset2").unwrap();
+                ds2.write(&[1.5, 2.5]).unwrap();
+
+                // Create destination file and copy entire group structure
+                let dst_file = File::create(&dst_path).unwrap();
+                group1.copy_to(&dst_file, "copied_group1").unwrap();
+
+                // Verify the copied structure
+                let copied_group = dst_file.group("copied_group1").unwrap();
+
+                let copied_ds1 = copied_group.dataset("dataset1").unwrap();
+                let data1: Vec<i32> = copied_ds1.read_1d().unwrap().to_vec();
+                assert_eq!(data1, vec![10, 20, 30]);
+
+                let copied_subgroup = copied_group.group("subgroup").unwrap();
+                let copied_ds2 = copied_subgroup.dataset("dataset2").unwrap();
+                let data2: Vec<f64> = copied_ds2.read_1d().unwrap().to_vec();
+                assert_eq!(data2, vec![1.5, 2.5]);
+            })
+        })
+    }
+
+    #[test]
+    pub fn test_copy_without_attributes() {
+        with_tmp_path(|src_path| {
+            with_tmp_path(|dst_path| {
+                let src_file = File::create(&src_path).unwrap();
+
+                let dataset = src_file.new_dataset::<i32>().shape([3]).create("data").unwrap();
+                dataset.write(&[10, 20, 30]).unwrap();
+
+                let src_attr = dataset.new_attr::<i32>().create("foo_attr").unwrap();
+                src_attr.write_scalar(&100).unwrap();
+
+                let dst_file = File::create(&dst_path).unwrap();
+
+                let ocpypl = ObjectCopy::build().copy_without_attr(true).finish().unwrap();
+
+                // Copy without attributes
+                dataset
+                    .copy_to_with_props(&dst_file, "copied_no_attrs", Some(&ocpypl), None)
+                    .unwrap();
+
+                src_file.close().unwrap();
+
+                let copied = dst_file.dataset("copied_no_attrs").unwrap();
+                let copied_data: Vec<i32> = copied.read_1d().unwrap().to_vec();
+                assert_eq!(copied_data, vec![10, 20, 30]);
+
+                // Verify attributes were NOT copied
+                let attr_names = copied.attr_names().unwrap();
+                assert!(attr_names.is_empty(), "Expected no attributes, but found: {attr_names:?}",);
+            })
+        })
+    }
+
+    #[test]
+    pub fn test_copy_with_link_create_intermediate_groups() {
+        with_tmp_path(|src_path| {
+            with_tmp_path(|dst_path| {
+                let src_file = File::create(&src_path).unwrap();
+
+                let dataset = src_file.new_dataset::<i32>().shape([3]).create("data").unwrap();
+                dataset.write(&[100, 200, 300]).unwrap();
+
+                let dst_file = File::create(&dst_path).unwrap();
+
+                // Fails without setting LinkCreate plist
+                assert!(dataset.copy_to(&dst_file, "level1/level2/level3/copied_data").is_err());
+
+                // Succeeds with LinkCreate
+                // Create link create property list that creates intermediate groups
+                dataset
+                    .copy_to_with_props(
+                        &dst_file,
+                        "level1/level2/level3/copied_data",
+                        None,
+                        Some(
+                            &LinkCreate::build().create_intermediate_group(true).finish().unwrap(),
+                        ),
+                    )
+                    .unwrap();
+
+                // Verify the intermediate groups were created
+                assert!(dst_file.group("level1").is_ok());
+                assert!(dst_file.group("level1/level2").is_ok());
+                assert!(dst_file.group("level1/level2/level3").is_ok());
+
+                // Verify the data
+                let copied = dst_file.dataset("level1/level2/level3/copied_data").unwrap();
+                let data: Vec<i32> = copied.read_1d().unwrap().to_vec();
+                assert_eq!(data, vec![100, 200, 300]);
+            })
         })
     }
 }
