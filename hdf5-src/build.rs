@@ -33,6 +33,11 @@ fn main() {
     println!("cargo::rerun-if-changed=build.rs");
     let mut cfg = cmake::Config::new("ext/hdf5");
 
+    if cfg!(target_env = "msvc") {
+       cfg.define("CMAKE_POLICY_DEFAULT_CMP0091", "NEW");
+       cfg.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreaded$<$<CONFIG:Debug>:Debug>");
+    }
+
     // only build the static c library, disable everything else
     cfg.define("HDF5_NO_PACKAGES", "ON");
     for option in &[
