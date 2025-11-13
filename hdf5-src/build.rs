@@ -34,8 +34,12 @@ fn main() {
     let mut cfg = cmake::Config::new("ext/hdf5");
 
     if cfg!(target_env = "msvc") {
-       cfg.define("CMAKE_POLICY_DEFAULT_CMP0091", "NEW");
-       cfg.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreaded$<$<CONFIG:Debug>:Debug>");
+        if let Ok(var) = env::var("CMAKE_POLICY_DEFAULT_CMP0091") {
+            cfg.define("CMAKE_POLICY_DEFAULT_CMP0091", var);
+        }
+        if let Ok(var) = env::var("CMAKE_MSVC_RUNTIME_LIBRARY") {
+            cfg.define("CMAKE_MSVC_RUNTIME_LIBRARY", var);
+        }
     }
 
     // only build the static c library, disable everything else
