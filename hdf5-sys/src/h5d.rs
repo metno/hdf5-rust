@@ -27,31 +27,20 @@ pub enum H5D_layout_t {
     H5D_NLAYOUTS = 3,
 }
 
-impl Default for H5D_layout_t {
-    fn default() -> Self {
-        Self::H5D_CONTIGUOUS
-    }
-}
-
 pub type H5D_chunk_index_t = c_uint;
 
 pub const H5D_CHUNK_BTREE: H5D_chunk_index_t = 0;
 pub const H5D_CHUNK_IDX_BTREE: H5D_chunk_index_t = H5D_CHUNK_BTREE;
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Debug)]
 pub enum H5D_alloc_time_t {
     H5D_ALLOC_TIME_ERROR = -1,
+    #[default]
     H5D_ALLOC_TIME_DEFAULT = 0,
     H5D_ALLOC_TIME_EARLY = 1,
     H5D_ALLOC_TIME_LATE = 2,
     H5D_ALLOC_TIME_INCR = 3,
-}
-
-impl Default for H5D_alloc_time_t {
-    fn default() -> Self {
-        Self::H5D_ALLOC_TIME_DEFAULT
-    }
 }
 
 #[repr(C)]
@@ -64,33 +53,23 @@ pub enum H5D_space_status_t {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Debug)]
 pub enum H5D_fill_time_t {
     H5D_FILL_TIME_ERROR = -1,
     H5D_FILL_TIME_ALLOC = 0,
     H5D_FILL_TIME_NEVER = 1,
+    #[default]
     H5D_FILL_TIME_IFSET = 2,
 }
 
-impl Default for H5D_fill_time_t {
-    fn default() -> Self {
-        Self::H5D_FILL_TIME_IFSET
-    }
-}
-
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Debug)]
 pub enum H5D_fill_value_t {
     H5D_FILL_VALUE_ERROR = -1,
     H5D_FILL_VALUE_UNDEFINED = 0,
+    #[default]
     H5D_FILL_VALUE_DEFAULT = 1,
     H5D_FILL_VALUE_USER_DEFINED = 2,
-}
-
-impl Default for H5D_fill_value_t {
-    fn default() -> Self {
-        Self::H5D_FILL_VALUE_DEFAULT
-    }
 }
 
 #[repr(C)]
@@ -218,10 +197,11 @@ mod hdf5_1_10_0 {
     use super::*;
 
     #[repr(C)]
-    #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+    #[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Debug)]
     pub enum H5D_layout_t {
         H5D_LAYOUT_ERROR = -1,
         H5D_COMPACT = 0,
+        #[default]
         H5D_CONTIGUOUS = 1,
         H5D_CHUNKED = 2,
         H5D_VIRTUAL = 3,
@@ -229,17 +209,12 @@ mod hdf5_1_10_0 {
     }
 
     #[repr(C)]
-    #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+    #[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Debug)]
     pub enum H5D_vds_view_t {
         H5D_VDS_ERROR = -1,
         H5D_VDS_FIRST_MISSING = 0,
+        #[default]
         H5D_VDS_LAST_AVAILABLE = 1,
-    }
-
-    impl Default for H5D_vds_view_t {
-        fn default() -> Self {
-            Self::H5D_VDS_LAST_AVAILABLE
-        }
     }
 
     pub const H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS: c_uint = 0x0002;
