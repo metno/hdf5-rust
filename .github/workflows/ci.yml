@@ -293,8 +293,9 @@ jobs:
         run:
           cargo update
       - name: Override deps
-        run:
+        run: |
           cargo update half@2.7.1 --precise 2.4.1
+          cargo update indexmap@2.12.0 --precise 2.11.4
       - name: Build and test all crates
         run:
           cargo test --locked --workspace -vv --features=hdf5-sys/static,hdf5-sys/zlib --exclude=hdf5-metno-derive
