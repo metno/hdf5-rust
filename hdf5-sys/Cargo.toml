@@ -32,7 +32,7 @@ static = ["dep:hdf5-src"]
 deprecated = ["hdf5-src?/deprecated"]
 
 [build-dependencies]
-libloading = "0.9"
+libloading = "0.8"
 regex = { workspace = true }
 
 [target.'cfg(any(all(unix, not(target_os = "macos")), windows))'.build-dependencies]
