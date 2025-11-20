@@ -81,9 +81,10 @@ pub enum H5T_norm_t {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Debug)]
 pub enum H5T_cset_t {
     H5T_CSET_ERROR = -1,
+    #[default]
     H5T_CSET_ASCII = 0,
     H5T_CSET_UTF8 = 1,
     H5T_CSET_RESERVED_2 = 2,
@@ -100,12 +101,6 @@ pub enum H5T_cset_t {
     H5T_CSET_RESERVED_13 = 13,
     H5T_CSET_RESERVED_14 = 14,
     H5T_CSET_RESERVED_15 = 15,
-}
-
-impl Default for H5T_cset_t {
-    fn default() -> Self {
-        Self::H5T_CSET_ASCII
-    }
 }
 
 pub const H5T_NCSET: H5T_cset_t = H5T_CSET_RESERVED_2;
