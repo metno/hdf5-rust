@@ -16,13 +16,8 @@ const NUM_CHUNKS: usize = 3; // total chunks to write
 fn write_hdf5() -> Result<()> {
     println!("Creating file '{FILE_NAME}' with 1D resizable dataset");
     let file = File::create(FILE_NAME)?;
-    let shape = Extent::resizable(1); // 1D resizable
+    let shape = Extent::resizable(0); // 1D resizable
     let ds = file.new_dataset::<usize>().chunk((CHUNK_SIZE,)).shape(shape).create(DATASET_NAME)?;
-
-    // Dataset is created with length 1
-    // so we resize to 0 to only store "real" values
-    assert_eq!(ds.size(), 1);
-    ds.resize((0,))?;
 
     // Simulate continuously accumulating data in a buffer
     // and writing it to the dataset anytime there's enough to fill a chunk
@@ -49,7 +44,7 @@ fn read_hdf5() -> Result<()> {
     // Check shape
     let shape = ds.shape();
     println!("Dataset shape: {:?}", shape);
-    assert_eq!(shape, vec![CHUNK_SIZE * NUM_CHUNKS]);
+    assert_eq!(shape, &[CHUNK_SIZE * NUM_CHUNKS]);
 
     // Get chunking metadata
     let chunk_size = ds.chunk().unwrap()[0];
