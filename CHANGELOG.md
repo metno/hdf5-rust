@@ -6,6 +6,8 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+- Fixed incorrect retrieved name of attributes
+
 ## hdf5 v0.10.2
 Release date: Oct 16, 2025
 - Upgraded upper bound of ndarray
