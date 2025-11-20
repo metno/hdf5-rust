@@ -24,8 +24,6 @@ libz-sys = { version = "1.1", default-features = false }
 mpi-sys = "0.2"
 num-complex = { version = "0.4", default-features = false }
 regex = "1.10"
-# external dev-dependencies
-pretty_assertions = "1.4.1"
 
 # internal
 hdf5 = { package = "hdf5-metno", version = "0.9.3", path = "hdf5" }                      # !V
