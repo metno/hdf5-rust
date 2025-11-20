@@ -4,8 +4,8 @@ mod common;
 use hdf5::types::{TypeDescriptor as TD, *};
 use hdf5::{from_id, Datatype, H5Type};
 use hdf5_metno as hdf5;
-
 use hdf5_sys::h5i::H5I_INVALID_HID;
+use pretty_assertions::{assert_eq, assert_str_eq};
 
 macro_rules! check_roundtrip {
     ($ty:ty, $desc:expr) => {{
@@ -148,6 +148,74 @@ pub fn test_eq() {
 }
 
 #[test]
-pub fn test_debug() {
-    assert_eq!(format!("{:?}", Datatype::from_type::<u32>().unwrap()), "<HDF5 datatype>");
+fn test_print_display_debug_datatype_bool() {
+    let dt = Datatype::from_type::<bool>().unwrap();
+
+    assert_str_eq!(format!("{dt}"), "bool");
+    assert_str_eq!(format!("{dt:?}"), "<HDF5 datatype: bool>");
+    assert_str_eq!(format!("{dt:#?}"), "<HDF5 datatype: bool>");
+}
+
+#[test]
+fn test_print_display_debug_datatype_f64() {
+    let dt = Datatype::from_type::<f64>().unwrap();
+
+    assert_str_eq!(format!("{dt}"), "float64");
+    assert_str_eq!(format!("{dt:?}"), "<HDF5 datatype: float64>");
+    assert_str_eq!(format!("{dt:#?}"), "<HDF5 datatype: float64>");
+}
+
+#[test]
+fn test_print_display_debug_datatype_color_enum() {
+    #[allow(dead_code)] // "we use the type, we just don't construct it"
+    #[derive(H5Type)]
+    #[repr(u8)]
+    enum Color {
+        R = 1,
+        G = 2,
+        B = 3,
+    }
+    let dt = Datatype::from_type::<Color>().unwrap();
+
+    assert_eq!(
+        dt.to_descriptor().unwrap(),
+        TD::Enum(EnumType {
+            size: IntSize::U1,
+            signed: false,
+            members: vec![
+                EnumMember { name: "R".into(), value: 1 },
+                EnumMember { name: "G".into(), value: 2 },
+                EnumMember { name: "B".into(), value: 3 }
+            ]
+        })
+    );
+
+    assert_str_eq!(format!("{dt}"), "enum (uint8)");
+    assert_str_eq!(format!("{dt:?}"), "<HDF5 datatype: enum (uint8)>");
+    assert_str_eq!(format!("{dt:#?}"), "<HDF5 datatype: enum (uint8)>");
+}
+
+#[test]
+fn test_print_display_debug_datatype_var_len_unicode() {
+    let dt = Datatype::from_type::<VarLenUnicode>().unwrap();
+    assert!(dt.is::<VarLenUnicode>());
+
+    assert_eq!(dt.to_descriptor().unwrap(), TD::VarLenUnicode);
+
+    assert_str_eq!(format!("{dt}"), "unicode (var len)");
+    assert_str_eq!(format!("{dt:?}"), "<HDF5 datatype: unicode (var len)>");
+    assert_str_eq!(format!("{dt:#?}"), "<HDF5 datatype: unicode (var len)>");
+}
+
+#[test]
+fn test_print_display_debug_datatype_fixed_len_unicode() {
+    const SIZE: usize = 10;
+    let dt = Datatype::from_type::<FixedUnicode<SIZE>>().unwrap();
+    assert!(dt.is::<FixedUnicode<SIZE>>());
+
+    assert_eq!(dt.to_descriptor().unwrap(), TD::FixedUnicode(SIZE));
+
+    assert_str_eq!(format!("{dt}"), "unicode (len 10)");
+    assert_str_eq!(format!("{dt:?}"), "<HDF5 datatype: unicode (len 10)>");
+    assert_str_eq!(format!("{dt:#?}"), "<HDF5 datatype: unicode (len 10)>");
 }

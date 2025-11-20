@@ -24,9 +24,10 @@ libz-sys = { version = "1.1", default-features = false }
 mpi-sys = "0.2"
 num-complex = { version = "0.4", default-features = false }
 regex = "1.10"
+
 # internal
-hdf5 = { package = "hdf5-metno", version = "0.9.3", path = "hdf5" }               # !V
+hdf5 = { package = "hdf5-metno", version = "0.9.3", path = "hdf5" }                      # !V
 hdf5-derive = { package = "hdf5-metno-derive", version = "0.9.1", path = "hdf5-derive" } # !V
-hdf5-src = { package = "hdf5-metno-src", version = "0.9.3", path = "hdf5-src" }       # !V
-hdf5-sys = { package = "hdf5-metno-sys", version = "0.10.1", path = "hdf5-sys" }       # !V
+hdf5-src = { package = "hdf5-metno-src", version = "0.9.3", path = "hdf5-src" }          # !V
+hdf5-sys = { package = "hdf5-metno-sys", version = "0.10.1", path = "hdf5-sys" }         # !V
 hdf5-types = { package = "hdf5-metno-types", version = "0.10.0", path = "hdf5-types" }   # !V

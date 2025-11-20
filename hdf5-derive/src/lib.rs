@@ -21,13 +21,27 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let body = impl_trait(&name, &input.data, &input.attrs, &ty_generics);
 
     // Determine name of parent crate, even if renamed using "package"
+    // CARGO_CRATE_NAME is the name of the actual crate being compiled (e.g., "simple" for examples)
+    // If it matches the library name (hdf5_metno), we're compiling the library itself
+    let is_library =
+        std::env::var("CARGO_CRATE_NAME").map(|name| name == "hdf5_metno").unwrap_or(false);
+
     let crate_name = match proc_macro_crate::crate_name("hdf5-metno").unwrap() {
-        proc_macro_crate::FoundCrate::Itself => quote!(::hdf5_metno),
+        proc_macro_crate::FoundCrate::Itself if is_library => {
+            // We're in the hdf5-metno library itself, use crate
+            quote!(crate)
+        }
+        proc_macro_crate::FoundCrate::Itself => {
+            // We're in an example/test of hdf5-metno, use the renamed path
+            quote!(::hdf5_metno)
+        }
         proc_macro_crate::FoundCrate::Name(name) => {
+            // We're in a different crate that depends on hdf5-metno
             let ident = Ident::new(&name, Span::call_site());
             quote!( ::#ident )
         }
     };
+
     let expanded = quote! {
         #[allow(dead_code, unused_variables, unused_attributes)]
         const _: () = {

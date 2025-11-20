@@ -62,7 +62,26 @@ impl ObjectClass for Datatype {
         &self.0
     }
 
-    // TODO: short_repr()
+    fn short_repr(&self) -> Option<String> {
+        let repr = match self.to_descriptor() {
+            Ok(s) => s.to_string(),
+            Err(e) => {
+                // Fallback: show basic HDF5 info if descriptor conversion fails
+                h5lock!({
+                    let class = H5Tget_class(self.id());
+                    let size = H5Tget_size(self.id());
+                    format!("Invalid datatype: {e} <HDF5 id: {class:?} size: {size}>)")
+                })
+            }
+        };
+        Some(repr)
+    }
+}
+
+impl Display for Datatype {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.short_repr().expect("short_repr is always implemented"))
+    }
 }
 
 impl Debug for Datatype {
@@ -200,17 +219,12 @@ impl Datatype {
     }
 
     pub(crate) fn ensure_convertible(&self, dst: &Self, required: Conversion) -> Result<()> {
-        // TODO: more detailed error messages after Debug/Display are implemented for Datatype
         if let Some(conv) = self.conv_path(dst) {
             ensure!(
-                conv <= required,
-                "{} conversion path required; available: {} conversion",
-                required,
-                conv
-            );
+                conv <= required, "Cannot convert from {self} to {dst}, required conversion {required}; available: {conv}",);
             Ok(())
         } else {
-            fail!("no conversion paths found")
+            fail!("no conversion paths found from '{self:#?}' to '{dst:#?}'",)
         }
     }
 
@@ -425,5 +439,36 @@ impl Datatype {
         });
 
         Self::from_id(datatype_id?)
+    }
+}
+
+/// NOTE: tests of public functions are in hdf5/tests/test_datatype.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hdf5_types::{FixedAscii, FixedUnicode};
+    use pretty_assertions::assert_str_eq;
+
+    #[test]
+    fn test_ensure_convertible_fail_err_msg() {
+        const SIZE: usize = 10;
+        let src = Datatype::from_type::<FixedUnicode<SIZE>>().unwrap();
+        let dst = Datatype::from_type::<FixedAscii<SIZE>>().unwrap();
+
+        let err_msg = src.ensure_convertible(&dst, Conversion::NoOp).unwrap_err().to_string();
+
+        assert_str_eq!(err_msg, "no conversion paths found from '<HDF5 datatype: unicode (len 10)>' to '<HDF5 datatype: string (len 10)>'");
+    }
+
+    #[test]
+    fn test_ensure_convertible_failed_required_conversion_hard_err_msg() {
+        let src = Datatype::from_type::<u64>().unwrap();
+        let dst = Datatype::from_type::<i64>().unwrap();
+
+        let err_msg = src.ensure_convertible(&dst, Conversion::NoOp).unwrap_err().to_string();
+        assert_str_eq!(
+            err_msg,
+            "Cannot convert from uint64 to int64, required conversion no-op; available: hard"
+        );
     }
 }
