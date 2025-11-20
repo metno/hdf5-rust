@@ -167,7 +167,7 @@ fn test_print_display_debug_datatype_f64() {
 
 #[test]
 fn test_print_display_debug_datatype_color_enum() {
-    #[allow(dead_code, reason = "we use the type, we just don't construct it")]
+    #[allow(dead_code)] // "we use the type, we just don't construct it"
     #[derive(H5Type)]
     #[repr(u8)]
     enum Color {
