@@ -4,9 +4,9 @@
 ## hdf5-derive unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
-- Fixed incorrect retrieved name of attributes
 
 ## hdf5 unreleased
+- Fixed incorrect retrieved name of attributes
 - Added support for Single Writer Multiple Readers (SWMR) (breaking change, OpenMode has extra variant)
 
 ## hdf5 v0.10.2
