@@ -167,9 +167,12 @@ jobs:
         if: matrix.rust != 'stable-gnu'
       - name: Run examples
         run: |
-          cargo r --example simple --features hdf5-sys/static,hdf5-sys/zlib,lzf,blosc-all
-          cargo r --example chunking --features hdf5-sys/static,hdf5-sys/zlib,lzf,blosc-all
+          cargo r --example simple --features ${{ env.FEATURES }}
+          cargo r --example chunking --features ${{ env.FEATURES }}
+          cargo r --example continuously_rw_1d --features ${{ env.FEATURES }}
         if: matrix.rust != 'stable-gnu'
+        env:
+          FEATURES: hdf5-sys/static,hdf5-sys/zlib,lzf,blosc-all
 
   apt:
     name: apt
