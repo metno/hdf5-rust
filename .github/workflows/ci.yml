@@ -25,7 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
       - name: Check spelling
-        uses: crate-ci/typos@80c8a4945eec0f6d464eaf9e65ed98ef085283d1 # v1.38.1
+        uses: crate-ci/typos@626c4bedb751ce0b7f03262ca97ddda9a076ae1c # v1.39.2
 
   lint:
     name: lint
@@ -59,7 +59,7 @@ jobs:
       - name: Document workspace
         env:
           RUSTDOCFLAGS: "--cfg docsrs"
-        run: cargo doc --features static,zlib,blosc-all,lzf,f16,complex
+        run: cargo doc --features static,zlib,blosc-all,lzf,f16,complex --no-deps
 
   brew:
     name: brew
@@ -296,8 +296,9 @@ jobs:
         run:
           cargo update
       - name: Override deps
-        run:
+        run: |
           cargo update half@2.7.1 --precise 2.4.1
+          cargo update indexmap@2.12.0 --precise 2.11.4
       - name: Build and test all crates
         run:
           cargo test --locked --workspace -vv --features=hdf5-sys/static,hdf5-sys/zlib --exclude=hdf5-metno-derive
