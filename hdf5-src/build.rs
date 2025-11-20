@@ -34,9 +34,7 @@ fn main() {
     let mut cfg = cmake::Config::new("ext/hdf5");
 
     if cfg!(target_env = "msvc") {
-        if let Ok(var) = env::var("CMAKE_POLICY_DEFAULT_CMP0091") {
-            cfg.define("CMAKE_POLICY_DEFAULT_CMP0091", var);
-        }
+        cfg.define("CMAKE_POLICY_DEFAULT_CMP0091", "NEW");
         if let Ok(var) = env::var("CMAKE_MSVC_RUNTIME_LIBRARY") {
             cfg.define("CMAKE_MSVC_RUNTIME_LIBRARY", var);
         }
