@@ -2,6 +2,8 @@ use std::fmt::{self, Debug};
 use std::ops::Deref;
 use std::ptr::addr_of_mut;
 
+use hdf5_sys::h5a::H5Aget_name;
+use hdf5_sys::h5p::H5Pcreate;
 use hdf5_sys::{
     h5::{H5_index_t, H5_iter_order_t},
     h5a::{H5A_info_t, H5A_operator2_t, H5Acreate2, H5Adelete, H5Aiterate2},
@@ -9,6 +11,7 @@ use hdf5_sys::{
 use hdf5_types::TypeDescriptor;
 use ndarray::ArrayView;
 
+use crate::globals::H5P_ATTRIBUTE_CREATE;
 use crate::internal_prelude::*;
 
 /// Represents the HDF5 attribute object.
@@ -46,6 +49,14 @@ impl Deref for Attribute {
 }
 
 impl Attribute {
+    /// Returns the name of the attribute.
+    pub fn name(&self) -> String {
+        // Note: We must use H5Aget_name() here. H5Iget_name() (called by
+        // Location::name()) would return the name of the object this
+        // attribute is attached to, not the attribute's own name.
+        h5lock!(get_h5_str(|m, s| H5Aget_name(self.id(), s, m)).unwrap_or_else(|_| String::new()))
+    }
+
     /// Returns names of all the members in the group, non-recursively.
     pub fn attr_names(obj: &Location) -> Result<Vec<String>> {
         unsafe extern "C" fn attributes_callback(
@@ -262,15 +273,22 @@ impl AttributeBuilderInner {
 
         let dataspace = Dataspace::try_new(extents)?;
 
+        let acpl = PropertyList::from_id(h5call!(H5Pcreate(*H5P_ATTRIBUTE_CREATE))?)?;
+        // Set UTF-8 encoding for the attribute name, as Rust strings are UTF-8.
+        h5call!(hdf5_sys::h5p::H5Pset_char_encoding(
+            acpl.id(),
+            hdf5_sys::h5t::H5T_cset_t::H5T_CSET_UTF8
+        ))?;
+
         let name = to_cstring(name)?;
         Attribute::from_id(h5try!(H5Acreate2(
             parent.id(),
             name.as_ptr(),
             datatype.id(),
             dataspace.id(),
-            // these args are currently unused as if HDF5 1.12
-            // see details: https://portal.hdfgroup.org/display/HDF5/H5A_CREATE2
-            H5P_DEFAULT,
+            acpl.id(),
+            // Unused as of v1.14
+            // see more: https://hdfgroup.github.io/hdf5/v1_14/group___h5_a.html#ga4f4e5248c09f689633079ed8afc0b308
             H5P_DEFAULT,
         )))
     }
@@ -298,12 +316,14 @@ pub mod attribute_tests {
             assert_eq!(d.size(), 6);
             assert_eq!(d.ndim(), 2);
             assert_eq!(d.is_scalar(), false);
+            assert_eq!(d.name(), "name1");
 
             let d = file.new_attr::<u8>().shape(()).create("name2").unwrap();
             assert_eq!(d.shape(), vec![]);
             assert_eq!(d.size(), 1);
             assert_eq!(d.ndim(), 0);
             assert_eq!(d.is_scalar(), true);
+            assert_eq!(d.name(), "name2");
         })
     }
 
@@ -314,9 +334,7 @@ pub mod attribute_tests {
             let _ = file.new_attr::<u8>().shape(()).create("name2").unwrap();
 
             let attr_names = file.attr_names().unwrap();
-            assert_eq!(attr_names.len(), 2);
-            assert!(attr_names.contains(&"name1".to_string()));
-            assert!(attr_names.contains(&"name2".to_string()));
+            assert_eq!(attr_names, vec!["name1".to_owned(), "name2".to_owned()]);
         })
     }
 
@@ -329,9 +347,7 @@ pub mod attribute_tests {
             let _ = ds.new_attr::<u8>().shape(()).create("name2").unwrap();
 
             let attr_names = ds.attr_names().unwrap();
-            assert_eq!(attr_names.len(), 2);
-            assert!(attr_names.contains(&"name1".to_string()));
-            assert!(attr_names.contains(&"name2".to_string()));
+            assert_eq!(attr_names, vec!["name1".to_owned(), "name2".to_owned()]);
         })
     }
 
@@ -368,9 +384,7 @@ pub mod attribute_tests {
             let attr = file.new_attr::<u32>().shape((1, 2)).create("foo").unwrap();
             assert!(attr.is_valid());
             assert_eq!(attr.shape(), vec![1, 2]);
-            // FIXME - attr.name() returns "/" here, which is the name the attribute is connected to,
-            // not the name of the attribute.
-            //assert_eq!(attr.name(), "foo");
+            assert_eq!(attr.name(), "foo");
             assert_eq!(file.attr("foo").unwrap().shape(), vec![1, 2]);
         })
     }
@@ -383,9 +397,7 @@ pub mod attribute_tests {
             let attr = file.new_attr_builder().with_data(&arr).create("foo").unwrap();
             assert!(attr.is_valid());
             assert_eq!(attr.shape(), vec![2, 3]);
-            // FIXME - attr.name() returns "/" here, which is the name the attribute is connected to,
-            // not the name of the attribute.
-            //assert_eq!(attr.name(), "foo");
+            assert_eq!(attr.name(), "foo");
             assert_eq!(file.attr("foo").unwrap().shape(), vec![2, 3]);
 
             let read_attr = file.attr("foo").unwrap();
