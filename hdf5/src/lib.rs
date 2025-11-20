@@ -106,6 +106,7 @@ mod export {
         pub use crate::hl::plist::file_access::{FileAccess, FileAccessBuilder};
         pub use crate::hl::plist::file_create::{FileCreate, FileCreateBuilder};
         pub use crate::hl::plist::link_create::{LinkCreate, LinkCreateBuilder};
+        pub use crate::hl::plist::object_copy::{ObjectCopy, ObjectCopyBuilder};
         pub use crate::hl::plist::{PropertyList, PropertyListClass};
 
         pub mod dataset_access {

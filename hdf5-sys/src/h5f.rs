@@ -54,18 +54,13 @@ pub enum H5F_scope_t {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Debug)]
 pub enum H5F_close_degree_t {
+    #[default]
     H5F_CLOSE_DEFAULT = 0,
     H5F_CLOSE_WEAK = 1,
     H5F_CLOSE_SEMI = 2,
     H5F_CLOSE_STRONG = 3,
-}
-
-impl Default for H5F_close_degree_t {
-    fn default() -> Self {
-        Self::H5F_CLOSE_DEFAULT
-    }
 }
 
 #[cfg_attr(feature = "1.10.0", deprecated(note = "deprecated in HDF5 1.10.0, use H5F_info2_t"))]

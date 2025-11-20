@@ -1,10 +1,13 @@
 # Changelog
 
-## hdf5 unreleased
 ## hdf5-types unreleased
 ## hdf5-derive unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
+
+## hdf5 unreleased
+- Fixed incorrect retrieved name of attributes
+- Added support for Single Writer Multiple Readers (SWMR) (breaking change, OpenMode has extra variant)
 
 ## hdf5 v0.10.2
 Release date: Oct 16, 2025
