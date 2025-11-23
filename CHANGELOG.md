@@ -4,12 +4,29 @@
 ## hdf5-derive unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
-
 ## hdf5 unreleased
+
+
+## hdf5 v0.11.0
+Release date: Nov 23, 2025
 - Fixed incorrect retrieved name of attributes
 - Added support for Single Writer Multiple Readers (SWMR) (breaking change, OpenMode has extra variant)
+- Added support for object copying between Locations
+- Improved debug printing for datatype descriptor
 
-## hdf5 v0.10.2
+## hdf5-types v0.10.2
+Release date: Nov 23, 2025
+- Added documentation on Typedescriptor::size
+
+## hdf5-derive v0.9.3
+Release date: Nov 23, 2025
+- Fixed derive macro when inside itself or hdf5_metno package
+
+## hdf5-src v0.9.5
+Release date: Nov 23, 2025
+- Improved support for static linking with msvc
+
+## hdf5 v0.10.2 (yanked)
 Release date: Oct 16, 2025
 - Upgraded upper bound of ndarray
 
