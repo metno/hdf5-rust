@@ -30,6 +30,10 @@ use hdf5_sys::{
 use hdf5_types::{OwnedDynValue, TypeDescriptor};
 
 use crate::dim::Dimension;
+
+#[cfg(feature="zfp")]
+use crate::filters::ZfpMode;
+
 use crate::globals::H5P_DATASET_CREATE;
 use crate::hl::datatype::Datatype;
 use crate::hl::filters::{validate_filters, Filter, SZip, ScaleOffset};
@@ -472,6 +476,13 @@ impl DatasetCreateBuilder {
         T: Into<BloscShuffle>,
     {
         self.filters.push(Filter::blosc_zstd(clevel, shuffle));
+        self
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_rate(&mut self, rate: f64) -> &mut Self {
+        let mode = ZfpMode::FixedRate(rate);
+        self.filters.push(Filter::zfp(mode));
         self
     }
 

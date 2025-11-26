@@ -22,6 +22,8 @@ use crate::internal_prelude::*;
 mod blosc;
 #[cfg(feature = "lzf")]
 mod lzf;
+#[cfg(feature = "zfp")]
+mod zfp;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SZip {
@@ -103,6 +105,41 @@ mod blosc_impl {
 #[cfg(feature = "blosc")]
 pub use blosc_impl::*;
 
+
+#[cfg(feature = "zfp")]
+mod zfp_impl {
+    #[derive(Clone, Copy, Debug)]
+    pub enum ZfpMode {
+        FixedRate(f64),
+        FixedPrecision(u8),
+        FixedAccuracy(f64),
+    }
+
+    // Bitwise compare f64 so NaN and signed zero are deterministic
+    impl PartialEq for ZfpMode {
+        fn eq(&self, other: &Self) -> bool {
+            use ZfpMode::*;
+            match (self, other) {
+                (FixedRate(a), FixedRate(b)) => a.to_bits() == b.to_bits(),
+                (FixedPrecision(a), FixedPrecision(b)) => a == b,
+                (FixedAccuracy(a), FixedAccuracy(b)) => a.to_bits() == b.to_bits(),
+                _ => false,
+            }
+        }
+    }
+    impl Eq for ZfpMode {}
+
+    impl Default for ZfpMode {
+        fn default() -> Self {
+            ZfpMode::FixedRate(1.0)
+        }
+    }
+}
+
+
+#[cfg(feature = "zfp")]
+pub use zfp_impl::*;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Filter {
     Deflate(u8),
@@ -115,6 +152,8 @@ pub enum Filter {
     LZF,
     #[cfg(feature = "blosc")]
     Blosc(Blosc, u8, BloscShuffle),
+    #[cfg(feature = "zfp")]
+    Zfp(ZfpMode),
     User(H5Z_filter_t, Vec<c_uint>),
 }
 
@@ -134,6 +173,10 @@ pub(crate) fn register_filters() {
     #[cfg(feature = "blosc")]
     if let Err(e) = blosc::register_blosc() {
         eprintln!("Error while registering Blosc filter: {e}");
+    }
+    #[cfg(feature = "zfp")]
+    if let Err(e) = zfp::register_zfp() {
+        eprintln!("Error while registering ZFP filter: {e}");
     }
 }
 
@@ -164,6 +207,12 @@ pub fn blosc_available() -> bool {
     h5lock!(H5Zfilter_avail(32001) == 1)
 }
 
+/// Returns `true` if ZFP filter is available.
+#[cfg(feature = "zfp")]
+pub fn zfp_available() -> bool {
+    h5lock!(H5Zfilter_avail(32013) == 1)
+}
+
 impl Filter {
     pub fn id(&self) -> H5Z_filter_t {
         match self {
@@ -177,6 +226,8 @@ impl Filter {
             Self::LZF => lzf::LZF_FILTER_ID,
             #[cfg(feature = "blosc")]
             Self::Blosc(_, _, _) => blosc::BLOSC_FILTER_ID,
+            #[cfg(feature = "zfp")]
+            Self::Zfp(_) => zfp::ZFP_FILTER_ID,
             Self::User(id, _) => *id,
         }
     }
@@ -291,6 +342,26 @@ impl Filter {
         Self::blosc(Blosc::ZStd, clevel, shuffle)
     }
 
+    #[cfg(feature = "zfp")]
+    pub fn zfp(mode: ZfpMode) -> Self {
+        Self::Zfp(mode)
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_rate(rate: f64) -> Self {
+        Self::zfp(ZfpMode::FixedRate(rate))
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_precision(precision: u8) -> Self {
+        Self::zfp(ZfpMode::FixedPrecision(precision))
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_accuracy(accuracy: f64) -> Self {
+        Self::zfp(ZfpMode::FixedAccuracy(accuracy))
+    }
+
     pub fn user(id: H5Z_filter_t, cdata: &[c_uint]) -> Self {
         Self::User(id, cdata.to_vec())
     }
@@ -397,6 +468,28 @@ impl Filter {
         Ok(Self::blosc(complib, clevel, shuffle))
     }
 
+    #[cfg(feature = "zfp")]
+    fn parse_zfp(cdata: &[c_uint]) -> Result<Self> {
+        ensure!(cdata.len() >= 8, "expected at least length 8 cdata for zfp filter");
+        let mode = if cdata.len() >= 8 { cdata[7] } else { 1 };
+        let param1 = if cdata.len() >= 9 { cdata[8] } else { 0 };
+        let param2 = if cdata.len() >= 10 { cdata[9] } else { 0 };
+
+        let zfp_mode = match mode {
+            1 => {
+                let rate = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
+                ZfpMode::FixedRate(rate)
+            }
+            2 => ZfpMode::FixedPrecision(param1 as u8),
+            3 => {
+                let accuracy = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
+                ZfpMode::FixedAccuracy(accuracy)
+            }
+            _ => fail!("invalid zfp mode: {}", mode),
+        };
+        Ok(Self::zfp(zfp_mode))
+    }
+
     pub fn from_raw(filter_id: H5Z_filter_t, cdata: &[c_uint]) -> Result<Self> {
         ensure!(filter_id > 0, "invalid filter id: {}", filter_id);
         match filter_id {
@@ -410,6 +503,8 @@ impl Filter {
             lzf::LZF_FILTER_ID => Self::parse_lzf(cdata),
             #[cfg(feature = "blosc")]
             blosc::BLOSC_FILTER_ID => Self::parse_blosc(cdata),
+            #[cfg(feature = "zfp")]
+            zfp::ZFP_FILTER_ID => Self::parse_zfp(cdata),
             _ => Ok(Self::user(filter_id, cdata)),
         }
     }
@@ -478,6 +573,26 @@ impl Filter {
         Self::apply_user(plist_id, blosc::BLOSC_FILTER_ID, &cdata)
     }
 
+    #[cfg(feature = "zfp")]
+    unsafe fn apply_zfp(plist_id: hid_t, mode: ZfpMode) -> herr_t {
+        let mut cdata: Vec<c_uint> = vec![0; 10];
+        let (mode_val, param1, param2) = match mode {
+            ZfpMode::FixedRate(rate) => {
+                let bits = rate.to_bits();
+                (1, (bits >> 32) as c_uint, bits as c_uint)
+            }
+            ZfpMode::FixedPrecision(precision) => (2, precision as c_uint, 0),
+            ZfpMode::FixedAccuracy(accuracy) => {
+                let bits = accuracy.to_bits();
+                (3, (bits >> 32) as c_uint, bits as c_uint)
+            }
+        };
+        cdata[7] = mode_val;
+        cdata[8] = param1;
+        cdata[9] = param2;
+        Self::apply_user(plist_id, zfp::ZFP_FILTER_ID, &cdata)
+    }
+
     unsafe fn apply_user(plist_id: hid_t, filter_id: H5Z_filter_t, cdata: &[c_uint]) -> herr_t {
         // We're setting custom filters to optional, same way h5py does it, since
         // the only mention of H5Z_FLAG_MANDATORY in the HDF5 source itself is
@@ -502,6 +617,8 @@ impl Filter {
             Self::Blosc(complib, clevel, shuffle) => {
                 Self::apply_blosc(id, *complib, *clevel, *shuffle)
             }
+            #[cfg(feature = "zfp")]
+            Self::Zfp(mode) => Self::apply_zfp(id, *mode),
             Self::User(filter_id, ref cdata) => Self::apply_user(id, *filter_id, cdata),
         });
         Ok(())
@@ -535,7 +652,7 @@ impl Filter {
     }
 }
 
-const COMP_FILTER_IDS: &[H5Z_filter_t] = &[H5Z_FILTER_DEFLATE, H5Z_FILTER_SZIP, 32000, 32001];
+const COMP_FILTER_IDS: &[H5Z_filter_t] = &[H5Z_FILTER_DEFLATE, H5Z_FILTER_SZIP, 32000, 32001, 32013];
 
 pub(crate) fn validate_filters(filters: &[Filter], type_class: H5T_class_t) -> Result<()> {
     let mut map: HashMap<H5Z_filter_t, &Filter> = HashMap::new();
@@ -587,6 +704,8 @@ pub(crate) fn validate_filters(filters: &[Filter], type_class: H5T_class_t) -> R
 
 #[cfg(test)]
 mod tests {
+    use std::hint::assert_unchecked;
+    use ndarray::Array2;
     use hdf5_sys::h5t::H5T_class_t;
 
     use super::{
@@ -595,6 +714,7 @@ mod tests {
     };
     use crate::test::with_tmp_file;
     use crate::{plist::DatasetCreate, Result};
+    use crate::hl::filters::zfp_available;
 
     #[test]
     fn test_filter_pipeline() -> Result<()> {
@@ -621,6 +741,17 @@ mod tests {
             comp_filters.push(Filter::blosc_zstd(9, BloscShuffle::Byte));
             comp_filters.push(Filter::blosc_snappy(0, BloscShuffle::Bit));
         }
+
+        #[cfg(feature="zfp")]
+        assert_eq!(cfg!(feature = "zfp"), zfp_available());
+        #[cfg(feature="zfp")]
+        {
+            comp_filters.push(Filter::zfp_rate(8.0));
+            comp_filters.push(Filter::zfp_precision(16));
+            comp_filters.push(Filter::zfp_accuracy(1e-3));
+        }
+
+
         for c in &comp_filters {
             assert!(c.is_available());
             assert!(c.encode_enabled());
@@ -669,6 +800,447 @@ mod tests {
             validate_filters(&[bad_filter], H5T_class_t::H5T_INTEGER),
             "Filter not available"
         );
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_filter() -> Result<()> {
+        use super::{zfp_available, ZfpMode};
+
+        assert_eq!(cfg!(feature = "zfp"), zfp_available());
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+
+        // Test different ZFP modes
+        let zfp_filters = vec![
+            Filter::zfp_rate(8.0),
+            Filter::zfp_rate(16.0),
+            Filter::zfp_rate(4.0),
+            Filter::zfp_precision(16),
+            Filter::zfp_precision(32),
+            Filter::zfp_accuracy(1e-3),
+            Filter::zfp_accuracy(1e-6),
+            Filter::zfp(ZfpMode::FixedRate(12.5)),
+        ];
+
+        for flt in &zfp_filters {
+            println!("Testing filter: {:?}", flt);
+            assert!(flt.is_available());
+            assert!(flt.encode_enabled());
+            assert!(flt.decode_enabled());
+
+            // Test with float type (ZFP only supports floats)
+            let pipeline = vec![flt.clone()];
+            validate_filters(&pipeline, H5T_class_t::H5T_FLOAT)?;
+
+            let plist = DatasetCreate::try_new()?;
+            for f in &pipeline {
+                f.apply_to_plist(plist.id())?;
+            }
+            assert_eq!(Filter::extract_pipeline(plist.id())?, pipeline);
+
+            // Test with actual dataset creation for f32
+            let res = with_tmp_file(|file| {
+
+                file.new_dataset_builder()
+                    .empty::<f32>()
+                    .shape((100,50))
+                    .chunk((10,10))
+                    .with_dcpl(|p| p.set_filters(&pipeline))
+                    .create("zfp_f32")
+                    .unwrap();
+
+                let plist = file.dataset("zfp_f32").unwrap().dcpl().unwrap();
+                Filter::extract_pipeline(plist.id()).unwrap()
+            });
+            assert_eq!(res, pipeline);
+
+            // Test with f64
+            let res_f64 = with_tmp_file(|file| {
+                file.new_dataset_builder()
+                    .empty::<f64>()
+                    .shape((100, 50))
+                    .chunk((10, 10))
+                    .with_dcpl(|p| p.set_filters(&pipeline))
+                    .create("zfp_f64")
+                    .unwrap();
+
+                let plist = file.dataset("zfp_f64").unwrap().dcpl().unwrap();
+                Filter::extract_pipeline(plist.id()).unwrap()
+            });
+            assert_eq!(res_f64, pipeline);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_roundtrip_1d() -> Result<()> {
+        use super::zfp_available;
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+        let pipeline = vec![Filter::zfp_rate(16.0)];
+        with_tmp_file(|file| {
+            let data = ndarray::Array1::<f32>::linspace(0.0, 1.0, 1000);
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk((100,))
+                .with_dcpl(|p| p.set_filters(&pipeline))
+                .create("zfp_1d_dcpl")
+                .unwrap();
+
+
+            let ds = file.dataset("zfp_1d_dcpl").unwrap();
+            let read_data: Vec<f32> = ds.read_raw().unwrap();
+
+            // ZFP is lossy, so we check approximate equality
+            assert_eq!(read_data.len(), data.len());
+            for (i, (original, compressed)) in data.iter().zip(read_data.iter()).enumerate() {
+                let diff = (original - compressed).abs();
+                assert!(diff < 0.1, "Index {}: difference too large: {} vs {} (diff: {})",
+                        i, original, compressed, diff);
+            }
+        });
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_roundtrip_2d() -> Result<()> {
+        use super::zfp_available;
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+
+        with_tmp_file(|file| {
+            let data: Vec<f64> = (0..1000).map(|i| (i as f64) * 0.01).collect();
+            let data = Array2::from_shape_vec((10,100), data).unwrap();
+
+
+
+            let pipteline = vec![Filter::zfp_precision(32)];
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk((10,10))
+                .with_dcpl(|p| p.set_filters(&pipteline))
+                .create("zfp_2d")
+                .unwrap();
+
+            let ds = file.dataset("zfp_2d").unwrap();
+            let read_data: Vec<f64> = ds.read_raw().unwrap();
+
+            assert_eq!(read_data.len(), data.len());
+            for (original, compressed) in data.iter().zip(read_data.iter()) {
+                let diff = (original - compressed).abs();
+                assert!(diff < 0.01, "Difference too large: {} vs {}", original, compressed);
+            }
+        });
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_roundtrip_3d() -> Result<()> {
+        use super::zfp_available;
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+        let pipeline = vec![Filter::zfp_accuracy(1e-4)];
+        with_tmp_file(|file| {
+            let data: Vec<f32> = (0..1000).map(|i| (i as f32) * 0.001).collect();
+            let data = ndarray::Array3::from_shape_vec((10, 10, 10), data).unwrap();
+
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk((5, 5, 5))
+                .with_dcpl(|p| p.set_filters(&pipeline))
+                .create("zfp_3d")
+                .unwrap();
+
+
+
+
+            let ds = file.dataset("zfp_3d").unwrap();
+            let read_data: Vec<f32> = ds.read_raw().unwrap();
+
+            assert_eq!(read_data.len(), data.len());
+        });
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_roundtrip_4d() -> Result<()> {
+        use super::zfp_available;
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+        let pipeline = vec![Filter::zfp_rate(10.0)];
+        with_tmp_file(|file| {
+            let data: Vec<f64> = (0..256).map(|i| (i as f64) * 0.1).collect();
+            let data = ndarray::Array4::from_shape_vec((4, 4, 4, 4), data).unwrap();
+
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk((2, 2, 2, 2))
+                .with_dcpl(|p| p.set_filters(&pipeline))
+                .create("zfp_4d")
+                .unwrap();
+
+
+            let ds = file.dataset("zfp_4d").unwrap();
+            let read_data: Vec<f64> = ds.read_raw().unwrap();
+
+            assert_eq!(read_data.len(), data.len());
+        });
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_mode_parsing() -> Result<()> {
+        use super::ZfpMode;
+
+        // Test FixedRate parsing
+        let rate_bits = 12.5_f64.to_bits();
+        let cdata_rate = vec![
+            0, 1, 4, 100, 0, 0, 0,
+            1, // mode = rate
+            (rate_bits >> 32) as u32,
+            rate_bits as u32,
+        ];
+        let filter = Filter::from_raw(super::zfp::ZFP_FILTER_ID, &cdata_rate)?;
+        if let Filter::Zfp(ZfpMode::FixedRate(rate)) = filter {
+            assert!((rate - 12.5).abs() < 1e-10);
+        } else {
+            panic!("Expected FixedRate mode, got: {:?}", filter);
+        }
+
+        // Test FixedPrecision parsing
+        let cdata_precision = vec![
+            0, 1, 8, 100, 0, 0, 0,
+            2, // mode = precision
+            24, // precision
+            0,
+        ];
+        let filter = Filter::from_raw(super::zfp::ZFP_FILTER_ID, &cdata_precision)?;
+        if let Filter::Zfp(ZfpMode::FixedPrecision(precision)) = filter {
+            assert_eq!(precision, 24);
+        } else {
+            panic!("Expected FixedPrecision mode, got: {:?}", filter);
+        }
+
+        // Test FixedAccuracy parsing
+        let accuracy_bits = 1e-5_f64.to_bits();
+        let cdata_accuracy = vec![
+            0, 1, 8, 100, 0, 0, 0,
+            3, // mode = accuracy
+            (accuracy_bits >> 32) as u32,
+            accuracy_bits as u32,
+        ];
+        let filter = Filter::from_raw(super::zfp::ZFP_FILTER_ID, &cdata_accuracy)?;
+        if let Filter::Zfp(ZfpMode::FixedAccuracy(accuracy)) = filter {
+            assert!((accuracy - 1e-5).abs() < 1e-10);
+        } else {
+            panic!("Expected FixedAccuracy mode, got: {:?}", filter);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_with_other_filters() -> Result<()> {
+        use super::zfp_available;
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+
+
+
+        let pipeline = vec![Filter::zfp_rate(8.0)];
+        // Test ZFP combined with shuffle (shuffle should come first)
+        with_tmp_file(|file| {
+            let data: Vec<f32> = (0..1000).map(|i| (i as f32) * 0.1).collect();
+            let data = ndarray::Array1::from_shape_vec(1000, data).unwrap();
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk(100)
+                .with_dcpl(|p| p.set_filters(&pipeline))
+                .create("zfp_rate_8").unwrap();
+
+
+            let ds = file.dataset("zfp_rate_8").unwrap();
+            let read_data: Vec<f32> = ds.read_raw().unwrap();
+
+            let error = data.iter()
+                .zip(read_data.iter())
+                .map(|(a, b)| (a - b).abs())
+                .sum::<f32>() / data.len() as f32;
+            assert_eq!(error,0.082505114);
+            assert_eq!(read_data.len(), data.len());
+        });
+
+        // Test ZFP with fletcher32 checksum
+        if super::deflate_available() {
+            let pipeline = vec![Filter::zfp_precision(24), Filter::fletcher32()];
+            with_tmp_file(|file| {
+                let data: Vec<f64> = (0..500).map(|i| (i as f64) * 0.01).collect();
+                let data = ndarray::Array1::from_shape_vec(500, data).unwrap();
+
+                file.new_dataset_builder()
+                    .with_data(&data)
+                    .chunk(50)
+                    .with_dcpl(|p| p.set_filters(&pipeline))
+                    .create("zfp_with_fletcher32")
+                    .unwrap();
+
+
+                let ds = file.dataset("zfp_with_fletcher32").unwrap();
+                let read_data: Vec<f64> = ds.read_raw().unwrap();
+
+                assert_eq!(read_data.len(), data.len());
+            });
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_compression_ratios() -> Result<()> {
+        use super::zfp_available;
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+
+        let pipeline = vec![Filter::zfp_rate(32.0)];
+        let pipeline2 = vec![Filter::zfp_rate(4.0)];
+
+        with_tmp_file(|file| {
+            let data: Vec<f32> = (0..10000).map(|i| (i as f32).sin()).collect();
+            let data = ndarray::Array1::from_shape_vec(10000, data).unwrap();
+            // Higher rate = less compression but better quality
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk(1000)
+                .with_dcpl(|p| p.set_filters(&pipeline))
+                .create("zfp_high_rate")
+                .unwrap();
+
+            // Lower rate = more compression but lower quality
+
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk(1000)
+                .with_dcpl(|p| p.set_filters(&pipeline2))
+                .create("zfp_low_rate")
+                .unwrap();
+
+
+            let ds_high = file.dataset("zfp_high_rate").unwrap();
+            let ds_low = file.dataset("zfp_low_rate").unwrap();
+
+            let read_high: Vec<f32> = ds_high.read_raw().unwrap();
+            let read_low: Vec<f32> = ds_low.read_raw().unwrap();
+
+            // High rate should have better accuracy
+            let error_high: f32 = data.iter()
+                .zip(read_high.iter())
+                .map(|(a, b)| (a - b).abs())
+                .sum::<f32>() / data.len() as f32;
+
+            let error_low: f32 = data.iter()
+                .zip(read_low.iter())
+                .map(|(a, b)| (a - b).abs())
+                .sum::<f32>() / data.len() as f32;
+
+            println!("High rate error: {}, Low rate error: {}", error_high, error_low);
+            assert!(error_high < error_low || error_high < 0.001);
+        });
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_edge_cases() -> Result<()> {
+        use super::zfp_available;
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+
+        let pipeline = vec![Filter::zfp_rate(8.0)];
+
+        // Test with all zeros
+        with_tmp_file(|file| {
+            let data: Vec<f32> = vec![0.0; 1000];
+            let data = ndarray::Array1::from_shape_vec(1000, data).unwrap();
+
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk(100)
+                .with_dcpl(|p| p.set_filters(&pipeline))
+                .create("zfp_zeros")
+                .unwrap();
+
+
+            let ds = file.dataset("zfp_zeros").unwrap();
+            let read_data: Vec<f32> = ds.read_raw().unwrap();
+
+            assert_eq!(read_data.len(), data.len());
+            for &val in &read_data {
+                assert_eq!(val, 0.0);
+            }
+        });
+
+
+        let pipeline = vec![Filter::zfp_accuracy(1e-6)];
+        // Test with constant values
+        with_tmp_file(|file| {
+            let data: Vec<f64> = vec![42.0; 500];
+            let data = ndarray::Array1::from_shape_vec(500, data).unwrap();
+            file.new_dataset_builder()
+                .with_data(&data)
+                .chunk(50)
+                .with_dcpl(|p| p.set_filters(&pipeline))
+                .create("zfp_constant")
+                .unwrap();
+
+
+            let ds = file.dataset("zfp_constant").unwrap();
+            let read_data: Vec<f64> = ds.read_raw().unwrap();
+
+            assert_eq!(read_data.len(), data.len());
+            for &val in &read_data {
+                assert!((val - 42.0).abs() < 1e-5);
+            }
+        });
 
         Ok(())
     }

@@ -39,6 +39,8 @@ mpio = ["dep:mpi-sys", "hdf5-sys/mpio"]
 complex = ["hdf5-types/complex"]
 # Enable float16 type support.
 f16 = ["hdf5-types/f16"]
+# Enable ZFP Support
+zfp = ["dep:zfp-sys"]
 
 # The features with version numbers such as 1.10.3, 1.12.0 are metafeatures
 # and is only available when the HDF5 library is at least this version.
@@ -56,6 +58,7 @@ lzf-sys = { version = "0.1", optional = true }
 mpi-sys = { workspace = true, optional = true }
 ndarray = ">=0.15, <=0.17"
 paste = "1.0"
+zfp-sys = {version= "0.4.2", optional= true }
 # internal
 hdf5-derive = { workspace = true }
 hdf5-sys = { workspace = true }
@@ -73,4 +76,4 @@ scopeguard = "1.2"
 tempfile = "3.9"
 
 [package.metadata.docs.rs]
-features = ["static", "zlib", "blosc", "lzf", "f16", "complex"]
+features = ["static", "zlib", "blosc", "lzf", "f16", "complex","zfp"]

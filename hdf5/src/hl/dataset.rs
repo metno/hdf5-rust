@@ -329,6 +329,11 @@ where
     }
 }
 
+
+
+
+
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Chunk {
     Exact(Vec<Ix>), // exact chunk shape
@@ -711,6 +716,11 @@ impl DatasetBuilderInner {
     pub fn blosc_zstd(&mut self, clevel: u8, shuffle: impl Into<BloscShuffle>) {
         let shuffle = shuffle.into();
         self.with_dcpl(|pl| pl.blosc_zstd(clevel, shuffle));
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_rate(&mut self, rate: f64) {
+        self.with_dcpl(|pl| pl.zfp_rate(rate));
     }
 
     pub fn add_filter(&mut self, id: H5Z_filter_t, cdata: &[c_uint]) {
