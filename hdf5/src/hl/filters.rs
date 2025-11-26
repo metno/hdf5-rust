@@ -113,6 +113,7 @@ mod zfp_impl {
         FixedRate(f64),
         FixedPrecision(u8),
         FixedAccuracy(f64),
+        Lossless(),
     }
 
     // Bitwise compare f64 so NaN and signed zero are deterministic
@@ -123,6 +124,7 @@ mod zfp_impl {
                 (FixedRate(a), FixedRate(b)) => a.to_bits() == b.to_bits(),
                 (FixedPrecision(a), FixedPrecision(b)) => a == b,
                 (FixedAccuracy(a), FixedAccuracy(b)) => a.to_bits() == b.to_bits(),
+                (Lossless(), Lossless()) => true,
                 _ => false,
             }
         }
@@ -362,6 +364,12 @@ impl Filter {
         Self::zfp(ZfpMode::FixedAccuracy(accuracy))
     }
 
+    #[cfg(feature = "zfp")]
+    pub fn zfp_lossless() -> Self {
+        Self::zfp(ZfpMode::Lossless())
+    }
+
+
     pub fn user(id: H5Z_filter_t, cdata: &[c_uint]) -> Self {
         Self::User(id, cdata.to_vec())
     }
@@ -485,6 +493,7 @@ impl Filter {
                 let accuracy = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
                 ZfpMode::FixedAccuracy(accuracy)
             }
+            4 => ZfpMode::Lossless(),
             _ => fail!("invalid zfp mode: {}", mode),
         };
         Ok(Self::zfp(zfp_mode))
@@ -586,6 +595,7 @@ impl Filter {
                 let bits = accuracy.to_bits();
                 (3, (bits >> 32) as c_uint, bits as c_uint)
             }
+            ZfpMode::Lossless() => (4, 0, 0),
         };
         cdata[7] = mode_val;
         cdata[8] = param1;
@@ -705,6 +715,7 @@ pub(crate) fn validate_filters(filters: &[Filter], type_class: H5T_class_t) -> R
 #[cfg(test)]
 mod tests {
     use std::hint::assert_unchecked;
+    use std::io::{Seek, SeekFrom};
     use ndarray::Array2;
     use hdf5_sys::h5t::H5T_class_t;
 
@@ -879,6 +890,47 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    #[cfg(feature = "zfp")]
+    fn test_zfp_lossless() -> Result<()> {
+        use super::zfp_available;
+
+        if !zfp_available() {
+            println!("ZFP filter not available, skipping test");
+            return Ok(());
+        }
+        with_tmp_file(|file| {
+            let data = ndarray::Array1::<f32>::linspace(0.0, 1000.0, 100000);
+            file.new_dataset_builder()
+                .zfp_lossless()
+                .with_data(&data)
+                .chunk((10000,))
+                .create("zfp_lossless_1d")
+                .unwrap();
+
+
+
+        let ds = file.dataset("zfp_lossless_1d").unwrap();
+            // get number of bytes of ds
+            let n_bytes = file.size();
+            dbg!(n_bytes);
+
+        let read_data: Vec<f32> = ds.read_raw().unwrap();
+        let error = data.iter()
+            .zip(read_data.iter())
+            .map(|(a, b)| (a - b).abs())
+            .sum::<f32>() / data.len() as f32;
+
+        let target_bytes = 100000*4;
+        assert!(n_bytes <= target_bytes, "Dataset size {} exceeds target {}", n_bytes, target_bytes);
+        assert_eq!(n_bytes,7592);
+        assert_eq!(error,0.0);
+
+        }
+        );
+        assert_eq!(1,0);
+        Ok(())
+    }
     #[test]
     #[cfg(feature = "zfp")]
     fn test_zfp_roundtrip_1d() -> Result<()> {
@@ -1084,10 +1136,16 @@ mod tests {
         with_tmp_file(|file| {
             let data: Vec<f32> = (0..1000).map(|i| (i as f32) * 0.1).collect();
             let data = ndarray::Array1::from_shape_vec(1000, data).unwrap();
+            // file.new_dataset_builder()
+            //     .with_data(&data)
+            //     .chunk(100)
+            //     .with_dcpl(|p| p.set_filters(&pipeline))
+            //     .create("zfp_rate_8").unwrap();
+            //
             file.new_dataset_builder()
+                .zfp_rate(8.0)
                 .with_data(&data)
                 .chunk(100)
-                .with_dcpl(|p| p.set_filters(&pipeline))
                 .create("zfp_rate_8").unwrap();
 
 

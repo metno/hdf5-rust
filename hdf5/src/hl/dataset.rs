@@ -245,6 +245,43 @@ impl DatasetBuilder {
             conv: Conversion::Soft,
         }
     }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_rate(self, rate: f64) -> Self {
+        let new_ds = self.with_dcpl(|p| {
+            p.set_filters(&vec![Filter::zfp_rate(rate)])
+        });
+
+        new_ds
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_precision(self, precision: u8) -> Self {
+        let new_ds = self.with_dcpl(|p| {
+            p.set_filters(&vec![Filter::zfp_precision(precision)])
+        });
+
+        new_ds
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_accuracy(self, accuracy: f64) -> Self {
+        let new_ds = self.with_dcpl(|p| {
+            p.set_filters(&vec![Filter::zfp_accuracy(accuracy)])
+        });
+
+        new_ds
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_lossless(self) -> Self {
+        let new_ds = self.with_dcpl(|p| {
+            p.set_filters(&vec![Filter::zfp_lossless()])
+        });
+
+        new_ds
+    }
+
 }
 
 #[derive(Clone)]
@@ -327,6 +364,9 @@ where
             }
         })
     }
+
+
+
 }
 
 
@@ -718,10 +758,6 @@ impl DatasetBuilderInner {
         self.with_dcpl(|pl| pl.blosc_zstd(clevel, shuffle));
     }
 
-    #[cfg(feature = "zfp")]
-    pub fn zfp_rate(&mut self, rate: f64) {
-        self.with_dcpl(|pl| pl.zfp_rate(rate));
-    }
 
     pub fn add_filter(&mut self, id: H5Z_filter_t, cdata: &[c_uint]) {
         self.with_dcpl(|pl| pl.add_filter(id, cdata));
