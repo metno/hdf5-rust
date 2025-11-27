@@ -113,7 +113,7 @@ mod zfp_impl {
         FixedRate(f64),
         FixedPrecision(u8),
         FixedAccuracy(f64),
-        Lossless(),
+        Reversible(),
     }
 
     // Bitwise compare f64 so NaN and signed zero are deterministic
@@ -124,7 +124,7 @@ mod zfp_impl {
                 (FixedRate(a), FixedRate(b)) => a.to_bits() == b.to_bits(),
                 (FixedPrecision(a), FixedPrecision(b)) => a == b,
                 (FixedAccuracy(a), FixedAccuracy(b)) => a.to_bits() == b.to_bits(),
-                (Lossless(), Lossless()) => true,
+                (Reversible(), Reversible()) => true,
                 _ => false,
             }
         }
@@ -366,7 +366,7 @@ impl Filter {
 
     #[cfg(feature = "zfp")]
     pub fn zfp_lossless() -> Self {
-        Self::zfp(ZfpMode::Lossless())
+        Self::zfp(ZfpMode::Reversible())
     }
 
 
@@ -493,7 +493,7 @@ impl Filter {
                 let accuracy = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
                 ZfpMode::FixedAccuracy(accuracy)
             }
-            4 => ZfpMode::Lossless(),
+            5 => ZfpMode::Reversible(),
             _ => fail!("invalid zfp mode: {}", mode),
         };
         Ok(Self::zfp(zfp_mode))
@@ -595,7 +595,7 @@ impl Filter {
                 let bits = accuracy.to_bits();
                 (3, (bits >> 32) as c_uint, bits as c_uint)
             }
-            ZfpMode::Lossless() => (4, 0, 0),
+            ZfpMode::Reversible() => (5, 0, 0),
         };
         cdata[7] = mode_val;
         cdata[8] = param1;
@@ -913,8 +913,6 @@ mod tests {
         let ds = file.dataset("zfp_lossless_1d").unwrap();
             // get number of bytes of ds
             let n_bytes = file.size();
-            dbg!(n_bytes);
-
         let read_data: Vec<f32> = ds.read_raw().unwrap();
         let error = data.iter()
             .zip(read_data.iter())
@@ -923,12 +921,11 @@ mod tests {
 
         let target_bytes = 100000*4;
         assert!(n_bytes <= target_bytes, "Dataset size {} exceeds target {}", n_bytes, target_bytes);
-        assert_eq!(n_bytes,7592);
+        assert_eq!(n_bytes,249368);
         assert_eq!(error,0.0);
 
         }
         );
-        assert_eq!(1,0);
         Ok(())
     }
     #[test]

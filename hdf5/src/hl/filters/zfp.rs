@@ -17,6 +17,7 @@ pub use zfp_sys::{
     zfp_stream_set_precision, zfp_stream_set_rate, zfp_type_zfp_type_double,
     zfp_type_zfp_type_float, stream_close, stream_open,
 };
+use zfp_sys::zfp_stream_set_reversible;
 
 const ZFP_FILTER_NAME: &[u8] = b"zfp\0";
 pub const ZFP_FILTER_ID: H5Z_filter_t = 32013;
@@ -26,6 +27,7 @@ const ZFP_FILTER_VERSION: c_uint = 1;
 const ZFP_MODE_RATE: c_uint = 1;
 const ZFP_MODE_PRECISION: c_uint = 2;
 const ZFP_MODE_ACCURACY: c_uint = 3;
+const ZFP_MODE_REVERSIBLE: c_uint = 5;
 
 const ZFP_FILTER_INFO: &H5Z_class2_t = &H5Z_class2_t {
     version: H5Z_CLASS_T_VERS as _,
@@ -152,6 +154,9 @@ fn parse_zfp_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpCon
             let accuracy = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
             (0.0, 0, accuracy)
         }
+        ZFP_MODE_REVERSIBLE => {
+            (0.0,0,0.0)
+        }
         _ => {
             h5err!("Invalid ZFP mode", H5E_PLIST, H5E_CALLBACK);
             return None;
@@ -195,6 +200,9 @@ unsafe fn filter_zfp_compress(
         }
         ZFP_MODE_ACCURACY => {
             zfp_stream_set_accuracy(zfp, cfg.accuracy);
+        }
+        ZFP_MODE_REVERSIBLE =>{
+            zfp_stream_set_reversible(zfp)
         }
         _ => {
             zfp_stream_close(zfp);
@@ -301,6 +309,9 @@ unsafe fn filter_zfp_decompress(
         }
         ZFP_MODE_ACCURACY => {
             zfp_stream_set_accuracy(zfp, cfg.accuracy);
+        }
+        ZFP_MODE_REVERSIBLE =>{
+            zfp_stream_set_reversible(zfp)
         }
         _ => {
             zfp_stream_close(zfp);
