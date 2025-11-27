@@ -210,7 +210,6 @@ pub fn blosc_available() -> bool {
 }
 
 /// Returns `true` if ZFP filter is available.
-#[cfg(feature = "zfp")]
 pub fn zfp_available() -> bool {
     h5lock!(H5Zfilter_avail(32013) == 1)
 }
