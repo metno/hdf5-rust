@@ -31,8 +31,6 @@ use hdf5_types::{OwnedDynValue, TypeDescriptor};
 
 use crate::dim::Dimension;
 
-#[cfg(feature="zfp")]
-use crate::filters::ZfpMode;
 
 use crate::globals::H5P_DATASET_CREATE;
 use crate::hl::datatype::Datatype;
