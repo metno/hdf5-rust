@@ -713,7 +713,6 @@ pub(crate) fn validate_filters(filters: &[Filter], type_class: H5T_class_t) -> R
 
 #[cfg(test)]
 mod tests {
-    use std::hint::assert_unchecked;
     use std::io::{Seek, SeekFrom};
     use ndarray::Array2;
     use hdf5_sys::h5t::H5T_class_t;
