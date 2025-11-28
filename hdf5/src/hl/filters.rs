@@ -105,7 +105,6 @@ mod blosc_impl {
 #[cfg(feature = "blosc")]
 pub use blosc_impl::*;
 
-
 #[cfg(feature = "zfp")]
 mod zfp_impl {
     #[derive(Clone, Copy, Debug)]
@@ -137,7 +136,6 @@ mod zfp_impl {
         }
     }
 }
-
 
 #[cfg(feature = "zfp")]
 pub use zfp_impl::*;
@@ -367,7 +365,6 @@ impl Filter {
     pub fn zfp_lossless() -> Self {
         Self::zfp(ZfpMode::Reversible())
     }
-
 
     pub fn user(id: H5Z_filter_t, cdata: &[c_uint]) -> Self {
         Self::User(id, cdata.to_vec())
@@ -661,7 +658,8 @@ impl Filter {
     }
 }
 
-const COMP_FILTER_IDS: &[H5Z_filter_t] = &[H5Z_FILTER_DEFLATE, H5Z_FILTER_SZIP, 32000, 32001, 32013];
+const COMP_FILTER_IDS: &[H5Z_filter_t] =
+    &[H5Z_FILTER_DEFLATE, H5Z_FILTER_SZIP, 32000, 32001, 32013];
 
 pub(crate) fn validate_filters(filters: &[Filter], type_class: H5T_class_t) -> Result<()> {
     let mut map: HashMap<H5Z_filter_t, &Filter> = HashMap::new();
@@ -713,17 +711,17 @@ pub(crate) fn validate_filters(filters: &[Filter], type_class: H5T_class_t) -> R
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Seek, SeekFrom};
-    use ndarray::Array2;
     use hdf5_sys::h5t::H5T_class_t;
+    use ndarray::Array2;
+    use std::io::{Seek, SeekFrom};
 
     use super::{
         blosc_available, deflate_available, lzf_available, szip_available, validate_filters,
         Filter, FilterInfo, SZip, ScaleOffset,
     };
+    use crate::hl::filters::zfp_available;
     use crate::test::with_tmp_file;
     use crate::{plist::DatasetCreate, Result};
-    use crate::hl::filters::zfp_available;
 
     #[test]
     fn test_filter_pipeline() -> Result<()> {
@@ -751,15 +749,14 @@ mod tests {
             comp_filters.push(Filter::blosc_snappy(0, BloscShuffle::Bit));
         }
 
-        #[cfg(feature="zfp")]
+        #[cfg(feature = "zfp")]
         assert_eq!(cfg!(feature = "zfp"), zfp_available());
-        #[cfg(feature="zfp")]
+        #[cfg(feature = "zfp")]
         {
             comp_filters.push(Filter::zfp_rate(8.0));
             comp_filters.push(Filter::zfp_precision(16));
             comp_filters.push(Filter::zfp_accuracy(1e-3));
         }
-
 
         for c in &comp_filters {
             assert!(c.is_available());
@@ -855,11 +852,10 @@ mod tests {
 
             // Test with actual dataset creation for f32
             let res = with_tmp_file(|file| {
-
                 file.new_dataset_builder()
                     .empty::<f32>()
-                    .shape((100,50))
-                    .chunk((10,10))
+                    .shape((100, 50))
+                    .chunk((10, 10))
                     .with_dcpl(|p| p.set_filters(&pipeline))
                     .create("zfp_f32")
                     .unwrap();
@@ -906,24 +902,23 @@ mod tests {
                 .create("zfp_lossless_1d")
                 .unwrap();
 
-
-
-        let ds = file.dataset("zfp_lossless_1d").unwrap();
+            let ds = file.dataset("zfp_lossless_1d").unwrap();
             // get number of bytes of ds
             let n_bytes = file.size();
-        let read_data: Vec<f32> = ds.read_raw().unwrap();
-        let error = data.iter()
-            .zip(read_data.iter())
-            .map(|(a, b)| (a - b).abs())
-            .sum::<f32>() / data.len() as f32;
+            let read_data: Vec<f32> = ds.read_raw().unwrap();
+            let error = data.iter().zip(read_data.iter()).map(|(a, b)| (a - b).abs()).sum::<f32>()
+                / data.len() as f32;
 
-        let target_bytes = 100000*4;
-        assert!(n_bytes <= target_bytes, "Dataset size {} exceeds target {}", n_bytes, target_bytes);
-        assert_eq!(n_bytes,249368);
-        assert_eq!(error,0.0);
-
-        }
-        );
+            let target_bytes = 100000 * 4;
+            assert!(
+                n_bytes <= target_bytes,
+                "Dataset size {} exceeds target {}",
+                n_bytes,
+                target_bytes
+            );
+            assert_eq!(n_bytes, 249368);
+            assert_eq!(error, 0.0);
+        });
         Ok(())
     }
     #[test]
@@ -945,7 +940,6 @@ mod tests {
                 .create("zfp_1d_dcpl")
                 .unwrap();
 
-
             let ds = file.dataset("zfp_1d_dcpl").unwrap();
             let read_data: Vec<f32> = ds.read_raw().unwrap();
 
@@ -953,8 +947,14 @@ mod tests {
             assert_eq!(read_data.len(), data.len());
             for (i, (original, compressed)) in data.iter().zip(read_data.iter()).enumerate() {
                 let diff = (original - compressed).abs();
-                assert!(diff < 0.1, "Index {}: difference too large: {} vs {} (diff: {})",
-                        i, original, compressed, diff);
+                assert!(
+                    diff < 0.1,
+                    "Index {}: difference too large: {} vs {} (diff: {})",
+                    i,
+                    original,
+                    compressed,
+                    diff
+                );
             }
         });
 
@@ -973,14 +973,12 @@ mod tests {
 
         with_tmp_file(|file| {
             let data: Vec<f64> = (0..1000).map(|i| (i as f64) * 0.01).collect();
-            let data = Array2::from_shape_vec((10,100), data).unwrap();
-
-
+            let data = Array2::from_shape_vec((10, 100), data).unwrap();
 
             let pipteline = vec![Filter::zfp_precision(32)];
             file.new_dataset_builder()
                 .with_data(&data)
-                .chunk((10,10))
+                .chunk((10, 10))
                 .with_dcpl(|p| p.set_filters(&pipteline))
                 .create("zfp_2d")
                 .unwrap();
@@ -1019,9 +1017,6 @@ mod tests {
                 .create("zfp_3d")
                 .unwrap();
 
-
-
-
             let ds = file.dataset("zfp_3d").unwrap();
             let read_data: Vec<f32> = ds.read_raw().unwrap();
 
@@ -1052,7 +1047,6 @@ mod tests {
                 .create("zfp_4d")
                 .unwrap();
 
-
             let ds = file.dataset("zfp_4d").unwrap();
             let read_data: Vec<f64> = ds.read_raw().unwrap();
 
@@ -1070,7 +1064,13 @@ mod tests {
         // Test FixedRate parsing
         let rate_bits = 12.5_f64.to_bits();
         let cdata_rate = vec![
-            0, 1, 4, 100, 0, 0, 0,
+            0,
+            1,
+            4,
+            100,
+            0,
+            0,
+            0,
             1, // mode = rate
             (rate_bits >> 32) as u32,
             rate_bits as u32,
@@ -1084,8 +1084,7 @@ mod tests {
 
         // Test FixedPrecision parsing
         let cdata_precision = vec![
-            0, 1, 8, 100, 0, 0, 0,
-            2, // mode = precision
+            0, 1, 8, 100, 0, 0, 0, 2,  // mode = precision
             24, // precision
             0,
         ];
@@ -1099,7 +1098,13 @@ mod tests {
         // Test FixedAccuracy parsing
         let accuracy_bits = 1e-5_f64.to_bits();
         let cdata_accuracy = vec![
-            0, 1, 8, 100, 0, 0, 0,
+            0,
+            1,
+            8,
+            100,
+            0,
+            0,
+            0,
             3, // mode = accuracy
             (accuracy_bits >> 32) as u32,
             accuracy_bits as u32,
@@ -1124,8 +1129,6 @@ mod tests {
             return Ok(());
         }
 
-
-
         let pipeline = vec![Filter::zfp_rate(8.0)];
         // Test ZFP combined with shuffle (shuffle should come first)
         with_tmp_file(|file| {
@@ -1141,17 +1144,15 @@ mod tests {
                 .zfp_rate(8.0)
                 .with_data(&data)
                 .chunk(100)
-                .create("zfp_rate_8").unwrap();
-
+                .create("zfp_rate_8")
+                .unwrap();
 
             let ds = file.dataset("zfp_rate_8").unwrap();
             let read_data: Vec<f32> = ds.read_raw().unwrap();
 
-            let error = data.iter()
-                .zip(read_data.iter())
-                .map(|(a, b)| (a - b).abs())
-                .sum::<f32>() / data.len() as f32;
-            assert_eq!(error,0.082505114);
+            let error = data.iter().zip(read_data.iter()).map(|(a, b)| (a - b).abs()).sum::<f32>()
+                / data.len() as f32;
+            assert_eq!(error, 0.082505114);
             assert_eq!(read_data.len(), data.len());
         });
 
@@ -1168,7 +1169,6 @@ mod tests {
                     .with_dcpl(|p| p.set_filters(&pipeline))
                     .create("zfp_with_fletcher32")
                     .unwrap();
-
 
                 let ds = file.dataset("zfp_with_fletcher32").unwrap();
                 let read_data: Vec<f64> = ds.read_raw().unwrap();
@@ -1213,7 +1213,6 @@ mod tests {
                 .create("zfp_low_rate")
                 .unwrap();
 
-
             let ds_high = file.dataset("zfp_high_rate").unwrap();
             let ds_low = file.dataset("zfp_low_rate").unwrap();
 
@@ -1221,15 +1220,13 @@ mod tests {
             let read_low: Vec<f32> = ds_low.read_raw().unwrap();
 
             // High rate should have better accuracy
-            let error_high: f32 = data.iter()
-                .zip(read_high.iter())
-                .map(|(a, b)| (a - b).abs())
-                .sum::<f32>() / data.len() as f32;
+            let error_high: f32 =
+                data.iter().zip(read_high.iter()).map(|(a, b)| (a - b).abs()).sum::<f32>()
+                    / data.len() as f32;
 
-            let error_low: f32 = data.iter()
-                .zip(read_low.iter())
-                .map(|(a, b)| (a - b).abs())
-                .sum::<f32>() / data.len() as f32;
+            let error_low: f32 =
+                data.iter().zip(read_low.iter()).map(|(a, b)| (a - b).abs()).sum::<f32>()
+                    / data.len() as f32;
 
             println!("High rate error: {}, Low rate error: {}", error_high, error_low);
             assert!(error_high < error_low || error_high < 0.001);
@@ -1262,7 +1259,6 @@ mod tests {
                 .create("zfp_zeros")
                 .unwrap();
 
-
             let ds = file.dataset("zfp_zeros").unwrap();
             let read_data: Vec<f32> = ds.read_raw().unwrap();
 
@@ -1271,7 +1267,6 @@ mod tests {
                 assert_eq!(val, 0.0);
             }
         });
-
 
         let pipeline = vec![Filter::zfp_accuracy(1e-6)];
         // Test with constant values
@@ -1284,7 +1279,6 @@ mod tests {
                 .with_dcpl(|p| p.set_filters(&pipeline))
                 .create("zfp_constant")
                 .unwrap();
-
 
             let ds = file.dataset("zfp_constant").unwrap();
             let read_data: Vec<f64> = ds.read_raw().unwrap();

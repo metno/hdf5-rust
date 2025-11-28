@@ -31,7 +31,6 @@ use hdf5_types::{OwnedDynValue, TypeDescriptor};
 
 use crate::dim::Dimension;
 
-
 use crate::globals::H5P_DATASET_CREATE;
 use crate::hl::datatype::Datatype;
 use crate::hl::filters::{validate_filters, Filter, SZip, ScaleOffset};
@@ -476,7 +475,6 @@ impl DatasetCreateBuilder {
         self.filters.push(Filter::blosc_zstd(clevel, shuffle));
         self
     }
-
 
     pub fn add_filter(&mut self, id: H5Z_filter_t, cdata: &[c_uint]) -> &mut Self {
         self.filters.push(Filter::user(id, cdata));

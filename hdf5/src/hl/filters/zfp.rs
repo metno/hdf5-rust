@@ -10,14 +10,14 @@ use crate::error::H5ErrorCode;
 use crate::globals::{H5E_CALLBACK, H5E_PLIST};
 use crate::internal_prelude::*;
 
-pub use zfp_sys::{
-    zfp_compress, zfp_decompress, zfp_field_1d, zfp_field_2d, zfp_field_3d, zfp_field_4d,
-    zfp_field_free, zfp_stream_close, zfp_stream_maximum_size, zfp_stream_open,
-    zfp_stream_rewind, zfp_stream_set_accuracy, zfp_stream_set_bit_stream,
-    zfp_stream_set_precision, zfp_stream_set_rate, zfp_type_zfp_type_double,
-    zfp_type_zfp_type_float, stream_close, stream_open,
-};
 use zfp_sys::zfp_stream_set_reversible;
+pub use zfp_sys::{
+    stream_close, stream_open, zfp_compress, zfp_decompress, zfp_field_1d, zfp_field_2d,
+    zfp_field_3d, zfp_field_4d, zfp_field_free, zfp_stream_close, zfp_stream_maximum_size,
+    zfp_stream_open, zfp_stream_rewind, zfp_stream_set_accuracy, zfp_stream_set_bit_stream,
+    zfp_stream_set_precision, zfp_stream_set_rate, zfp_type_zfp_type_double,
+    zfp_type_zfp_type_float,
+};
 
 const ZFP_FILTER_NAME: &[u8] = b"zfp\0";
 pub const ZFP_FILTER_ID: H5Z_filter_t = 32013;
@@ -154,9 +154,7 @@ fn parse_zfp_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpCon
             let accuracy = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
             (0.0, 0, accuracy)
         }
-        ZFP_MODE_REVERSIBLE => {
-            (0.0,0,0.0)
-        }
+        ZFP_MODE_REVERSIBLE => (0.0, 0, 0.0),
         _ => {
             h5err!("Invalid ZFP mode", H5E_PLIST, H5E_CALLBACK);
             return None;
@@ -201,9 +199,7 @@ unsafe fn filter_zfp_compress(
         ZFP_MODE_ACCURACY => {
             zfp_stream_set_accuracy(zfp, cfg.accuracy);
         }
-        ZFP_MODE_REVERSIBLE =>{
-            zfp_stream_set_reversible(zfp)
-        }
+        ZFP_MODE_REVERSIBLE => zfp_stream_set_reversible(zfp),
         _ => {
             zfp_stream_close(zfp);
             return 0;
@@ -310,9 +306,7 @@ unsafe fn filter_zfp_decompress(
         ZFP_MODE_ACCURACY => {
             zfp_stream_set_accuracy(zfp, cfg.accuracy);
         }
-        ZFP_MODE_REVERSIBLE =>{
-            zfp_stream_set_reversible(zfp)
-        }
+        ZFP_MODE_REVERSIBLE => zfp_stream_set_reversible(zfp),
         _ => {
             zfp_stream_close(zfp);
             return 0;
@@ -403,4 +397,3 @@ unsafe fn filter_zfp_decompress(
     *buf_size = outbuf_size;
     outbuf_size
 }
-
