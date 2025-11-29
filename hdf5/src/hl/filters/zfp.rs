@@ -174,14 +174,14 @@ unsafe extern "C" fn filter_zfp(
         return 0;
     };
     if flags & H5Z_FLAG_REVERSE == 0 {
-        unsafe { filter_zfp_compress(&cfg, nbytes, buf_size, buf) }
+        unsafe { filter_zfp_compress(&cfg, buf_size, buf) }
     } else {
         unsafe { filter_zfp_decompress(&cfg, nbytes, buf_size, buf) }
     }
 }
 
 unsafe fn filter_zfp_compress(
-    cfg: &ZfpConfig, nbytes: size_t, buf_size: *mut size_t, buf: *mut *mut c_void,
+    cfg: &ZfpConfig, buf_size: *mut size_t, buf: *mut *mut c_void,
 ) -> size_t {
     let zfp = zfp_stream_open(ptr::null_mut());
     if zfp.is_null() {
