@@ -112,7 +112,8 @@ mod zfp_impl {
         FixedRate(f64),
         FixedPrecision(u8),
         FixedAccuracy(f64),
-        Reversible(),
+        Reversible
+        ,
     }
 
     // Bitwise compare f64 so NaN and signed zero are deterministic
@@ -123,7 +124,7 @@ mod zfp_impl {
                 (FixedRate(a), FixedRate(b)) => a.to_bits() == b.to_bits(),
                 (FixedPrecision(a), FixedPrecision(b)) => a == b,
                 (FixedAccuracy(a), FixedAccuracy(b)) => a.to_bits() == b.to_bits(),
-                (Reversible(), Reversible()) => true,
+                (Reversible, Reversible) => true,
                 _ => false,
             }
         }
@@ -132,7 +133,7 @@ mod zfp_impl {
 
     impl Default for ZfpMode {
         fn default() -> Self {
-            ZfpMode::FixedRate(1.0)
+            ZfpMode::FixedRate(4.0)
         }
     }
 }
@@ -362,8 +363,8 @@ impl Filter {
     }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_lossless() -> Self {
-        Self::zfp(ZfpMode::Reversible())
+    pub fn zfp_reversible() -> Self {
+        Self::zfp(ZfpMode::Reversible)
     }
 
     pub fn user(id: H5Z_filter_t, cdata: &[c_uint]) -> Self {
@@ -489,7 +490,7 @@ impl Filter {
                 let accuracy = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
                 ZfpMode::FixedAccuracy(accuracy)
             }
-            5 => ZfpMode::Reversible(),
+            5 => ZfpMode::Reversible,
             _ => fail!("invalid zfp mode: {}", mode),
         };
         Ok(Self::zfp(zfp_mode))
@@ -591,7 +592,7 @@ impl Filter {
                 let bits = accuracy.to_bits();
                 (3, (bits >> 32) as c_uint, bits as c_uint)
             }
-            ZfpMode::Reversible() => (5, 0, 0),
+            ZfpMode::Reversible => (5, 0, 0),
         };
         cdata[7] = mode_val;
         cdata[8] = param1;
@@ -886,7 +887,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "zfp")]
-    fn test_zfp_lossless() -> Result<()> {
+    fn test_zfp_reversible() -> Result<()> {
         use super::zfp_available;
 
         if !zfp_available() {
@@ -896,7 +897,7 @@ mod tests {
         with_tmp_file(|file| {
             let data = ndarray::Array1::<f32>::linspace(0.0, 1000.0, 100000);
             file.new_dataset_builder()
-                .zfp_lossless()
+                .zfp_reversible()
                 .with_data(&data)
                 .chunk((10000,))
                 .create("zfp_lossless_1d")
