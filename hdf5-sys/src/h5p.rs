@@ -526,11 +526,11 @@ extern "C" {
     ) -> herr_t;
 
     // mpi-io
-    #[cfg(feature = "mpio")]
+    #[cfg(feature = "have-parallel")]
     pub fn H5Pset_fapl_mpio(
         fapl_id: hid_t, comm: mpi_sys::MPI_Comm, info: mpi_sys::MPI_Info,
     ) -> herr_t;
-    #[cfg(feature = "mpio")]
+    #[cfg(feature = "have-parallel")]
     pub fn H5Pget_fapl_mpio(
         fapl_id: hid_t, comm: *mut mpi_sys::MPI_Comm, info: *mut mpi_sys::MPI_Info,
     ) -> herr_t;

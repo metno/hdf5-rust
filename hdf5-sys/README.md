@@ -9,7 +9,7 @@ This crate supports linking to a static build of HDF5. The HDF5 C library is bui
 via the `hdf5-src` crate which is then linked in when the `static` feature is set.
 See below for a list of supported options for static builds.
 
-As of the time of writing, the version of the HDF5 library that is built is 1.10.5,
+As of the time of writing, the version of the HDF5 library that is built is 2.0.0,
 but it may be incremented later.
 
 ## Crate features
