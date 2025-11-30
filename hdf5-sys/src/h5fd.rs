@@ -364,26 +364,6 @@ extern "C" {
     pub fn H5FDtruncate(file: *mut H5FD_t, dxpl_id: hid_t, closing: hbool_t) -> herr_t;
 }
 
-// drivers
-extern "C" {
-    pub fn H5FD_sec2_init() -> hid_t;
-    pub fn H5FD_core_init() -> hid_t;
-    pub fn H5FD_stdio_init() -> hid_t;
-    pub fn H5FD_family_init() -> hid_t;
-    pub fn H5FD_log_init() -> hid_t;
-    pub fn H5FD_multi_init() -> hid_t;
-}
-
-#[cfg(feature = "have-parallel")]
-extern "C" {
-    pub fn H5FD_mpio_init() -> hid_t;
-}
-
-#[cfg(feature = "have-direct")]
-extern "C" {
-    pub fn H5FD_direct_init() -> hid_t;
-}
-
 #[cfg(feature = "1.10.0")]
 extern "C" {
     pub fn H5FDlock(file: *mut H5FD_t, rw: hbool_t) -> herr_t;
