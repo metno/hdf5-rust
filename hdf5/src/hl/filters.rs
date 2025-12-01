@@ -112,8 +112,7 @@ mod zfp_impl {
         FixedRate(f64),
         FixedPrecision(u8),
         FixedAccuracy(f64),
-        Reversible
-        ,
+        Reversible,
     }
 
     // Bitwise compare f64 so NaN and signed zero are deterministic
