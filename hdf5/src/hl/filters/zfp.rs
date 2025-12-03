@@ -65,6 +65,7 @@ extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) ->
     const MAX_NDIMS: usize = 4;
     let mut flags: c_uint = 0;
     let mut nelmts: size_t = 4;
+    // start with a small buffer; H5Pget_filter_by_id2 will return the stored cdata (mode/params)
     let mut values: Vec<c_uint> = vec![0; 4];
     let ret = unsafe {
         H5Pget_filter_by_id2(
@@ -81,7 +82,12 @@ extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) ->
     if ret < 0 {
         return -1;
     }
+    // Preserve original small cdata (mode/params) returned by H5Pget_filter_by_id2.
+    let orig = values.clone();
+    // ensure we have enough space for header + dims + parameters (we need at least indices up to 9)
     nelmts = nelmts.max(10);
+    values.resize(nelmts as usize, 0);
+    // set version and header entries
     values[0] = ZFP_FILTER_VERSION;
 
     let mut chunkdims: Vec<hsize_t> = vec![0; MAX_NDIMS];
@@ -99,12 +105,18 @@ extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) ->
         return -1;
     }
 
+    // fill header fields (ndims, typesize) and chunk dimensions
     values[1] = ndims as c_uint;
     values[2] = typesize as c_uint;
-    for i in 0..ndims as usize {
-        if i + 3 < values.len() {
-            values[i + 3] = chunkdims[i] as c_uint;
-        }
+    for i in 0..(ndims as usize).min(values.len().saturating_sub(3)) {
+        values[i + 3] = chunkdims[i] as c_uint;
+    }
+    // The Filter::apply_zfp() originally stored mode/param1/param2 at indices 0..2.
+    // parse_zfp expects these at indices 7..9 in the final cdata layout. Move/preserve them.
+    if values.len() >= 10 {
+        values[7] = orig.get(0).copied().unwrap_or(0);
+        values[8] = orig.get(1).copied().unwrap_or(0);
+        values[9] = orig.get(2).copied().unwrap_or(0);
     }
 
     let r = unsafe { H5Pmodify_filter(dcpl_id, ZFP_FILTER_ID, flags, nelmts, values.as_ptr()) };
@@ -141,7 +153,6 @@ fn parse_zfp_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpCon
     for i in 0..(ndims as usize).min(4) {
         dims[i] = cdata[3 + i] as size_t;
     }
-    // println!("cdata : {:?}", cdata);
 
     let mode = if cdata.len() > 7 { cdata[7] } else { ZFP_MODE_RATE };
     let param1 = if cdata.len() > 8 { cdata[8] } else { 0 };
@@ -163,7 +174,6 @@ fn parse_zfp_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpCon
             return None;
         }
     };
-    println!("Mode: {}, rate: {}, precision: {}, accuracy: {}", mode, rate, precision, accuracy);
 
     Some(ZfpConfig { ndims, typesize, dims, mode, rate, precision, accuracy })
 }

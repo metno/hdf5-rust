@@ -14,7 +14,7 @@ use hdf5_sys::h5l::H5Ldelete;
 use hdf5_sys::h5p::H5P_DEFAULT;
 use hdf5_sys::h5z::H5Z_filter_t;
 use hdf5_types::{OwnedDynValue, TypeDescriptor};
-
+use crate::hl;
 #[cfg(feature = "blosc")]
 use crate::hl::filters::{Blosc, BloscShuffle};
 use crate::hl::filters::{Filter, SZip, ScaleOffset};
@@ -746,22 +746,26 @@ impl DatasetBuilderInner {
 
     #[cfg(feature = "zfp")]
     pub fn zfp_rate(&mut self, rate: f64) {
-         self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_rate(rate)]));
+        hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
+        self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_rate(rate)]));
 
     }
 
     #[cfg(feature = "zfp")]
     pub fn zfp_precision(&mut self, precision: u8) {
+        hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
          self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_precision(precision)]));
     }
 
     #[cfg(feature = "zfp")]
     pub fn zfp_accuracy(&mut self, accuracy: f64)  {
-        self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_accuracy(accuracy)]));
+        hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
+        self.with_dcpl(|pl| pl.zfp_accuracy(accuracy));
    }
 
     #[cfg(feature = "zfp")]
     pub fn zfp_reversible(&mut self) {
+        hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
         self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_reversible()]));
     }
 
