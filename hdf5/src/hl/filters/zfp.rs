@@ -64,8 +64,8 @@ extern "C" fn can_apply_zfp(_dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) -
 extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) -> herr_t {
     const MAX_NDIMS: usize = 4;
     let mut flags: c_uint = 0;
-    let mut nelmts: size_t = 10;
-    let mut values: Vec<c_uint> = vec![0; 10];
+    let mut nelmts: size_t = 4;
+    let mut values: Vec<c_uint> = vec![0; 4];
     let ret = unsafe {
         H5Pget_filter_by_id2(
             dcpl_id,
@@ -126,6 +126,47 @@ struct ZfpConfig {
     pub accuracy: f64,
 }
 
+impl From<ZfpConfig> for zfp_sys::zfp_config {
+    fn from(cfg: ZfpConfig) -> Self {
+
+        let binding_output = match cfg.mode {
+            ZFP_MODE_RATE => {
+                zfp_sys::zfp_config__bindgen_ty_1 {
+                    rate: cfg.rate
+                }
+            }
+            ZFP_MODE_PRECISION => {
+                zfp_sys::zfp_config__bindgen_ty_1 {
+                    precision: cfg.precision
+                },
+            }
+            ZFP_MODE_ACCURACY => {
+                zfp_sys::zfp_config__bindgen_ty_1 {
+                    tolerance: cfg.accuracy
+                }
+
+            }
+            ZFP_MODE_REVERSIBLE => {
+                zfp_sys::zfp_config__bindgen_ty_1 {
+                    tolerance: cfg.precision
+                }
+
+            }
+            _ => {
+                h5err!("Invalid ZFP mode", H5E_PLIST, H5E_CALLBACK);
+                return None;
+            }
+        }
+
+
+        zfp_sys::zfp_config {
+            mode: cfg.mode,
+            binding: binding_output,
+        }
+
+    }
+}
+
 fn parse_zfp_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpConfig> {
     let cdata = unsafe { slice::from_raw_parts(cd_values, cd_nelmts as _) };
     if cdata.len() < 7 {
@@ -183,25 +224,25 @@ unsafe extern "C" fn filter_zfp(
 unsafe fn filter_zfp_compress(
     cfg: &ZfpConfig, buf_size: *mut size_t, buf: *mut *mut c_void,
 ) -> size_t {
-    let zfp = zfp_stream_open(ptr::null_mut());
-    if zfp.is_null() {
+    let zfp_stream = zfp_stream_open(ptr::null_mut());
+    if zfp_stream.is_null() {
         h5err!("Failed to open ZFP stream", H5E_PLIST, H5E_CALLBACK);
         return 0;
     }
 
     match cfg.mode {
         ZFP_MODE_RATE => {
-            zfp_stream_set_rate(zfp, cfg.rate, cfg.typesize as _, cfg.ndims as _, 0);
+            zfp_stream_set_rate(zfp_stream, cfg.rate, cfg.typesize as _, cfg.ndims as _, 0);
         }
         ZFP_MODE_PRECISION => {
-            zfp_stream_set_precision(zfp, cfg.precision);
+            zfp_stream_set_precision(zfp_stream, cfg.precision);
         }
         ZFP_MODE_ACCURACY => {
-            zfp_stream_set_accuracy(zfp, cfg.accuracy);
+            zfp_stream_set_accuracy(zfp_stream, cfg.accuracy);
         }
-        ZFP_MODE_REVERSIBLE => zfp_stream_set_reversible(zfp),
+        ZFP_MODE_REVERSIBLE => zfp_stream_set_reversible(zfp_stream),
         _ => {
-            zfp_stream_close(zfp);
+            zfp_stream_close(zfp_stream);
             return 0;
         }
     }
@@ -251,29 +292,29 @@ unsafe fn filter_zfp_compress(
     };
 
     if field.is_null() {
-        zfp_stream_close(zfp);
+        zfp_stream_close(zfp_stream);
         h5err!("Failed to create ZFP field", H5E_PLIST, H5E_CALLBACK);
         return 0;
     }
 
-    let maxsize = zfp_stream_maximum_size(zfp, field);
+    let maxsize = zfp_stream_maximum_size(zfp_stream, field);
     let outbuf = libc::malloc(maxsize);
     if outbuf.is_null() {
         zfp_field_free(field);
-        zfp_stream_close(zfp);
+        zfp_stream_close(zfp_stream);
         h5err!("Can't allocate compression buffer", H5E_PLIST, H5E_CALLBACK);
         return 0;
     }
 
     let bitstream = stream_open(outbuf.cast(), maxsize);
-    zfp_stream_set_bit_stream(zfp, bitstream);
-    zfp_stream_rewind(zfp);
+    zfp_stream_set_bit_stream(zfp_stream, bitstream);
+    zfp_stream_rewind(zfp_stream);
 
-    let compressed_size = zfp_compress(zfp, field);
+    let compressed_size = zfp_compress(zfp_stream, field);
 
     stream_close(bitstream);
     zfp_field_free(field);
-    zfp_stream_close(zfp);
+    zfp_stream_close(zfp_stream);
 
     if compressed_size == 0 {
         libc::free(outbuf);
@@ -290,25 +331,25 @@ unsafe fn filter_zfp_compress(
 unsafe fn filter_zfp_decompress(
     cfg: &ZfpConfig, nbytes: size_t, buf_size: *mut size_t, buf: *mut *mut c_void,
 ) -> size_t {
-    let zfp = zfp_stream_open(ptr::null_mut());
-    if zfp.is_null() {
+    let zfp_stream = zfp_stream_open(ptr::null_mut());
+    if zfp_stream.is_null() {
         h5err!("Failed to open ZFP stream", H5E_PLIST, H5E_CALLBACK);
         return 0;
     }
 
     match cfg.mode {
         ZFP_MODE_RATE => {
-            zfp_stream_set_rate(zfp, cfg.rate, cfg.typesize as _, cfg.ndims as _, 0);
+            zfp_stream_set_rate(zfp_stream, cfg.rate, cfg.typesize as _, cfg.ndims as _, 0);
         }
         ZFP_MODE_PRECISION => {
-            zfp_stream_set_precision(zfp, cfg.precision);
+            zfp_stream_set_precision(zfp_stream, cfg.precision);
         }
         ZFP_MODE_ACCURACY => {
-            zfp_stream_set_accuracy(zfp, cfg.accuracy);
+            zfp_stream_set_accuracy(zfp_stream, cfg.accuracy);
         }
-        ZFP_MODE_REVERSIBLE => zfp_stream_set_reversible(zfp),
+        ZFP_MODE_REVERSIBLE => zfp_stream_set_reversible(zfp_stream),
         _ => {
-            zfp_stream_close(zfp);
+            zfp_stream_close(zfp_stream);
             return 0;
         }
     }
@@ -320,7 +361,7 @@ unsafe fn filter_zfp_decompress(
 
     let outbuf = libc::malloc(outbuf_size);
     if outbuf.is_null() {
-        zfp_stream_close(zfp);
+        zfp_stream_close(zfp_stream);
         h5err!("Can't allocate decompression buffer", H5E_PLIST, H5E_CALLBACK);
         return 0;
     }
@@ -371,20 +412,20 @@ unsafe fn filter_zfp_decompress(
 
     if field.is_null() {
         libc::free(outbuf);
-        zfp_stream_close(zfp);
+        zfp_stream_close(zfp_stream);
         h5err!("Failed to create ZFP field", H5E_PLIST, H5E_CALLBACK);
         return 0;
     }
 
     let bitstream = stream_open((*buf).cast(), nbytes);
-    zfp_stream_set_bit_stream(zfp, bitstream);
-    zfp_stream_rewind(zfp);
+    zfp_stream_set_bit_stream(zfp_stream, bitstream);
+    zfp_stream_rewind(zfp_stream);
 
-    let status = zfp_decompress(zfp, field);
+    let status = zfp_decompress(zfp_stream, field);
 
     stream_close(bitstream);
     zfp_field_free(field);
-    zfp_stream_close(zfp);
+    zfp_stream_close(zfp_stream);
 
     if status == 0 {
         libc::free(outbuf);
