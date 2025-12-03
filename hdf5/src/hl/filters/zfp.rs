@@ -141,6 +141,7 @@ fn parse_zfp_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpCon
     for i in 0..(ndims as usize).min(4) {
         dims[i] = cdata[3 + i] as size_t;
     }
+    println!("cdata : {:?}", cdata);
 
     let mode = if cdata.len() > 7 { cdata[7] } else { ZFP_MODE_RATE };
     let param1 = if cdata.len() > 8 { cdata[8] } else { 0 };
