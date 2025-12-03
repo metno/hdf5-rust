@@ -163,6 +163,7 @@ fn parse_zfp_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpCon
             return None;
         }
     };
+    println!("Mode: {}, rate: {}, precision: {}, accuracy: {}", mode, rate, precision, accuracy);
 
     Some(ZfpConfig { ndims, typesize, dims, mode, rate, precision, accuracy })
 }
