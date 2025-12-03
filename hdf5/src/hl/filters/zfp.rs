@@ -126,45 +126,7 @@ struct ZfpConfig {
     pub accuracy: f64,
 }
 
-impl From<ZfpConfig> for zfp_sys::zfp_config {
-    fn from(cfg: ZfpConfig) -> Self {
 
-        let binding_output = match cfg.mode {
-            ZFP_MODE_RATE => {
-                zfp_sys::zfp_config__bindgen_ty_1 {
-                    rate: cfg.rate
-                }
-            },
-            ZFP_MODE_PRECISION => {
-                zfp_sys::zfp_config__bindgen_ty_1 {
-                    precision: cfg.precision
-                }
-            },
-            ZFP_MODE_ACCURACY => {
-                zfp_sys::zfp_config__bindgen_ty_1 {
-                    tolerance: cfg.accuracy
-                }
-
-            },
-            ZFP_MODE_REVERSIBLE => {
-                zfp_sys::zfp_config__bindgen_ty_1 {
-                    tolerance: cfg.accuracy
-                }
-
-            },
-            _ => {
-                h5err!("Invalid ZFP mode", H5E_PLIST, H5E_CALLBACK);
-            }
-        };
-
-
-        zfp_sys::zfp_config {
-            mode: cfg.mode,
-            arg: binding_output,
-        }
-
-    }
-}
 
 fn parse_zfp_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpConfig> {
     let cdata = unsafe { slice::from_raw_parts(cd_values, cd_nelmts as _) };
