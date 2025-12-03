@@ -134,34 +134,33 @@ impl From<ZfpConfig> for zfp_sys::zfp_config {
                 zfp_sys::zfp_config__bindgen_ty_1 {
                     rate: cfg.rate
                 }
-            }
+            },
             ZFP_MODE_PRECISION => {
                 zfp_sys::zfp_config__bindgen_ty_1 {
                     precision: cfg.precision
-                },
-            }
+                }
+            },
             ZFP_MODE_ACCURACY => {
                 zfp_sys::zfp_config__bindgen_ty_1 {
                     tolerance: cfg.accuracy
                 }
 
-            }
+            },
             ZFP_MODE_REVERSIBLE => {
                 zfp_sys::zfp_config__bindgen_ty_1 {
-                    tolerance: cfg.precision
+                    tolerance: cfg.accuracy
                 }
 
-            }
+            },
             _ => {
                 h5err!("Invalid ZFP mode", H5E_PLIST, H5E_CALLBACK);
-                return None;
             }
-        }
+        };
 
 
         zfp_sys::zfp_config {
             mode: cfg.mode,
-            binding: binding_output,
+            arg: binding_output,
         }
 
     }
