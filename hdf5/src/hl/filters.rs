@@ -478,10 +478,11 @@ impl Filter {
         let mode = if cdata.len() >= 8 { cdata[7] } else { 1 };
         let param1 = if cdata.len() >= 9 { cdata[8] } else { 0 };
         let param2 = if cdata.len() >= 10 { cdata[9] } else { 0 };
-
+        dbg!(param1, param2);
         let zfp_mode = match mode {
             1 => {
                 let rate = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
+                
                 ZfpMode::FixedRate(rate)
             }
             2 => ZfpMode::FixedPrecision(param1 as u8),
