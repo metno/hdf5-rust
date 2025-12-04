@@ -31,3 +31,21 @@ hdf5-derive = { package = "hdf5-metno-derive", version = "0.9.1", path = "hdf5-d
 hdf5-src = { package = "hdf5-metno-src", version = "0.9.3", path = "hdf5-src" }          # !V
 hdf5-sys = { package = "hdf5-metno-sys", version = "0.10.1", path = "hdf5-sys" }         # !V
 hdf5-types = { package = "hdf5-metno-types", version = "0.10.0", path = "hdf5-types" }   # !V
+
+
+[profile.dev]
+# Fast compile, reasonable runtime
+opt-level = 0          # no optimizations = much faster compilation
+debug = 1              # keep minimal debug info (0 is smaller, 1 is a nice compromise)
+incremental = true     # reuse previous compilation work
+codegen-units = 16     # more parallel codegen units = faster compiles
+lto = "off"            # no link-time optimization
+panic = "unwind"       # default, keeps backtraces usable
+overflow-checks = true # keep checks for safety in dev
+
+[profile.test]
+# Inherit dev as a baseline, then tweak for tests
+inherits = "dev"
+opt-level = 0          # keep tests compiling fast
+debug = 1              # enough info for backtraces
+overflow-checks = true
