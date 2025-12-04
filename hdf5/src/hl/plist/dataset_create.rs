@@ -482,6 +482,24 @@ impl DatasetCreateBuilder {
         self
     }
 
+    #[cfg(feature="zfp")]
+    pub fn zfp_rate(&mut self, rate: f64) -> &mut Self {
+        self.filters.push(Filter::zfp_rate(rate));
+        self
+    }
+
+    #[cfg(feature="zfp")]
+    pub fn zfp_precision(&mut self, precision: u8) -> &mut Self {
+        self.filters.push(Filter::zfp_precision(precision));
+        self
+    }
+
+    #[cfg(feature="zfp")]
+    pub fn zfp_reversible(&mut self) -> &mut Self {
+        self.filters.push(Filter::zfp_reversible());
+        self
+    }
+
     pub fn add_filter(&mut self, id: H5Z_filter_t, cdata: &[c_uint]) -> &mut Self {
         self.filters.push(Filter::user(id, cdata));
         self

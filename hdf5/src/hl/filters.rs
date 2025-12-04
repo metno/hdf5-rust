@@ -580,7 +580,7 @@ impl Filter {
 
     #[cfg(feature = "zfp")]
     unsafe fn apply_zfp(plist_id: hid_t, mode: ZfpMode) -> herr_t {
-        let mut cdata: Vec<c_uint> = vec![0; 4];
+        let mut cdata: Vec<c_uint> = vec![0; 10];
         let (mode_val, param1, param2) = match mode {
             ZfpMode::FixedRate(rate) => {
                 let bits = rate.to_bits();
@@ -593,10 +593,7 @@ impl Filter {
             }
             ZfpMode::Reversible => (5, 0, 0),
         };
-        cdata[0] = mode_val;
-        cdata[1] = param1;
-        cdata[2] = param2;
-
+        dbg!("HERE");
         Self::apply_user(plist_id, zfp::ZFP_FILTER_ID, &cdata)
     }
 
@@ -927,16 +924,15 @@ mod tests {
 
     #[test]
     #[cfg(feature = "zfp")]
-    fn test_zfp_accuracy() -> Result<()>{
+    fn test_zfp_accuracy() -> Result<()> {
         use super::zfp_available;
 
         if !zfp_available() {
             println!("ZFP filter not available, skipping test");
             dbg!("HERE");
-            assert_eq!(1,0);
+            assert_eq!(1, 0);
             return Ok(());
         }
-        let mode = ZfpMode::FixedAccuracy(10.0);
         with_tmp_file(|file| {
             let data = ndarray::Array1::<f32>::linspace(0.0, 1.0, 1000);
             file.new_dataset_builder()
@@ -956,12 +952,11 @@ mod tests {
             assert_eq!(read_data.len(), data.len());
             dbg!(&data.clone().into_raw_vec_and_offset().0[0..15]);
             dbg!(&read_data[0..15]);
-            assert_eq!(1,0);
             for (i, (original, compressed)) in data.iter().zip(read_data.iter()).enumerate() {
                 let diff = (original - compressed).abs();
                 dbg!(&diff);
                 assert!(
-                    diff > 10.01,
+                    diff < 0.1,
                     "Index {}: difference too large: {} vs {} (diff: {})",
                     i,
                     original,
@@ -977,21 +972,21 @@ mod tests {
 
     #[test]
     #[cfg(feature = "zfp")]
-    fn test_zfp_reversible() -> Result<()>{
+    fn test_zfp_reversible() -> Result<()> {
         use super::zfp_available;
 
         if !zfp_available() {
             println!("ZFP filter not available, skipping test");
             dbg!("HERE");
-            assert_eq!(1,0);
+            assert_eq!(1, 0);
             return Ok(());
         }
         with_tmp_file(|file| {
-            let data = ndarray::Array1::<f32>::linspace(0.0, 1.0, 1000);
+            let data = ndarray::Array1::<f32>::linspace(0.0, 1.0, 10000);
             file.new_dataset_builder()
-                .with_data(&data)
                 .zfp_reversible()
-                .chunk((1000,))
+                .with_data(&data)
+                .chunk((10000,))
                 .create("zfp_reversible")
                 .unwrap();
 
@@ -1000,16 +995,26 @@ mod tests {
             assert_eq!(ds.filters(), vec![crate::hl::filters::Filter::zfp_reversible()]);
 
             let read_data: Vec<f32> = ds.read_raw().unwrap();
+            let n_bytes = file.size();
 
             // ZFP is lossy, so we check approximate equality
             assert_eq!(read_data.len(), data.len());
             dbg!(&data.clone().into_raw_vec_and_offset().0[0..15]);
             dbg!(&read_data[0..15]);
+            let target_bytes = (data.len() * 4) as u64;
+            assert!(
+                n_bytes <= target_bytes,
+                "Dataset size {} exceeds target {}",
+                n_bytes,
+                target_bytes
+            );
+            assert_eq!(n_bytes, 6560);
+            //
             for (i, (original, compressed)) in data.iter().zip(read_data.iter()).enumerate() {
                 let diff = (original - compressed).abs();
                 dbg!(&diff);
                 assert!(
-                    diff ==0.0,
+                    diff == 0.0,
                     "Index {}: difference too large: {} vs {} (diff: {})",
                     i,
                     original,
@@ -1023,16 +1028,15 @@ mod tests {
     }
 
 
-
     #[test]
     #[cfg(feature = "zfp")]
-    fn test_zfp_rate() -> Result<()>{
+    fn test_zfp_rate() -> Result<()> {
         use super::zfp_available;
 
         if !zfp_available() {
             println!("ZFP filter not available, skipping test");
             dbg!("HERE");
-            assert_eq!(1,0);
+            assert_eq!(1, 0);
             return Ok(());
         }
         with_tmp_file(|file| {
@@ -1041,11 +1045,11 @@ mod tests {
                 .with_data(&data)
                 .zfp_rate(2.0)
                 .chunk((1000,))
-                .create("zfp_reversible")
+                .create("zfp_rate")
                 .unwrap();
 
 
-            let ds = file.dataset("zfp_reversible").unwrap();
+            let ds = file.dataset("zfp_rate").unwrap();
             assert_eq!(ds.filters(), vec![crate::hl::filters::Filter::zfp_rate(2.0)]);
 
             let read_data: Vec<f32> = ds.read_raw().unwrap();
@@ -1058,7 +1062,7 @@ mod tests {
                 let diff = (original - compressed).abs();
                 dbg!(&diff);
                 assert!(
-                    diff ==0.0,
+                    diff == 0.0,
                     "Index {}: difference too large: {} vs {} (diff: {})",
                     i,
                     original,
