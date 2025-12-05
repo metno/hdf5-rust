@@ -24,9 +24,6 @@ pub(crate) mod zfp;
 
 
 #[cfg(feature = "zfp")]
-mod produce_zfp_header;
-
-#[cfg(feature = "zfp")]
 use zfp_sys::{zfp_type_zfp_type_float,zfp_type_zfp_type_double};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -149,38 +146,6 @@ mod zfp_impl {
         pub dims: Vec<usize>
     }
 
-    #[derive(Clone, Debug)]
-    pub enum ZfpModeNew {
-        FixedRate(f64,FieldParam),
-        FixedPrecision(u8,FieldParam),
-        FixedAccuracy(f64,FieldParam),
-        Reversible(FieldParam),
-    }
-
-    // Bitwise compare f64 so NaN and signed zero are deterministic
-    impl PartialEq for ZfpModeNew {
-        fn eq(&self, other: &Self) -> bool {
-            use ZfpModeNew::*;
-            match (self, other) {
-                (FixedRate(a,c), FixedRate(b,d)) => (a.to_bits() == b.to_bits()) & (c==d),
-                (FixedPrecision(a,c), FixedPrecision(b,d)) => (a == b) & (c == d),
-                (FixedAccuracy(a,c), FixedAccuracy(b,d)) => (a.to_bits() == b.to_bits()) & (c==d),
-                (Reversible(c), Reversible(d)) => c==d,
-                _ => false,
-            }
-        }
-    }
-    impl Eq for ZfpModeNew {}
-
-    impl Default for ZfpModeNew {
-        fn default() -> Self {
-            let field_param = FieldParam{
-                data_type_bytes: 4,
-                dims: vec![960]
-            };
-            ZfpModeNew::FixedRate(4.0,field_param)
-        }
-    }
 
 
 
@@ -1036,7 +1001,6 @@ mod tests {
 
         if !zfp_available() {
             println!("ZFP filter not available, skipping test");
-            dbg!("HERE");
             assert_eq!(1, 0);
             return Ok(());
         }
@@ -1056,12 +1020,10 @@ mod tests {
 
             // ZFP is lossy, so we check approximate equality
             assert_eq!(read_data.len(), data.len());
-            dbg!(&data.clone().into_raw_vec_and_offset().0[0..15]);
-            dbg!(&read_data[0..15]);
+
             assert_eq!(1,0);
             for (i, (original, compressed)) in data.iter().zip(read_data.iter()).enumerate() {
                 let diff = (original - compressed).abs();
-                dbg!(&diff);
                 assert!(
                     diff < 0.1,
                     "Index {}: difference too large: {} vs {} (diff: {})",
@@ -1084,7 +1046,6 @@ mod tests {
 
         if !zfp_available() {
             println!("ZFP filter not available, skipping test");
-            dbg!("HERE");
             assert_eq!(1, 0);
             return Ok(());
         }
@@ -1147,7 +1108,6 @@ mod tests {
 
         if !zfp_available() {
             println!("ZFP filter not available, skipping test");
-            dbg!("HERE");
             assert_eq!(1, 0);
             return Ok(());
         }

@@ -22,7 +22,9 @@ use zfp_sys::zfp_stream;
 use crate::filters::ZfpMode;
 
 
-/// Major edits are needed to be in alignmeht with the H5Z-ZFP. What was previously implemented was effectively a new implementation of H5Z_ZFP but was incompatible with any library built against it. This reults in bad c_data vectors being created and produces erratic behavior.
+/// Major edits are needed to be in alignmeht with the H5Z-ZFP. What was previously implemented was
+/// effectively a new implementation of H5Z_ZFP but was incompatible with any library built against
+/// it. This reults in bad c_data vectors being created and produces erratic behavior.
 
 pub(crate) const MAX_NDIMS: usize = 4;
 
@@ -71,6 +73,19 @@ extern "C" fn can_apply_zfp(_dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) -
 }
 
 
+/// Sets the local properties for the ZFP filter.
+///
+/// This function is called during the creation of a dataset or attribute to set
+/// the local properties of the ZFP filter. It retrieves the filter's configuration
+/// data, validates the chunk dimensions, and updates the filter's parameters.
+///
+/// # Parameters
+/// - `dcpl_id`: The dataset creation property list identifier.
+/// - `type_id`: The datatype identifier of the dataset or attribute.
+/// - `_space_id`: The dataspace identifier (not used in this function).
+///
+/// # Returns
+/// - `herr_t`: Returns 1 on success, or -1 on failure.
 extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) -> herr_t {
     const MAX_NDIMS: usize = 4;
     let mut flags: c_uint = 0;
@@ -141,35 +156,30 @@ extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) ->
 }
 
 
-fn pack_header_into_cd_values(
-    header_bytes: &[u8],
-    bits_written: usize,
-) -> Vec<u32> {
-    let total_bytes = (bits_written + 7) / 8;
-    let nwords = (total_bytes + 3) / 4;
-
-    let mut cd_vals = Vec::with_capacity(1 + nwords);
-
-    // cd_values[0] = version word (we'll fill it in below)
-    cd_vals.push(0);
-
-    for i in 0..nwords {
-        let mut word_bytes = [0u8; 4];
-        for j in 0..4 {
-            let idx = i * 4 + j;
-            if idx < total_bytes {
-                word_bytes[j] = header_bytes[idx];
-            }
-        }
-        cd_vals.push(u32::from_le_bytes(word_bytes));
-    }
-
-    cd_vals
-}
-
 
 const H5Z_ZFP_CD_NELMTS_MAX: usize = 8; // whatever the header says; set correctly.
 
+
+/// Computes the header and configuration data values for the ZFP filter.
+///
+/// This function generates the header and configuration data values (`cd_values`)
+/// required for the ZFP filter. It creates a dummy ZFP field based on the provided
+/// dimensions and data type, sets the compression mode, and writes the full header
+/// into the `cd_values` buffer.
+///
+/// # Parameters
+/// - `zt`: The ZFP data type (e.g., `zfp_type_zfp_type_float` or `zfp_type_zfp_type_double`).
+/// - `ndims_used`: The number of dimensions used in the data.
+/// - `dims_used`: A slice containing the sizes of the dimensions.
+/// - `mode`: The ZFP compression mode, which can be fixed rate, precision, accuracy, or reversible.
+///
+/// # Returns
+/// A tuple containing:
+/// - `Vec<u32>`: The header and configuration data values.
+/// - `usize`: The number of elements in the `cd_values` array.
+///
+/// # Panics
+/// This function will panic if the number of dimensions exceeds the supported range (1 to 4).
 pub unsafe fn compute_hdr_cd_values(
     zt: zfp_type,
     ndims_used: usize,
@@ -280,104 +290,6 @@ unsafe fn make_version_word() -> u32 {
 
 
 
-pub unsafe fn make_llnl_style_cd_values(
-    chunk_dims: &[usize],
-    mode: ZfpMode,
-) -> Vec<u32> {
-    let ztype = zfp_type_zfp_type_float;
-    let dims_used: Vec<usize> = chunk_dims
-        .iter()
-        .copied()
-        .filter(|&d| d > 1)
-        .collect();
-    let field = make_zfp_field(ztype, &dims_used);
-    let zfp_stream = zfp_stream_open(ptr::null_mut());
-
-
-    match mode {
-        ZfpMode::FixedRate(rate) => {
-            zfp_stream_set_rate(zfp_stream, rate, std::mem::size_of::<f32>() as _, dims_used.len() as _, 0);
-        }
-        ZfpMode::FixedPrecision(precision) => {
-            zfp_stream_set_precision(zfp_stream, precision as u32);
-        }
-        ZfpMode::FixedAccuracy(accuracy) => {
-            zfp_stream_set_accuracy(zfp_stream, accuracy);
-        }
-        ZfpMode::Reversible => {
-            zfp_stream_set_reversible(zfp_stream);
-        }
-    };
-
-
-    let (header_bytes, bits_written) = zfp_header_bits(zfp_stream, field);
-
-    let mut cd_vals = pack_header_into_cd_values(&header_bytes, bits_written);
-
-    // plug in version info
-    cd_vals[0] = make_version_word();
-    unsafe {
-        zfp_field_free(field);
-        zfp_stream_close(zfp_stream);
-    }
-
-    cd_vals
-}
-
-
-unsafe fn make_zfp_field(ztype: zfp_type, dims: &[usize]) -> *mut zfp_field {
-    let mut shape = [1usize; 4];
-    for (idx, dim) in dims.iter().copied().take(4).enumerate() {
-        shape[idx] = dim.max(1);
-    }
-
-    match dims.len() {
-        0 | 1 => zfp_field_1d(ptr::null_mut(), ztype, shape[0]),
-        2 => zfp_field_2d(ptr::null_mut(), ztype, shape[0], shape[1]),
-        3 => zfp_field_3d(ptr::null_mut(), ztype, shape[0], shape[1], shape[2]),
-        _ => zfp_field_4d(
-            ptr::null_mut(),
-            ztype,
-            shape[0],
-            shape[1],
-            shape[2],
-            shape[3],
-        ),
-    }
-}
-
-
-unsafe fn zfp_header_bits(
-    zstream: *mut zfp_stream,
-    field: *mut zfp_field,
-) -> (Vec<u8>, usize) {
-    // Max bits → bytes; this constant is in the ZFP docs and exposed via zfp-sys
-    let max_bits = ZFP_HEADER_MAX_BITS as usize;
-    let max_bytes = 20;
-    let mut buf = vec![0u8; max_bytes];
-
-    // Make bitstream over our byte buffer
-    let bs = stream_open(
-        buf.as_mut_ptr() as *mut c_void,
-        max_bytes as usize,
-    );
-    zfp_stream_set_bit_stream(zstream, bs);
-    zfp_stream_rewind(zstream);
-
-    let mask = ZFP_HEADER_FULL as u32;
-    let bits_written = zfp_write_header(zstream, field, mask);
-
-    if bits_written == 0 {
-        panic!("zfp_write_header failed");
-    }
-
-    // Clean up bitstream; keep header bytes in buf
-    stream_close(bs);
-
-    (buf, bits_written as usize)
-}
-
-
 #[derive(Debug)]
 struct ZfpConfig {
     pub ndims: c_int,
@@ -390,7 +302,26 @@ struct ZfpConfig {
 }
 
 
-/// receive the new cdata from the system and decode it to recover the right ZFP opertaing modes
+/// Parses ZFP filter configuration data from the given input.
+///
+/// This function extracts metadata and compression parameters from the
+/// provided `cd_values` array, which represents the ZFP filter's configuration
+/// data. It handles endian mismatches, validates the header, and retrieves
+/// information such as dimensions, data type, and compression mode.
+///
+/// # Safety
+/// This function is marked as unsafe because it performs raw pointer
+/// dereferencing and interacts with low-level C APIs, which require careful
+/// handling to avoid undefined behavior.
+///
+/// # Parameters
+/// - `cd_nelmts`: The number of elements in the `cd_values` array.
+/// - `cd_values`: A pointer to the array of configuration data values.
+///
+/// # Returns
+/// - `Option<ZfpConfig>`: Returns a `ZfpConfig` struct containing the parsed
+///   metadata and compression parameters if successful, or `None` if the
+///   parsing fails.
 pub unsafe fn parse_zfp_cdata(
     cd_nelmts: usize,
     cd_values: *const c_uint,
@@ -402,10 +333,10 @@ pub unsafe fn parse_zfp_cdata(
     // Full cd array from HDF5: [version_word, header_words...]
     let cdata: &[u32] = slice::from_raw_parts(cd_values, cd_nelmts);
 
-    // We currently ignore the version word, but you can decode it if you want.
+    // ignore the version word,
     let _version_word = cdata[0];
 
-    // Everything after index 0 is the ZFP header bitstream.
+    // ZFP header bitstream.
     let header_words = &cdata[1..];
     if header_words.is_empty() {
         return None;
@@ -415,21 +346,21 @@ pub unsafe fn parse_zfp_cdata(
     let mut header_copy: Vec<u32> = header_words.to_vec();
     let header_bytes = header_copy.len() * std::mem::size_of::<u32>();
 
-    // 1. Open bitstream on the header buffer (like get_zfp_info_from_cd_values) :contentReference[oaicite:2]{index=2}
+    // Open bitstream on the header buffer (like get_zfp_info_from_cd_values)
     let bstr: *mut bitstream =
         stream_open(header_copy.as_mut_ptr() as *mut c_void, header_bytes);
     if bstr.is_null() {
         return None;
     }
 
-    // 2. Open zfp_stream on that bitstream
+    // Open zfp_stream on that bitstream
     let zstr: *mut zfp_stream = zfp_stream_open(bstr);
     if zstr.is_null() {
         stream_close(bstr);
         return None;
     }
 
-    // 3. Allocate a field for header metadata
+    // Allocate a field for header metadata
     let zfld: *mut zfp_field = zfp_field_alloc();
     if zfld.is_null() {
         zfp_stream_close(zstr);
@@ -437,7 +368,7 @@ pub unsafe fn parse_zfp_cdata(
         return None;
     }
 
-    // 4. First read only MAGIC, to detect endian or codec mismatch
+    //First read only MAGIC, to detect endian or codec mismatch
     let mut bits = zfp_read_header(zstr, zfld, ZFP_HEADER_MAGIC);
     if bits == 0 {
         // Possible endian mismatch: byte-swap each u32 and retry.
@@ -448,7 +379,6 @@ pub unsafe fn parse_zfp_cdata(
         zfp_stream_rewind(zstr);
         bits = zfp_read_header(zstr, zfld, ZFP_HEADER_MAGIC);
         if bits == 0 {
-            // Codec mismatch or truly invalid header.
             zfp_field_free(zfld);
             zfp_stream_close(zstr);
             stream_close(bstr);
@@ -456,7 +386,7 @@ pub unsafe fn parse_zfp_cdata(
         }
     }
 
-    // 5. We know magic is fine. Rewind and read the full header.
+    //Rewind and read the full header.
     zfp_stream_rewind(zstr);
     if zfp_read_header(zstr, zfld, ZFP_HEADER_FULL) == 0 {
         zfp_field_free(zfld);
@@ -465,14 +395,14 @@ pub unsafe fn parse_zfp_cdata(
         return None;
     }
 
-    // 6. Extract array metadata via high-level API (no manual bit-twiddling).
+    //Extract array metadata
     let ndims = zfp_field_dimensionality(zfld) as i32;
 
-    // zfp_field_size can fill per-dimension sizes if we pass a buffer.
+    // zfp_field_size can fill per-dimension sizes; pass a buffer.
     let mut size_per_dim: [usize; 4] = [0; 4];
     if ndims > 0 {
         // zfp_field_size returns total number of elements and optionally fills size[i].
-        // The C signature uses size_t*; we just alias &mut [usize] here.
+        // The C signature uses size_t*;  just alias &mut [usize] here.
         zfp_field_size(
             zfld,
             size_per_dim.as_mut_ptr() as *mut _,
@@ -499,17 +429,15 @@ pub unsafe fn parse_zfp_cdata(
             return None;
         }
     };
-    // 7. Extract compression mode and parameters from the stream itself.
+    // Extract compression mode and parameters from the stream itself.
     let zmode_enum: zfp_mode = zfp_stream_compression_mode(zstr);
     let mode = zmode_enum as u32;
-    dbg!(&mode);
 
     let mut rate: f64 = 0.0;
     let mut precision: u32 = 0;
     let mut accuracy: f64 = 0.0;
 
     // These getters are available on modern zfp (1.0+).
-    // If your zfp version is older, you can `cfg`-gate or leave them at zero.
     match zmode_enum {
         m if m == zfp_sys::zfp_mode_zfp_mode_fixed_rate => {
             rate = zfp_stream_rate(zstr, ndims as u32);
@@ -526,13 +454,10 @@ pub unsafe fn parse_zfp_cdata(
 
         // Expert or reversible -> we don’t have a single scalar parameter to expose
         _ => {
-            // leave rate/precision/accuracy at 0; you can later extend this by
-            // calling zfp_stream_params() for expert mode.
         }
     }
-    dbg!(&accuracy);
 
-    // 8. Cleanup
+    //Cleanup
     zfp_field_free(zfld);
     zfp_stream_close(zstr);
     stream_close(bstr);
@@ -548,45 +473,29 @@ pub unsafe fn parse_zfp_cdata(
     })
 }
 
-fn parse_zfp_cdata_old(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<ZfpConfig> {
-    let cdata = unsafe { slice::from_raw_parts(cd_values, cd_nelmts as _) };
-    dbg!(&cdata);
-    if cdata.len() < 7 {
-        h5err!("Invalid ZFP filter configuration", H5E_PLIST, H5E_CALLBACK);
-        return None;
-    }
 
-    let ndims = cdata[1] as c_int;
-    let typesize = cdata[2] as size_t;
-    let mut dims = [0; 4];
-    for i in 0..(ndims as usize).min(4) {
-        dims[i] = cdata[3 + i] as size_t;
-    }
-
-    let mode = if cdata.len() > 7 { cdata[7] } else { ZFP_MODE_RATE };
-    let param1 = if cdata.len() > 8 { cdata[8] } else { 0 };
-    let param2 = if cdata.len() > 9 { cdata[9] } else { 0 };
-
-    let (rate, precision, accuracy) = match mode {
-        ZFP_MODE_RATE => {
-            let rate = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
-            (rate, 0, 0.0)
-        }
-        ZFP_MODE_PRECISION => (0.0, param1, 0.0),
-        ZFP_MODE_ACCURACY => {
-            let accuracy = f64::from_bits(((param1 as u64) << 32) | (param2 as u64));
-            (0.0, 0, accuracy)
-        }
-        ZFP_MODE_REVERSIBLE => (0.0, 0, 0.0),
-        _ => {
-            h5err!("Invalid ZFP mode", H5E_PLIST, H5E_CALLBACK);
-            return None;
-        }
-    };
-
-    Some(ZfpConfig { ndims, typesize, dims, mode, rate, precision, accuracy })
-}
-
+/// Applies the ZFP filter for compression or decompression.
+///
+/// This function serves as the entry point for the ZFP filter, determining whether
+/// to compress or decompress the data based on the provided flags. It parses the
+/// filter configuration data, validates it, and then delegates the operation to
+/// either the compression or decompression function.
+///
+/// # Safety
+/// This function is marked as unsafe because it interacts with raw pointers and
+/// performs operations that require careful handling to avoid undefined behavior.
+///
+/// # Parameters
+/// - `flags`: A bitmask indicating the operation mode (e.g., compression or decompression).
+/// - `cd_nelmts`: The number of elements in the `cd_values` array.
+/// - `cd_values`: A pointer to the array of configuration data values.
+/// - `nbytes`: The size of the input buffer in bytes.
+/// - `buf_size`: A pointer to the size of the output buffer.
+/// - `buf`: A pointer to the input/output buffer.
+///
+/// # Returns
+/// - `size_t`: The size of the processed data (compressed or decompressed) on success,
+///   or 0 on failure.
 unsafe extern "C" fn filter_zfp(
     flags: c_uint, cd_nelmts: size_t, cd_values: *const c_uint, nbytes: size_t,
     buf_size: *mut size_t, buf: *mut *mut c_void,
@@ -597,7 +506,6 @@ unsafe extern "C" fn filter_zfp(
     } else {
         return 0;
     };
-    dbg!(&cfg);
 
     if flags & H5Z_FLAG_REVERSE == 0 {
         unsafe { filter_zfp_compress(&cfg, buf_size, buf) }
@@ -691,14 +599,12 @@ unsafe fn filter_zfp_compress(
         h5err!("Can't allocate compression buffer", H5E_PLIST, H5E_CALLBACK);
         return 0;
     }
-    println!("Here Outbuf");
 
     let bitstream = stream_open(outbuf.cast(), maxsize);
     zfp_stream_set_bit_stream(zfp_stream, bitstream);
     zfp_stream_rewind(zfp_stream);
 
     let compressed_size = zfp_compress(zfp_stream, field);
-    println!("here compressed size");
     stream_close(bitstream);
     zfp_field_free(field);
     zfp_stream_close(zfp_stream);
