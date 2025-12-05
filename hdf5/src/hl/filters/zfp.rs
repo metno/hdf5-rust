@@ -201,7 +201,6 @@ pub unsafe fn compute_hdr_cd_values(
 
     // 3. Version word (use the macro layout: (ZFP_VERSION_NO<<16)|(ZFP_CODEC<<12)|H5Z_FILTER_ZFP_VERSION_NO)
     hdr_cd_values[0] = make_version_word(); // see previous message
-    dbg!(&hdr_cd_values);
 
     // 4. Treat &hdr_cd_values[1] as bitstream buffer
     let ptr_bytes = hdr_cd_values[1..].as_mut_ptr() as *mut c_void;
@@ -531,7 +530,6 @@ unsafe fn filter_zfp_compress(
             zfp_stream_set_precision(zfp_stream, cfg.precision);
         }
         ZFP_MODE_ACCURACY => {
-            dbg!(cfg.accuracy);
             zfp_stream_set_accuracy(zfp_stream, cfg.accuracy);
         }
         ZFP_MODE_REVERSIBLE => zfp_stream_set_reversible(zfp_stream),
