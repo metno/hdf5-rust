@@ -364,9 +364,12 @@ pub static H5FD_MULTI: LazyLock<hid_t> = LazyLock::new(|| {
 // MPI-IO file driver
 #[cfg(all(feature = "have-parallel", feature = "mpio"))]
 pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| {
-    h5lock!(get_driver!(|fapl| H5Pset_fapl_mpio(fapl, std::ptr::null_mut(), std::ptr::null_mut())))
+    use mpi_sys::{RSMPI_COMM_WORLD, RSMPI_INFO_NULL};
+    let world_comm = unsafe { RSMPI_COMM_WORLD };
+    let info = unsafe { RSMPI_INFO_NULL };
+    h5lock!(get_driver!(|fapl| H5Pset_fapl_mpio(fapl, world_comm, info)))
 });
-#[cfg(not(feature = "have-parallel"))]
+#[cfg(not(all(feature = "have-parallel", feature = "mpio")))]
 pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
 
 // Direct VFD
