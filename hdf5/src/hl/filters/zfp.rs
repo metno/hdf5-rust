@@ -24,6 +24,7 @@ use crate::filters::ZfpMode;
 
 /// Major edits are needed to be in alignmeht with the H5Z-ZFP. What was previously implemented was effectively a new implementation of H5Z_ZFP but was incompatible with any library built against it. This reults in bad c_data vectors being created and produces erratic behavior.
 
+pub(crate) const MAX_NDIMS: usize = 4;
 
 const ZFP_FILTER_NAME: &[u8] = b"zfp\0";
 pub const ZFP_FILTER_ID: H5Z_filter_t = 32013;
@@ -205,15 +206,20 @@ pub unsafe fn compute_hdr_cd_values(
             zfp_stream_set_reversible(dummy_zstr);
         },
     ZfpMode::FixedAccuracy(acc) =>{
-        dbg!(&acc);
+
         zfp_stream_set_accuracy(dummy_zstr,acc);
     },
+
+        ZfpMode::FixedRate(rate) =>{
+            zfp_stream_set_rate(dummy_zstr,rate, zt, ndims_used as u32,0);
+        },
+        ZfpMode::FixedPrecision(precision) =>{
+            zfp_stream_set_precision(dummy_zstr,precision as u32);
+        },
         // handle Rate/Precision/Accuracy/Expert as needed
         _ => unimplemented!(),
     }
 
-    let field_meta = zfp_sys::zfp_field_metadata(dummy_field);
-    dbg!(field_meta);
 
     // 6. Write FULL header (critical!) into the hdr_cd_values[1..] buffer
     let hdr_bits = zfp_write_header(dummy_zstr, dummy_field, ZFP_HEADER_FULL as u32);
@@ -233,6 +239,18 @@ pub unsafe fn compute_hdr_cd_values(
     (hdr_cd_values, hdr_cd_nelmts)
 }
 
+
+
+/// Constructs a version word for the ZFP filter.
+///
+/// This function generates a 32-bit version word that encodes the ZFP library version,
+/// codec version, and filter version. The version word is structured as follows:
+/// - High 24 bits: ZFP library version (major, minor, patch, tweak).
+/// - Middle 8 bits: Codec version.
+/// - Low 8 bits: Filter version.
+///
+/// # Returns
+/// A 32-bit unsigned integer representing the version word.
 unsafe fn make_version_word() -> u32 {
 
     // 0xM M P T: for 1.0.0.0 → 0x1000
@@ -293,13 +311,11 @@ pub unsafe fn make_llnl_style_cd_values(
 
 
     let (header_bytes, bits_written) = zfp_header_bits(zfp_stream, field);
-    dbg!(&header_bytes);
-    dbg!(&bits_written);
+
     let mut cd_vals = pack_header_into_cd_values(&header_bytes, bits_written);
 
     // plug in version info
     cd_vals[0] = make_version_word();
-    dbg!(&cd_vals);
     unsafe {
         zfp_field_free(field);
         zfp_stream_close(zfp_stream);

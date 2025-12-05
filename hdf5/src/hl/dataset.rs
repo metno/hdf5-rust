@@ -745,28 +745,28 @@ impl DatasetBuilderInner {
 
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_rate(&mut self, rate: f64) {
+    pub fn zfp_rate(&mut self, rate: f64,chunk_dims: Vec<usize>,n_bytes: u8) {
         hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
-        self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_rate(rate)]));
+        self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_rate(rate,chunk_dims.clone(),n_bytes)]));
 
     }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_precision(&mut self, precision: u8) {
+    pub fn zfp_precision(&mut self, precision: u8,chunk_dims: Vec<usize>,n_bytes: u8) {
         hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
-         self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_precision(precision)]));
+         self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_precision(precision,chunk_dims.clone(),n_bytes)]));
     }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_accuracy(&mut self, accuracy: f64)  {
+    pub fn zfp_accuracy(&mut self, accuracy: f64,chunk_dims: Vec<usize>,n_bytes: u8)  {
         hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
-        self.with_dcpl(|pl| pl.zfp_accuracy(accuracy));
+        self.with_dcpl(|pl| pl.zfp_accuracy(accuracy,chunk_dims.clone(),n_bytes));
    }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_reversible(&mut self) {
+    pub fn zfp_reversible(&mut self,chunk_dims: Vec<usize>,n_bytes: u8) {
         hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
-        self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_reversible()]));
+        self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_reversible(chunk_dims.clone(),n_bytes)]));
     }
 
 
@@ -1032,19 +1032,19 @@ macro_rules! impl_builder_methods {
 
         impl_builder!(
             #[cfg(feature = "zfp")]
-            DatasetCreate: zfp_rate(rate: f64)
+            DatasetCreate: zfp_rate(rate: f64,chunk_dims: Vec<usize>,n_bytes: u8)
         );
         impl_builder!(
             #[cfg(feature = "zfp")]
-            DatasetCreate: zfp_accuracy(accuracy: f64)
+            DatasetCreate: zfp_accuracy(accuracy: f64,chunk_dims: Vec<usize>,n_bytes: u8)
         );
         impl_builder!(
             #[cfg(feature = "zfp")]
-            DatasetCreate: zfp_precision(rate: u8)
+            DatasetCreate: zfp_precision(rate: u8,chunk_dims: Vec<usize>,n_bytes: u8)
         );
         impl_builder!(
             #[cfg(feature = "zfp")]
-            DatasetCreate: zfp_reversible()
+            DatasetCreate: zfp_reversible(chunk_dims: Vec<usize>,n_bytes: u8)
         );
 
 
