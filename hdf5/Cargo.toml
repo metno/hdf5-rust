@@ -56,7 +56,7 @@ errno = { version = "0.3", optional = true }
 libc = { workspace = true }
 lzf-sys = { version = "0.1", optional = true }
 mpi-sys = { workspace = true, optional = true }
-ndarray = ">=0.15, <=0.17"
+ndarray = "0.15.6"
 paste = "1.0"
 zfp-sys = {version= "0.4.2", optional= true }
 # internal
