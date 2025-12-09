@@ -8,3 +8,5 @@ target/
 *.ipynb*
 .idea/
 sweep.timestamp
+.cargo/
+.cargo/config.toml
