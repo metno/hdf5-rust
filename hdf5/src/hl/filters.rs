@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::ptr::{self, addr_of_mut};
 
-use hdf5_sys::h5p::{H5Pget_chunk, H5Pget_filter2, H5Pget_nfilters, H5Pset_deflate, H5Pset_filter, H5Pset_fletcher32, H5Pset_nbit, H5Pset_scaleoffset, H5Pset_shuffle, H5Pset_szip};
+use hdf5_sys::h5p::{
+    H5Pget_chunk, H5Pget_filter2, H5Pget_nfilters, H5Pset_deflate, H5Pset_filter,
+    H5Pset_fletcher32, H5Pset_nbit, H5Pset_scaleoffset, H5Pset_shuffle, H5Pset_szip,
+};
 use hdf5_sys::h5t::{H5T_class_t, H5Tclose, H5Tget_class, H5Tget_size, H5T_FLOAT};
 use hdf5_sys::h5z::{
     H5Zfilter_avail, H5Zget_filter_info, H5Z_FILTER_CONFIG_DECODE_ENABLED,
@@ -22,9 +25,8 @@ mod lzf;
 #[cfg(feature = "zfp")]
 pub(crate) mod zfp;
 
-
 #[cfg(feature = "zfp")]
-use zfp_sys::{zfp_type_zfp_type_float,zfp_type_zfp_type_double};
+use zfp_sys::{zfp_type_zfp_type_double, zfp_type_zfp_type_float};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SZip {
@@ -118,7 +120,6 @@ mod zfp_impl {
         Reversible,
     }
 
-
     // Bitwise compare f64 so NaN and signed zero are deterministic
     impl PartialEq for ZfpMode {
         fn eq(&self, other: &Self) -> bool {
@@ -140,20 +141,16 @@ mod zfp_impl {
         }
     }
 
-    #[derive(Clone, Debug,Eq,PartialEq)]
-    pub struct FieldParam{
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct FieldParam {
         pub data_type_bytes: usize,
-        pub dims: Vec<usize>
+        pub dims: Vec<usize>,
     }
-
-
-
-
 }
 
+use crate::globals::{H5E_CALLBACK, H5E_PLIST};
 #[cfg(feature = "zfp")]
 pub use zfp_impl::*;
-use crate::globals::{H5E_CALLBACK, H5E_PLIST};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Filter {
@@ -168,7 +165,7 @@ pub enum Filter {
     #[cfg(feature = "blosc")]
     Blosc(Blosc, u8, BloscShuffle),
     #[cfg(feature = "zfp")]
-    Zfp(ZfpMode,Vec<usize>,u8),
+    Zfp(ZfpMode, Vec<usize>, u8),
     User(H5Z_filter_t, Vec<c_uint>),
 }
 
@@ -241,7 +238,7 @@ impl Filter {
             #[cfg(feature = "blosc")]
             Self::Blosc(_, _, _) => blosc::BLOSC_FILTER_ID,
             #[cfg(feature = "zfp")]
-            Self::Zfp(_,_,_) => zfp::ZFP_FILTER_ID,
+            Self::Zfp(_, _, _) => zfp::ZFP_FILTER_ID,
             Self::User(id, _) => *id,
         }
     }
@@ -357,28 +354,28 @@ impl Filter {
     }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp(mode: ZfpMode,chunk_dims: Vec<usize>,n_bytes: u8) -> Self {
-        Self::Zfp(mode,chunk_dims,n_bytes)
+    pub fn zfp(mode: ZfpMode, chunk_dims: Vec<usize>, n_bytes: u8) -> Self {
+        Self::Zfp(mode, chunk_dims, n_bytes)
     }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_rate(rate: f64,chunk_dims: Vec<usize>,n_bytes: u8) -> Self {
-        Self::zfp(ZfpMode::FixedRate(rate),chunk_dims,n_bytes)
+    pub fn zfp_rate(rate: f64, chunk_dims: Vec<usize>, n_bytes: u8) -> Self {
+        Self::zfp(ZfpMode::FixedRate(rate), chunk_dims, n_bytes)
     }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_precision(precision: u8,chunk_dims: Vec<usize>,n_bytes: u8) -> Self {
-        Self::zfp(ZfpMode::FixedPrecision(precision),chunk_dims,n_bytes)
+    pub fn zfp_precision(precision: u8, chunk_dims: Vec<usize>, n_bytes: u8) -> Self {
+        Self::zfp(ZfpMode::FixedPrecision(precision), chunk_dims, n_bytes)
     }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_accuracy(accuracy: f64,chunk_dims: Vec<usize>, n_bytes: u8) -> Self {
-        Self::zfp(ZfpMode::FixedAccuracy(accuracy),chunk_dims,n_bytes)
+    pub fn zfp_accuracy(accuracy: f64, chunk_dims: Vec<usize>, n_bytes: u8) -> Self {
+        Self::zfp(ZfpMode::FixedAccuracy(accuracy), chunk_dims, n_bytes)
     }
 
     #[cfg(feature = "zfp")]
-    pub fn zfp_reversible(chunk_dims: Vec<usize>,n_bytes: u8) -> Self {
-        Self::zfp(ZfpMode::Reversible,chunk_dims,n_bytes)
+    pub fn zfp_reversible(chunk_dims: Vec<usize>, n_bytes: u8) -> Self {
+        Self::zfp(ZfpMode::Reversible, chunk_dims, n_bytes)
     }
 
     pub fn user(id: H5Z_filter_t, cdata: &[c_uint]) -> Self {
@@ -509,7 +506,7 @@ impl Filter {
             5 => ZfpMode::Reversible,
             _ => fail!("invalid zfp mode: {}", mode),
         };
-        Ok(Self::zfp(zfp_mode,chunk_dims,n_bytes))
+        Ok(Self::zfp(zfp_mode, chunk_dims, n_bytes))
     }
 
     pub fn from_raw(filter_id: H5Z_filter_t, cdata: &[c_uint]) -> Result<Self> {
@@ -595,8 +592,6 @@ impl Filter {
         Self::apply_user(plist_id, blosc::BLOSC_FILTER_ID, &cdata)
     }
 
-
-
     #[cfg(feature = "zfp")]
     /// Applies the ZFP filter to the given property list.
     ///
@@ -616,17 +611,16 @@ impl Filter {
     ///
     /// # Returns
     /// - `herr_t`: Returns 0 on success, or a negative value on failure.
-    unsafe fn apply_zfp(plist_id: hid_t, n_bytes: u8,chunk_dims: Vec<usize>, mode: ZfpMode) -> herr_t {
+    unsafe fn apply_zfp(
+        plist_id: hid_t, n_bytes: u8, chunk_dims: Vec<usize>, mode: ZfpMode,
+    ) -> herr_t {
         // get the chunk dimensiosn out of it. Could not reliably get the chunk_dims from plist_id
         // during testing so opted to just pass it in during the build
 
         let ndims = chunk_dims.len();
         // Convert to `usize` and trim to used dims.
-        let chunk_dims_usize: Vec<usize> = chunk_dims[..(ndims as usize)]
-            .iter()
-            .map(|&d| d as usize)
-            .collect();
-
+        let chunk_dims_usize: Vec<usize> =
+            chunk_dims[..(ndims as usize)].iter().map(|&d| d as usize).collect();
 
         // remove the singletons from the data
         let mut dims_no_singleton: Vec<u64> = Vec::new();
@@ -637,20 +631,21 @@ impl Filter {
         }
         let ndims_no_singleton = dims_no_singleton.len();
 
-
-        assert!(dims_no_singleton.len()<= zfp::MAX_NDIMS);
-
+        assert!(dims_no_singleton.len() <= zfp::MAX_NDIMS);
 
         // Get the type of the input data
-        let dtype_id = match n_bytes{
+        let dtype_id = match n_bytes {
             4 => zfp_type_zfp_type_float,
             8 => zfp_type_zfp_type_double,
             _ => {
-                h5err!("ZFP filter only supports 4 or 8 byte floating point data", H5E_PLIST, H5E_CALLBACK);
+                h5err!(
+                    "ZFP filter only supports 4 or 8 byte floating point data",
+                    H5E_PLIST,
+                    H5E_CALLBACK
+                );
                 return -1;
             }
         };
-
 
         // Build the Mode Information we need
         let (mode_val, param1, param2) = match mode {
@@ -667,7 +662,8 @@ impl Filter {
         };
 
         // update values and encode into the header
-        let (hdr_cd_values, _) = zfp::compute_hdr_cd_values(dtype_id,ndims_no_singleton,&dims_no_singleton, mode);
+        let (hdr_cd_values, _) =
+            zfp::compute_hdr_cd_values(dtype_id, ndims_no_singleton, &dims_no_singleton, mode);
         let hdf_cd_values_pass = hdr_cd_values.iter().map(|x| *x).collect::<Vec<c_uint>>();
         Self::apply_user(plist_id, zfp::ZFP_FILTER_ID, &hdf_cd_values_pass)
     }
@@ -697,7 +693,8 @@ impl Filter {
                 Self::apply_blosc(id, *complib, *clevel, *shuffle)
             }
             #[cfg(feature = "zfp")]
-            Self::Zfp(mode,chunk_dims, n_bytes) => Self::apply_zfp(id,*n_bytes,chunk_dims.clone(), *mode),
+            Self::Zfp(mode, chunk_dims, n_bytes) =>
+                Self::apply_zfp(id, *n_bytes, chunk_dims.clone(), *mode),
             Self::User(filter_id, ref cdata) => Self::apply_user(id, *filter_id, cdata),
         });
         Ok(())
@@ -796,8 +793,6 @@ mod tests {
     use crate::test::with_tmp_file;
     use crate::{plist::DatasetCreate, Result};
 
-
-    
     #[test]
     fn test_filter_pipeline() -> Result<()> {
         let mut comp_filters = vec![];
@@ -828,9 +823,9 @@ mod tests {
         assert_eq!(cfg!(feature = "zfp"), zfp_available());
         #[cfg(feature = "zfp")]
         {
-            comp_filters.push(Filter::zfp_rate(8.0,vec![10_000,20],4));
-            comp_filters.push(Filter::zfp_precision(16,vec![10_000,20],4));
-            comp_filters.push(Filter::zfp_accuracy(1e-3,vec![10_000,20],4));
+            comp_filters.push(Filter::zfp_rate(8.0, vec![10_000, 20], 4));
+            comp_filters.push(Filter::zfp_precision(16, vec![10_000, 20], 4));
+            comp_filters.push(Filter::zfp_accuracy(1e-3, vec![10_000, 20], 4));
         }
 
         for c in &comp_filters {
@@ -885,7 +880,6 @@ mod tests {
         Ok(())
     }
 
-
     #[test]
     #[cfg(feature = "zfp")]
     fn test_zfp_accuracy() -> Result<()> {
@@ -907,7 +901,6 @@ mod tests {
                 .create("zfp_precision_1d")
                 .unwrap();
 
-
             let ds = file.dataset("zfp_precision_1d").unwrap();
 
             let read_data: Vec<f32> = ds.read_raw().unwrap();
@@ -928,18 +921,16 @@ mod tests {
             }
         });
 
-
         // Test 2D data
         with_tmp_file(|file| {
             let data = ndarray::Array1::<f32>::linspace(0.0, 1.0, 1000);
-            let data = data.to_shape((10,100)).unwrap();
+            let data = data.to_shape((10, 100)).unwrap();
             file.new_dataset_builder()
                 .with_data(&data)
                 .chunk((5, 10))
                 .zfp_accuracy(0.125, vec![5, 10], 4)
                 .create("zfp_precision_1d")
                 .unwrap();
-
 
             let ds = file.dataset("zfp_precision_1d").unwrap();
 
@@ -961,7 +952,6 @@ mod tests {
             }
         });
 
-
         // Test 3D data
         with_tmp_file(|file| {
             let data = ndarray::Array1::<f32>::linspace(0.0, 1.0, 10000);
@@ -969,11 +959,10 @@ mod tests {
 
             file.new_dataset_builder()
                 .with_data(&data)
-                .chunk((2, 5, 25,))
+                .chunk((2, 5, 25))
                 .zfp_accuracy(0.125, vec![2, 5, 25], 4)
                 .create("zfp_precision_3d")
                 .unwrap();
-
 
             let ds = file.dataset("zfp_precision_3d").unwrap();
 
@@ -996,18 +985,16 @@ mod tests {
             }
         });
 
-
         // Test 4D data
         with_tmp_file(|file| {
             let data = ndarray::Array1::<f32>::linspace(0.0, 1.0, 100000);
             let data = data.to_shape((10, 10, 10, 100)).unwrap();
             file.new_dataset_builder()
                 .with_data(&data)
-                .chunk((2, 2, 5, 50,))
+                .chunk((2, 2, 5, 50))
                 .zfp_accuracy(0.125, vec![2, 2, 5, 50], 4)
                 .create("zfp_precision_1d")
                 .unwrap();
-
 
             let ds = file.dataset("zfp_precision_1d").unwrap();
 
@@ -1034,7 +1021,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "zfp")]
-    fn test_over_dim_data() -> Result<()>{
+    fn test_over_dim_data() -> Result<()> {
         use super::zfp_available;
 
         if !zfp_available() {
@@ -1043,27 +1030,25 @@ mod tests {
             return Ok(());
         }
 
-
         // Test 5D data with 3D chunks but should still fail
         // test 1D Data
         with_tmp_file(|file| {
             let data = ndarray::Array1::<f32>::linspace(0.0, 1.0, 50_000);
-            let data = data.to_shape((2,5,10,10,50)).unwrap();
+            let data = data.to_shape((2, 5, 10, 10, 50)).unwrap();
 
-            let bad_result = file.new_dataset_builder()
+            let bad_result = file
+                .new_dataset_builder()
                 .with_data(&data)
-                .chunk((2,5,5,1,1))
-                .zfp_accuracy(0.125,vec![2,5,5,1,1],4)
-                .create("zfp_precision_1d").unwrap_err();
+                .chunk((2, 5, 5, 1, 1))
+                .zfp_accuracy(0.125, vec![2, 5, 5, 1, 1], 4)
+                .create("zfp_precision_1d")
+                .unwrap_err();
 
             assert_err!(bad_result, "ZFP filter supports up to 4D data only");
-
-
         });
 
         Ok(())
     }
-
 
     #[test]
     #[cfg(feature = "zfp")]
@@ -1080,20 +1065,16 @@ mod tests {
             let data = data.insert_axis(Axis(0));
             let data = data.insert_axis(Axis(0));
             file.new_dataset_builder()
-                .chunk((1,1,960))
-                .zfp_reversible(vec![1,1,960],4)
+                .chunk((1, 1, 960))
+                .zfp_reversible(vec![1, 1, 960], 4)
                 .with_data(&data)
                 .create("zfp_reversible")
                 .unwrap();
 
-
             let ds = file.dataset("zfp_reversible").unwrap();
-
-
 
             let read_data: Vec<f32> = ds.read_raw().unwrap();
             let n_bytes = file.size();
-
 
             // ZFP is lossy, so we check approximate equality
             assert_eq!(read_data.len(), data.len());
@@ -1122,12 +1103,8 @@ mod tests {
             }
         });
 
-
-
-
         Ok(())
     }
-
 
     #[test]
     #[cfg(feature = "zfp")]
@@ -1144,10 +1121,9 @@ mod tests {
             file.new_dataset_builder()
                 .with_data(&data)
                 .chunk((1000,))
-                .zfp_rate(2.0,vec![1000],4)
+                .zfp_rate(2.0, vec![1000], 4)
                 .create("zfp_rate")
                 .unwrap();
-
 
             let ds = file.dataset("zfp_rate").unwrap();
 
@@ -1163,7 +1139,6 @@ mod tests {
             }
         });
 
-
         // test full rate compression. Should be "lossless"
 
         with_tmp_file(|file| {
@@ -1171,10 +1146,9 @@ mod tests {
             file.new_dataset_builder()
                 .with_data(&data)
                 .chunk((1000,))
-                .zfp_rate(32.0,vec![1000],4)
+                .zfp_rate(32.0, vec![1000], 4)
                 .create("zfp_rate")
                 .unwrap();
-
 
             let ds = file.dataset("zfp_rate").unwrap();
 
@@ -1198,10 +1172,6 @@ mod tests {
             }
         });
 
-
         Ok(())
     }
-
-
 }
-

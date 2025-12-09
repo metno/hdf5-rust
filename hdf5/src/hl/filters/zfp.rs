@@ -10,17 +10,23 @@ use crate::error::H5ErrorCode;
 use crate::globals::{H5E_CALLBACK, H5E_PLIST};
 use crate::internal_prelude::*;
 
-pub use zfp_sys::{
-    zfp_field_alloc,zfp_read_header,zfp_field_dimensionality,zfp_field_size,zfp_field_type,zfp_mode,zfp_mode_zfp_mode_fixed_accuracy,zfp_mode_zfp_mode_fixed_precision,zfp_mode_zfp_mode_fixed_rate,zfp_stream_compression_mode,zfp_stream_accuracy,zfp_stream_rate,zfp_stream_precision,stream_close, stream_open, zfp_compress, zfp_field_metadata,zfp_decompress, zfp_field_1d, zfp_field_2d,bitstream,zfp_stream_set_reversible,
-    zfp_field_3d, zfp_field_4d, zfp_field_free, zfp_stream_close, zfp_stream_maximum_size,zfp_stream_flush,
-    zfp_stream_open, zfp_stream_rewind, zfp_stream_set_accuracy, zfp_stream_set_bit_stream,ZFP_VERSION_MINOR,ZFP_VERSION_PATCH,
-    zfp_stream_set_precision, zfp_stream_set_rate, zfp_type_zfp_type_double,zfp_type,ZFP_HEADER_FULL,ZFP_VERSION_MAJOR,ZFP_VERSION_TWEAK,
-    zfp_type_zfp_type_float,ZFP_HEADER_MAGIC,ZFP_HEADER_MAX_BITS,ZFP_HEADER_META,ZFP_HEADER_MODE,zfp_write_header,zfp_codec_version,zfp_library_version,zfp_field
-};
 use zfp_sys::zfp_stream;
+pub use zfp_sys::{
+    bitstream, stream_close, stream_open, zfp_codec_version, zfp_compress, zfp_decompress,
+    zfp_field, zfp_field_1d, zfp_field_2d, zfp_field_3d, zfp_field_4d, zfp_field_alloc,
+    zfp_field_dimensionality, zfp_field_free, zfp_field_metadata, zfp_field_size, zfp_field_type,
+    zfp_library_version, zfp_mode, zfp_mode_zfp_mode_fixed_accuracy,
+    zfp_mode_zfp_mode_fixed_precision, zfp_mode_zfp_mode_fixed_rate, zfp_read_header,
+    zfp_stream_accuracy, zfp_stream_close, zfp_stream_compression_mode, zfp_stream_flush,
+    zfp_stream_maximum_size, zfp_stream_open, zfp_stream_precision, zfp_stream_rate,
+    zfp_stream_rewind, zfp_stream_set_accuracy, zfp_stream_set_bit_stream,
+    zfp_stream_set_precision, zfp_stream_set_rate, zfp_stream_set_reversible, zfp_type,
+    zfp_type_zfp_type_double, zfp_type_zfp_type_float, zfp_write_header, ZFP_HEADER_FULL,
+    ZFP_HEADER_MAGIC, ZFP_HEADER_MAX_BITS, ZFP_HEADER_META, ZFP_HEADER_MODE, ZFP_VERSION_MAJOR,
+    ZFP_VERSION_MINOR, ZFP_VERSION_PATCH, ZFP_VERSION_TWEAK,
+};
 
 use crate::filters::ZfpMode;
-
 
 /// Major edits are needed to be in alignmeht with the H5Z-ZFP. What was previously implemented was
 /// effectively a new implementation of H5Z_ZFP but was incompatible with any library built against
@@ -38,7 +44,6 @@ const ZFP_MODE_PRECISION: c_uint = 3;
 const ZFP_MODE_ACCURACY: c_uint = 4;
 const ZFP_MODE_REVERSIBLE: c_uint = 5;
 const ZFP_MODE_EXPERT: c_uint = 1;
-
 
 const ZFP_FILTER_INFO: &H5Z_class2_t = &H5Z_class2_t {
     version: H5Z_CLASS_T_VERS as _,
@@ -71,7 +76,6 @@ extern "C" fn can_apply_zfp(_dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) -
         0
     }
 }
-
 
 /// Sets the local properties for the ZFP filter.
 ///
@@ -142,7 +146,6 @@ extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) ->
         values[7] = orig.get(0).copied().unwrap_or(0);
         values[8] = orig.get(1).copied().unwrap_or(0);
         values[9] = orig.get(2).copied().unwrap_or(0);
-
     }
     // temp overrid and changed line 133 to orig instead of values
     let nelmts = 4;
@@ -155,10 +158,7 @@ extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) ->
     }
 }
 
-
-
 const H5Z_ZFP_CD_NELMTS_MAX: usize = 8; // whatever the header says; set correctly.
-
 
 /// Computes the header and configuration data values for the ZFP filter.
 ///
@@ -189,9 +189,27 @@ pub unsafe fn compute_hdr_cd_values(
     // 1. Build dummy_field like H5Z_zfp_set_local
     let dummy_field: *mut zfp_field = match ndims_used {
         1 => zfp_field_1d(ptr::null_mut(), zt, dims_used[0].try_into().unwrap()),
-        2 => zfp_field_2d(ptr::null_mut(), zt, dims_used[1].try_into().unwrap(), dims_used[0].try_into().unwrap()),
-        3 => zfp_field_3d(ptr::null_mut(), zt, dims_used[2].try_into().unwrap(), dims_used[1].try_into().unwrap(), dims_used[0].try_into().unwrap()),
-        4 => zfp_field_4d(ptr::null_mut(), zt, dims_used[3].try_into().unwrap(), dims_used[2].try_into().unwrap(), dims_used[1].try_into().unwrap(), dims_used[0].try_into().unwrap()),
+        2 => zfp_field_2d(
+            ptr::null_mut(),
+            zt,
+            dims_used[1].try_into().unwrap(),
+            dims_used[0].try_into().unwrap(),
+        ),
+        3 => zfp_field_3d(
+            ptr::null_mut(),
+            zt,
+            dims_used[2].try_into().unwrap(),
+            dims_used[1].try_into().unwrap(),
+            dims_used[0].try_into().unwrap(),
+        ),
+        4 => zfp_field_4d(
+            ptr::null_mut(),
+            zt,
+            dims_used[3].try_into().unwrap(),
+            dims_used[2].try_into().unwrap(),
+            dims_used[1].try_into().unwrap(),
+            dims_used[0].try_into().unwrap(),
+        ),
         _ => panic!("ZFP supports 1..4 non-unity dims"),
     };
     assert!(!dummy_field.is_null());
@@ -213,22 +231,20 @@ pub unsafe fn compute_hdr_cd_values(
     match mode {
         ZfpMode::Reversible => {
             zfp_stream_set_reversible(dummy_zstr);
-        },
-    ZfpMode::FixedAccuracy(acc) =>{
+        }
+        ZfpMode::FixedAccuracy(acc) => {
+            zfp_stream_set_accuracy(dummy_zstr, acc);
+        }
 
-        zfp_stream_set_accuracy(dummy_zstr,acc);
-    },
-
-        ZfpMode::FixedRate(rate) =>{
-            zfp_stream_set_rate(dummy_zstr,rate, zt, ndims_used as u32,0);
-        },
-        ZfpMode::FixedPrecision(precision) =>{
-            zfp_stream_set_precision(dummy_zstr,precision as u32);
-        },
+        ZfpMode::FixedRate(rate) => {
+            zfp_stream_set_rate(dummy_zstr, rate, zt, ndims_used as u32, 0);
+        }
+        ZfpMode::FixedPrecision(precision) => {
+            zfp_stream_set_precision(dummy_zstr, precision as u32);
+        }
         // handle Rate/Precision/Accuracy/Expert as needed
         _ => unimplemented!(),
     }
-
 
     // 6. Write FULL header (critical!) into the hdr_cd_values[1..] buffer
     let hdr_bits = zfp_write_header(dummy_zstr, dummy_field, ZFP_HEADER_FULL as u32);
@@ -248,8 +264,6 @@ pub unsafe fn compute_hdr_cd_values(
     (hdr_cd_values, hdr_cd_nelmts)
 }
 
-
-
 /// Constructs a version word for the ZFP filter.
 ///
 /// This function generates a 32-bit version word that encodes the ZFP library version,
@@ -261,13 +275,11 @@ pub unsafe fn compute_hdr_cd_values(
 /// # Returns
 /// A 32-bit unsigned integer representing the version word.
 unsafe fn make_version_word() -> u32 {
-
     // 0xM M P T: for 1.0.0.0 → 0x1000
-    const ZFP_VERSION_NO: u32 =
-        (ZFP_VERSION_MAJOR << 12)
-            | (ZFP_VERSION_MINOR << 8)
-            | (ZFP_VERSION_PATCH << 4)
-            | (ZFP_VERSION_TWEAK);
+    const ZFP_VERSION_NO: u32 = (ZFP_VERSION_MAJOR << 12)
+        | (ZFP_VERSION_MINOR << 8)
+        | (ZFP_VERSION_PATCH << 4)
+        | (ZFP_VERSION_TWEAK);
 
     const ZFP_CODEC: u32 = ZFP_VERSION_MINOR; // or 5 if you know you want codec 5
 
@@ -276,18 +288,13 @@ unsafe fn make_version_word() -> u32 {
     const H5Z_FILTER_ZFP_VERSION_MINOR: u32 = 1;
     const H5Z_FILTER_ZFP_VERSION_PATCH: u32 = 0;
 
-    const H5Z_FILTER_ZFP_VERSION_NO: u32 =
-        (H5Z_FILTER_ZFP_VERSION_MAJOR << 8)
-            | (H5Z_FILTER_ZFP_VERSION_MINOR << 4)
-            | (H5Z_FILTER_ZFP_VERSION_PATCH);
+    const H5Z_FILTER_ZFP_VERSION_NO: u32 = (H5Z_FILTER_ZFP_VERSION_MAJOR << 8)
+        | (H5Z_FILTER_ZFP_VERSION_MINOR << 4)
+        | (H5Z_FILTER_ZFP_VERSION_PATCH);
 
     // One simple scheme: low 8 bits = codec, high 24 bits = lib version truncated.
-    (ZFP_VERSION_NO << 16)
-        | (ZFP_CODEC << 12)
-        | H5Z_FILTER_ZFP_VERSION_NO
+    (ZFP_VERSION_NO << 16) | (ZFP_CODEC << 12) | H5Z_FILTER_ZFP_VERSION_NO
 }
-
-
 
 #[derive(Debug)]
 struct ZfpConfig {
@@ -299,7 +306,6 @@ struct ZfpConfig {
     pub precision: u32,
     pub accuracy: f64,
 }
-
 
 /// Parses ZFP filter configuration data from the given input.
 ///
@@ -321,10 +327,7 @@ struct ZfpConfig {
 /// - `Option<ZfpConfig>`: Returns a `ZfpConfig` struct containing the parsed
 ///   metadata and compression parameters if successful, or `None` if the
 ///   parsing fails.
-pub unsafe fn parse_zfp_cdata(
-    cd_nelmts: usize,
-    cd_values: *const c_uint,
-) -> Option<ZfpConfig> {
+pub unsafe fn parse_zfp_cdata(cd_nelmts: usize, cd_values: *const c_uint) -> Option<ZfpConfig> {
     if cd_nelmts < 2 || cd_values.is_null() {
         return None;
     }
@@ -346,8 +349,7 @@ pub unsafe fn parse_zfp_cdata(
     let header_bytes = header_copy.len() * std::mem::size_of::<u32>();
 
     // Open bitstream on the header buffer (like get_zfp_info_from_cd_values)
-    let bstr: *mut bitstream =
-        stream_open(header_copy.as_mut_ptr() as *mut c_void, header_bytes);
+    let bstr: *mut bitstream = stream_open(header_copy.as_mut_ptr() as *mut c_void, header_bytes);
     if bstr.is_null() {
         return None;
     }
@@ -402,10 +404,7 @@ pub unsafe fn parse_zfp_cdata(
     if ndims > 0 {
         // zfp_field_size returns total number of elements and optionally fills size[i].
         // The C signature uses size_t*;  just alias &mut [usize] here.
-        zfp_field_size(
-            zfld,
-            size_per_dim.as_mut_ptr() as *mut _,
-        );
+        zfp_field_size(zfld, size_per_dim.as_mut_ptr() as *mut _);
     }
 
     let mut dims: [usize; 4] = [0; 4];
@@ -446,14 +445,13 @@ pub unsafe fn parse_zfp_cdata(
         }
         m if m == zfp_sys::zfp_mode_zfp_mode_fixed_accuracy => {
             accuracy = zfp_stream_accuracy(zstr);
-        },
+        }
         m if m == zfp_sys::zfp_mode_zfp_mode_reversible => {
             // no params needed
         }
 
         // Expert or reversible -> we don’t have a single scalar parameter to expose
-        _ => {
-        }
+        _ => {}
     }
 
     //Cleanup
@@ -461,17 +459,8 @@ pub unsafe fn parse_zfp_cdata(
     zfp_stream_close(zstr);
     stream_close(bstr);
 
-    Some(ZfpConfig {
-        ndims,
-        typesize,
-        dims,
-        mode,
-        rate,
-        precision,
-        accuracy,
-    })
+    Some(ZfpConfig { ndims, typesize, dims, mode, rate, precision, accuracy })
 }
-
 
 /// Applies the ZFP filter for compression or decompression.
 ///
@@ -501,7 +490,6 @@ unsafe extern "C" fn filter_zfp(
 ) -> size_t {
     let cfg = if let Some(cfg) = parse_zfp_cdata(cd_nelmts, cd_values) {
         cfg
-
     } else {
         return 0;
     };
@@ -538,7 +526,6 @@ unsafe fn filter_zfp_compress(
             return 0;
         }
     }
-
 
     let field = if cfg.typesize == 4 {
         match cfg.ndims {

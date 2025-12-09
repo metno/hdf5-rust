@@ -476,27 +476,31 @@ impl DatasetCreateBuilder {
         self
     }
 
-    #[cfg(feature="zfp")]
-    pub fn zfp_accuracy(&mut self, accuracy: f64,chunk_dims: Vec<usize>, n_bytes:u8) -> &mut Self {
-        self.filters.push(Filter::zfp_accuracy(accuracy,chunk_dims,n_bytes));
+    #[cfg(feature = "zfp")]
+    pub fn zfp_accuracy(
+        &mut self, accuracy: f64, chunk_dims: Vec<usize>, n_bytes: u8,
+    ) -> &mut Self {
+        self.filters.push(Filter::zfp_accuracy(accuracy, chunk_dims, n_bytes));
         self
     }
 
-    #[cfg(feature="zfp")]
-    pub fn zfp_rate(&mut self, rate: f64,chunk_dims: Vec<usize>, n_bytes:u8) -> &mut Self {
-        self.filters.push(Filter::zfp_rate(rate,chunk_dims,n_bytes));
+    #[cfg(feature = "zfp")]
+    pub fn zfp_rate(&mut self, rate: f64, chunk_dims: Vec<usize>, n_bytes: u8) -> &mut Self {
+        self.filters.push(Filter::zfp_rate(rate, chunk_dims, n_bytes));
         self
     }
 
-    #[cfg(feature="zfp")]
-    pub fn zfp_precision(&mut self, precision: u8,chunk_dims: Vec<usize>, n_bytes:u8) -> &mut Self {
-        self.filters.push(Filter::zfp_precision(precision,chunk_dims,n_bytes));
+    #[cfg(feature = "zfp")]
+    pub fn zfp_precision(
+        &mut self, precision: u8, chunk_dims: Vec<usize>, n_bytes: u8,
+    ) -> &mut Self {
+        self.filters.push(Filter::zfp_precision(precision, chunk_dims, n_bytes));
         self
     }
 
-    #[cfg(feature="zfp")]
-    pub fn zfp_reversible(&mut self,chunk_dims: Vec<usize>, n_bytes:u8) -> &mut Self {
-        self.filters.push(Filter::zfp_reversible(chunk_dims,n_bytes));
+    #[cfg(feature = "zfp")]
+    pub fn zfp_reversible(&mut self, chunk_dims: Vec<usize>, n_bytes: u8) -> &mut Self {
+        self.filters.push(Filter::zfp_reversible(chunk_dims, n_bytes));
         self
     }
 
