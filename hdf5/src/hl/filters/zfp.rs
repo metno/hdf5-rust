@@ -30,7 +30,7 @@ use crate::filters::ZfpMode;
 
 /// Major edits are needed to be in alignmeht with the H5Z-ZFP. What was previously implemented was
 /// effectively a new implementation of H5Z_ZFP but was incompatible with any library built against
-/// it. This reults in bad c_data vectors being created and produces erratic behavior.
+/// it. This results in bad c_data vectors being created and produces erratic behavior.
 
 pub(crate) const MAX_NDIMS: usize = 4;
 
