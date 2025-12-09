@@ -795,9 +795,9 @@ mod tests {
     use crate::hl::filters::zfp_available;
     use crate::test::with_tmp_file;
     use crate::{plist::DatasetCreate, Result};
-    use crate::filters::ZfpMode;
-    use crate::hl::filters::zfp::ZFP_FILTER_ID;
 
+
+    
     #[test]
     fn test_filter_pipeline() -> Result<()> {
         let mut comp_filters = vec![];
