@@ -99,7 +99,8 @@ fn main() {
 
     if feature_enabled("HL") {
         cfg.define("HDF5_BUILD_HL_LIB", "ON");
-        let hdf5_hl_lib = if cfg!(target_env = "msvc") { "libhdf5_hl" } else { "hdf5_hl" }.to_owned();
+        let hdf5_hl_lib =
+            if cfg!(target_env = "msvc") { "libhdf5_hl" } else { "hdf5_hl" }.to_owned();
         println!("cargo::metadata=hl_library={}", hdf5_hl_lib);
     }
 
