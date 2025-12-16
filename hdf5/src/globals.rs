@@ -4,9 +4,7 @@ use std::mem;
 use std::sync::LazyLock;
 
 #[cfg(feature = "have-direct")]
-use hdf5_sys::h5fp::H5Pset_fapl_direct;
-#[cfg(all(feature = "have-parallel", feature = "mpio"))]
-use hdf5_sys::h5p::H5Pset_fapl_mpio;
+use hdf5_sys::h5p::H5Pset_fapl_direct;
 use hdf5_sys::h5p::{
     H5Pclose, H5Pcreate, H5Pget_driver, H5Pset_fapl_core, H5Pset_fapl_family, H5Pset_fapl_log,
     H5Pset_fapl_multi, H5Pset_fapl_sec2, H5Pset_fapl_stdio,
@@ -362,9 +360,14 @@ pub static H5FD_MULTI: LazyLock<hid_t> = LazyLock::new(|| {
 });
 
 // MPI-IO file driver
-#[cfg(feature = "have-parallel")]
-pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| h5lock!(todo!()));
-#[cfg(not(feature = "have-parallel"))]
+#[cfg(all(feature = "2.0.0", all(feature = "have-parallel", feature = "mpio")))]
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| *hdf5_sys::h5p::H5FD_MPIO_id);
+#[cfg(all(feature = "2.0.0", not(all(feature = "have-parallel", feature = "mpio"))))]
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
+
+#[cfg(all(not(feature = "2.0.0"), all(feature = "have-parallel", feature = "mpio")))]
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| h5lock!(hdf5_sys::h5fd::H5FD_mpio_init()));
+#[cfg(all(not(feature = "2.0.0"), not(all(feature = "have-parallel", feature = "mpio"))))]
 pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
 
 // Direct VFD
