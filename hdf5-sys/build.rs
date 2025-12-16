@@ -345,7 +345,7 @@ mod macos {
                 version.major == 1 && version.minor == 14,
             )
         } else {
-            (false, false, false, false)
+            (false, false, false, false, false)
         };
         println!(
             "Attempting to find HDF5 via Homebrew ({})...",
