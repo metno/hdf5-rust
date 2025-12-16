@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 #[cfg(feature = "have-direct")]
 use hdf5_sys::h5fp::H5Pset_fapl_direct;
-#[cfg(feature = "have-parallel")]
+#[cfg(all(feature = "have-parallel", feature = "mpio"))]
 use hdf5_sys::h5p::H5Pset_fapl_mpio;
 use hdf5_sys::h5p::{
     H5Pclose, H5Pcreate, H5Pget_driver, H5Pset_fapl_core, H5Pset_fapl_family, H5Pset_fapl_log,
