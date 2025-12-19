@@ -30,6 +30,7 @@ use hdf5_sys::{
 use hdf5_types::{OwnedDynValue, TypeDescriptor};
 
 use crate::dim::Dimension;
+
 use crate::globals::H5P_DATASET_CREATE;
 use crate::hl::datatype::Datatype;
 use crate::hl::filters::{validate_filters, Filter, SZip, ScaleOffset};
@@ -518,6 +519,34 @@ impl DatasetCreateBuilder {
         T: Into<BloscShuffle>,
     {
         self.filters.push(Filter::blosc_zstd(clevel, shuffle));
+        self
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_accuracy(
+        &mut self, accuracy: f64, chunk_dims: Vec<usize>, n_bytes: u8,
+    ) -> &mut Self {
+        self.filters.push(Filter::zfp_accuracy(accuracy, chunk_dims, n_bytes));
+        self
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_rate(&mut self, rate: f64, chunk_dims: Vec<usize>, n_bytes: u8) -> &mut Self {
+        self.filters.push(Filter::zfp_rate(rate, chunk_dims, n_bytes));
+        self
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_precision(
+        &mut self, precision: u8, chunk_dims: Vec<usize>, n_bytes: u8,
+    ) -> &mut Self {
+        self.filters.push(Filter::zfp_precision(precision, chunk_dims, n_bytes));
+        self
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_reversible(&mut self, chunk_dims: Vec<usize>, n_bytes: u8) -> &mut Self {
+        self.filters.push(Filter::zfp_reversible(chunk_dims, n_bytes));
         self
     }
 

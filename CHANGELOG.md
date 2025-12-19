@@ -7,6 +7,11 @@
 ## hdf5 unreleased
 
 
+## hdf5 v0.12.0
+Released Nov 29, 2025
+- Added support for ZFP compression filters as an optional feature
+
+
 ## hdf5 v0.11.0
 Release date: Nov 23, 2025
 - Fixed incorrect retrieved name of attributes
