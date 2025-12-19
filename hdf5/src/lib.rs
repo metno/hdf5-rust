@@ -76,10 +76,12 @@ mod export {
     pub use hdf5_derive::H5Type;
     pub use hdf5_types::H5Type;
 
+    /// Base types and interfaces for creating compound data types.
     pub mod types {
         pub use hdf5_types::*;
     }
 
+    /// Multi-dimensional datasets.
     pub mod dataset {
         #[cfg(feature = "1.10.5")]
         pub use crate::hl::chunks::ChunkInfo;
@@ -90,16 +92,19 @@ mod export {
         pub use crate::hl::plist::dataset_create::*;
     }
 
+    /// Datatype objects for defining the layout of a data element.
     pub mod datatype {
         pub use crate::hl::datatype::{ByteOrder, Conversion, Datatype};
     }
 
+    /// HDF5 file objects.
     pub mod file {
         pub use crate::hl::file::{File, FileBuilder, OpenMode};
         pub use crate::hl::plist::file_access::*;
         pub use crate::hl::plist::file_create::*;
     }
 
+    /// Property list objects.
     pub mod plist {
         pub use crate::hl::plist::dataset_access::{DatasetAccess, DatasetAccessBuilder};
         pub use crate::hl::plist::dataset_create::{DatasetCreate, DatasetCreateBuilder};
@@ -109,22 +114,29 @@ mod export {
         pub use crate::hl::plist::object_copy::{ObjectCopy, ObjectCopyBuilder};
         pub use crate::hl::plist::{PropertyList, PropertyListClass};
 
+        /// Dataset access property lists.
         pub mod dataset_access {
             pub use crate::hl::plist::dataset_access::*;
         }
+        /// Dataset creation property lists.
         pub mod dataset_create {
             pub use crate::hl::plist::dataset_create::*;
         }
+        /// File access property lists.
         pub mod file_access {
             pub use crate::hl::plist::file_access::*;
         }
+        /// File creation property lists.
         pub mod file_create {
             pub use crate::hl::plist::file_create::*;
         }
+        /// Link creation property lists.
         pub mod link_create {
             pub use crate::hl::plist::link_create::*;
         }
     }
+
+    /// Filters for data compression and validation during file I/O.
     pub mod filters {
         pub use crate::hl::filters::*;
     }

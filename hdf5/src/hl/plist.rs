@@ -211,6 +211,7 @@ impl PropertyList {
         })
     }
 
+    /// Returns `true` if the property list is a member of `class`.
     pub fn is_class(&self, class: PropertyListClass) -> bool {
         use crate::globals::*;
         h5lock!({

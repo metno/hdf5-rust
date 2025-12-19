@@ -97,18 +97,22 @@ pub struct AttributeBuilder {
 }
 
 impl AttributeBuilder {
+    /// Creates a builder for a new attribute on a named object.
     pub fn new(parent: &Location) -> Self {
         Self { builder: AttributeBuilderInner::new(parent) }
     }
 
+    /// Sets the attribute's type without initializing its data.
     pub fn empty<T: H5Type>(self) -> AttributeBuilderEmpty {
         self.empty_as(&T::type_descriptor())
     }
 
+    /// Sets the attribute's type from a type descriptor without initializing its data.
     pub fn empty_as(self, type_desc: &TypeDescriptor) -> AttributeBuilderEmpty {
         AttributeBuilderEmpty { builder: self.builder, type_desc: type_desc.clone() }
     }
 
+    /// Sets the data to store in the attribute.
     pub fn with_data<'d, A, T, D>(self, data: A) -> AttributeBuilderData<'d, T, D>
     where
         A: Into<ArrayView<'d, T, D>>,
@@ -118,6 +122,7 @@ impl AttributeBuilder {
         self.with_data_as::<A, T, D>(data, &T::type_descriptor())
     }
 
+    /// Sets the data to store in the attribute and sets its element type with a type descriptor.
     pub fn with_data_as<'d, A, T, D>(
         self, data: A, type_desc: &TypeDescriptor,
     ) -> AttributeBuilderData<'d, T, D>
@@ -150,6 +155,7 @@ pub struct AttributeBuilderEmpty {
 }
 
 impl AttributeBuilderEmpty {
+    /// Sets the shape of the attribute's data.
     pub fn shape<S: Into<Extents>>(self, extents: S) -> AttributeBuilderEmptyShape {
         AttributeBuilderEmptyShape {
             builder: self.builder,
@@ -157,6 +163,8 @@ impl AttributeBuilderEmpty {
             extents: extents.into(),
         }
     }
+
+    /// Creates the attribute.
     pub fn create<'n, T: Into<&'n str>>(self, name: T) -> Result<Attribute> {
         self.shape(()).create(name)
     }
@@ -178,6 +186,7 @@ pub struct AttributeBuilderEmptyShape {
 }
 
 impl AttributeBuilderEmptyShape {
+    /// Creates the attribute.
     pub fn create<'n, T: Into<&'n str>>(&self, name: T) -> Result<Attribute> {
         h5lock!(self.builder.create(&self.type_desc, name.into(), &self.extents))
     }
@@ -216,6 +225,7 @@ where
         self
     }
 
+    /// Creates the attribute.
     pub fn create<'n, N: Into<&'n str>>(&self, name: N) -> Result<Attribute> {
         ensure!(
             self.data.is_standard_layout(),
