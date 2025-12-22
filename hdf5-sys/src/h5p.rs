@@ -526,11 +526,11 @@ extern "C" {
     ) -> herr_t;
 
     // mpi-io
-    #[cfg(feature = "mpio")]
+    #[cfg(all(feature = "have-parallel", feature = "mpio"))]
     pub fn H5Pset_fapl_mpio(
         fapl_id: hid_t, comm: mpi_sys::MPI_Comm, info: mpi_sys::MPI_Info,
     ) -> herr_t;
-    #[cfg(feature = "mpio")]
+    #[cfg(all(feature = "have-parallel", feature = "mpio"))]
     pub fn H5Pget_fapl_mpio(
         fapl_id: hid_t, comm: *mut mpi_sys::MPI_Comm, info: *mut mpi_sys::MPI_Info,
     ) -> herr_t;
@@ -810,4 +810,10 @@ extern "C" {
     pub fn H5Pset_driver_by_value(
         plist_id: hid_t, driver_value: H5FD_class_value_t, driver_config: *const c_char,
     ) -> herr_t;
+}
+
+#[cfg(feature = "2.0.0")]
+extern "C" {
+    pub fn H5Pget_virtual_spatial_tree(dcpl_id: hid_t, use_tree: *mut hbool_t) -> herr_t;
+    pub fn H5Pset_virtual_spatial_tree(dapl_id: hid_t, use_tree: hbool_t) -> herr_t;
 }

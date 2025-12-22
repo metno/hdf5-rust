@@ -323,6 +323,10 @@ mod globals {
     extern_static!(H5E_ID, H5E_ID_g);
     #[cfg(feature = "1.14.0")]
     extern_static!(H5E_UNMOUNT, H5E_UNMOUNT_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5E_RTREE, H5E_RTREE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5E_THREADSAFE, H5E_THREADSAFE_g);
 }
 
 #[cfg(all(target_env = "msvc", not(feature = "static")))]
@@ -505,4 +509,8 @@ mod globals {
     extern_static!(H5E_ID, __imp_H5E_ID_g);
     #[cfg(feature = "1.14.0")]
     extern_static!(H5E_UNMOUNT, __imp_H5E_UNMOUNT_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5E_RTREE, __imp_H5E_RTREE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5E_THREADSAFE, __imp_H5E_THREADSAFE_g);
 }

@@ -62,9 +62,12 @@ extern "C" {
     pub fn H5Iinc_ref(id: hid_t) -> c_int;
     pub fn H5Idec_ref(id: hid_t) -> c_int;
     pub fn H5Iget_ref(id: hid_t) -> c_int;
-    pub fn H5Iregister_type(
+    #[cfg_attr(not(feature = "2.0.0"), link_name = "H5Iregister_type")]
+    pub fn H5Iregister_type1(
         hash_size: size_t, reserved: c_uint, free_func: H5I_free_t,
     ) -> H5I_type_t;
+    #[cfg(feature = "2.0.0")]
+    pub fn H5Iregister_type2(reserved: c_uint, free_func: H5I_free_t) -> H5I_type_t;
     pub fn H5Iclear_type(type_: H5I_type_t, force: hbool_t) -> herr_t;
     pub fn H5Idestroy_type(type_: H5I_type_t) -> herr_t;
     pub fn H5Iinc_type_ref(type_: H5I_type_t) -> c_int;
@@ -77,6 +80,11 @@ extern "C" {
     pub fn H5Itype_exists(type_: H5I_type_t) -> htri_t;
     pub fn H5Iis_valid(id: hid_t) -> htri_t;
 }
+
+#[cfg(not(feature = "2.0.0"))]
+pub use self::H5Iregister_type1 as H5Iregister_type;
+#[cfg(feature = "2.0.0")]
+pub use self::H5Iregister_type2 as H5Iregister_type;
 
 #[cfg(feature = "1.14.0")]
 pub type H5I_future_realize_func_t = Option<

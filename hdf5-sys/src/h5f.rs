@@ -125,11 +125,19 @@ pub enum H5F_libver_t {
     H5F_LIBVER_V112 = 3,
     #[cfg(feature = "1.14.0")]
     H5F_LIBVER_V114 = 4,
+    #[cfg(feature = "2.0.0")]
+    H5F_LIBVER_V200 = 5,
     H5F_LIBVER_NBOUNDS,
 }
 
-#[cfg(feature = "1.10.2")]
+#[cfg(all(feature = "1.10.2", not(feature = "1.12.0")))]
 pub const H5F_LIBVER_LATEST: H5F_libver_t = H5F_LIBVER_V110;
+#[cfg(all(feature = "1.12.0", not(feature = "1.14.0")))]
+pub const H5F_LIBVER_LATEST: H5F_libver_t = H5F_LIBVER_V112;
+#[cfg(all(feature = "1.14.0", not(feature = "2.0.0")))]
+pub const H5F_LIBVER_LATEST: H5F_libver_t = H5F_LIBVER_V114;
+#[cfg(feature = "2.0.0")]
+pub const H5F_LIBVER_LATEST: H5F_libver_t = H5F_LIBVER_V200;
 
 impl Default for H5F_libver_t {
     fn default() -> Self {
