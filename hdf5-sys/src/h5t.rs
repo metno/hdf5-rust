@@ -36,7 +36,14 @@ pub enum H5T_class_t {
     H5T_ENUM = 8,
     H5T_VLEN = 9,
     H5T_ARRAY = 10,
+
+    #[cfg(not(feature = "2.0.0"))]
     H5T_NCLASSES = 11,
+
+    #[cfg(feature = "2.0.0")]
+    H5T_COMPLEX = 11,
+    #[cfg(feature = "2.0.0")]
+    H5T_NCLASSES = 12,
 }
 
 #[cfg(feature = "1.8.6")]
@@ -262,7 +269,10 @@ extern "C" {
     pub fn H5Tget_create_plist(type_id: hid_t) -> hid_t;
     pub fn H5Tcommitted(type_id: hid_t) -> htri_t;
     pub fn H5Tencode(obj_id: hid_t, buf: *mut c_void, nalloc: *mut size_t) -> herr_t;
-    pub fn H5Tdecode(buf: *const c_void) -> hid_t;
+    #[cfg_attr(not(feature = "2.0.0"), link_name = "H5Tdecode")]
+    pub fn H5Tdecode1(buf: *const c_void) -> hid_t;
+    #[cfg(feature = "2.0.0")]
+    pub fn H5Tdecode2(buf: *const c_void, buf_size: size_t) -> hid_t;
     pub fn H5Tinsert(
         parent_id: hid_t, name: *const c_char, offset: size_t, member_id: hid_t,
     ) -> herr_t;
@@ -343,6 +353,11 @@ extern "C" {
     #[deprecated(note = "deprecated since HDF5 1.8.0, use H5Tget_array_dims2")]
     pub fn H5Tget_array_dims1(type_id: hid_t, dims: *mut hsize_t, perm: *mut c_int) -> c_int;
 }
+
+#[cfg(not(feature = "2.0.0"))]
+pub use self::H5Tdecode1 as H5Tdecode;
+#[cfg(feature = "2.0.0")]
+pub use self::H5Tdecode2 as H5Tdecode;
 
 pub use self::globals::*;
 
@@ -438,6 +453,32 @@ mod globals {
     extern_static!(H5T_NATIVE_UINT_FAST64, H5T_NATIVE_UINT_FAST64_g);
     #[cfg(feature = "1.12.0")]
     extern_static!(H5T_STD_REF, H5T_STD_REF_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F16BE, H5T_COMPLEX_IEEE_F16BE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F16LE, H5T_COMPLEX_IEEE_F16LE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F32BE, H5T_COMPLEX_IEEE_F32BE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F32LE, H5T_COMPLEX_IEEE_F32LE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F64BE, H5T_COMPLEX_IEEE_F64BE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F64LE, H5T_COMPLEX_IEEE_F64LE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_FLOAT_BFLOAT16BE, H5T_FLOAT_BFLOAT16BE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_FLOAT_BFLOAT16LE, H5T_FLOAT_BFLOAT16LE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_FLOAT_F8E4M3, H5T_FLOAT_F8E4M3_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_FLOAT_F8E5M2, H5T_FLOAT_F8E5M2_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_NATIVE_DOUBLE_COMPLEX, H5T_NATIVE_DOUBLE_COMPLEX_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_NATIVE_FLOAT_COMPLEX, H5T_NATIVE_FLOAT_COMPLEX_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_NATIVE_LDOUBLE_COMPLEX, H5T_NATIVE_LDOUBLE_COMPLEX_g);
 }
 
 #[cfg(all(target_env = "msvc", not(feature = "static")))]
@@ -533,6 +574,32 @@ mod globals {
     extern_static!(H5T_NATIVE_UINT_FAST64, __imp_H5T_NATIVE_UINT_FAST64_g);
     #[cfg(feature = "1.12.0")]
     extern_static!(H5T_STD_REF, __imp_H5T_STD_REF_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F16BE, __imp_H5T_COMPLEX_IEEE_F16BE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F16LE, __imp_H5T_COMPLEX_IEEE_F16LE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F32BE, __imp_H5T_COMPLEX_IEEE_F32BE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F32LE, __imp_H5T_COMPLEX_IEEE_F32LE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F64BE, __imp_H5T_COMPLEX_IEEE_F64BE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_COMPLEX_IEEE_F64LE, __imp_H5T_COMPLEX_IEEE_F64LE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_FLOAT_BFLOAT16BE, __imp_H5T_FLOAT_BFLOAT16BE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_FLOAT_BFLOAT16LE, __imp_H5T_FLOAT_BFLOAT16LE_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_FLOAT_F8E4M3, __imp_H5T_FLOAT_F8E4M3_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_FLOAT_F8E5M2, __imp_H5T_FLOAT_F8E5M2_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_NATIVE_DOUBLE_COMPLEX, __imp_H5T_NATIVE_DOUBLE_COMPLEX_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_NATIVE_FLOAT_COMPLEX, __imp_H5T_NATIVE_FLOAT_COMPLEX_g);
+    #[cfg(feature = "2.0.0")]
+    extern_static!(H5T_NATIVE_LDOUBLE_COMPLEX, __imp_H5T_NATIVE_LDOUBLE_COMPLEX_g);
 }
 
 #[cfg(feature = "1.10.0")]
@@ -561,4 +628,9 @@ extern "C" {
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, loc_id: hid_t,
         name: *const c_char, tapl_id: hid_t, es_id: hid_t,
     ) -> hid_t;
+}
+
+#[cfg(feature = "2.0.0")]
+extern "C" {
+    pub fn H5Tcomplex_create(base_type_id: hid_t) -> hid_t;
 }

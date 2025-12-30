@@ -240,14 +240,24 @@ pub use self::hdf5_1_10_0::*;
 
 #[cfg(feature = "1.10.3")]
 extern "C" {
-    pub fn H5Dread_chunk(
+    #[cfg_attr(not(feature = "2.0.0"), link_name = "H5Dread_chunk")]
+    pub fn H5Dread_chunk1(
         dset_id: hid_t, dxpl_id: hid_t, offset: *const hsize_t, filters: *mut u32, buf: *mut c_void,
+    ) -> herr_t;
+    #[cfg(feature = "2.0.0")]
+    pub fn H5Dread_chunk2(
+        dset_id: hid_t, dxpl_id: hid_t, offset: *const hsize_t, filters: *mut u32,
+        buf: *mut c_void, buf_size: *mut size_t,
     ) -> herr_t;
     pub fn H5Dwrite_chunk(
         dset_id: hid_t, dxpl_id: hid_t, filters: u32, offset: *const hsize_t, data_size: size_t,
         buf: *const c_void,
     ) -> herr_t;
 }
+#[cfg(all(feature = "1.10.3", not(feature = "2.0.0")))]
+pub use self::H5Dread_chunk1 as H5Dread_chunk;
+#[cfg(feature = "2.0.0")]
+pub use self::H5Dread_chunk2 as H5Dread_chunk;
 
 #[cfg(feature = "1.10.5")]
 extern "C" {

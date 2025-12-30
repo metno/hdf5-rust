@@ -1,11 +1,20 @@
 # Changelog
 
-## hdf5-types unreleased
-## hdf5-derive unreleased
-## hdf5-sys unreleased
-## hdf5-src unreleased
 ## hdf5 unreleased
+- Add support for hdf5 2.0.0
 
+## hdf5-types unreleased
+- Add support for hdf5 2.0.0
+
+## hdf5-derive unreleased
+- Add support for hdf5 2.0.0
+
+## hdf5-sys unreleased
+- Add support for hdf5 2.0.0
+- Remove `H5FD_*_init` functions, these are private to hdf5-c
+
+## hdf5-src unreleased
+- Use hdf5 2.0.0
 
 ## hdf5 v0.11.0
 Release date: Nov 23, 2025

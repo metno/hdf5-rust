@@ -1923,14 +1923,42 @@ mod v1_14_0 {
     }
 
     extern "C" {
+        #[cfg(not(feature = "2.0.0"))]
+        pub fn H5VLstart_lib_state() -> herr_t;
+        #[cfg(not(feature = "2.0.0"))]
         pub fn H5VLfinish_lib_state() -> herr_t;
         pub fn H5VLintrospect_get_cap_flags(
             info: *const c_void, connector_id: hid_t, cap_flags: *mut c_uint,
         ) -> herr_t;
-        pub fn H5VLstart_lib_state() -> herr_t;
     }
 
     extern "C" {
         pub fn H5VLobject_is_native(obj_id: hid_t, is_native: *mut hbool_t) -> herr_t;
     }
 }
+
+#[cfg(feature = "2.0.0")]
+extern "C" {
+    pub fn H5VLclose_lib_context(context: *mut c_void) -> herr_t;
+    pub fn H5VLopen_lib_context(context: *mut *mut c_void) -> herr_t;
+}
+
+#[cfg(not(all(target_env = "msvc", not(feature = "static"))))]
+#[cfg(feature = "2.0.0")]
+mod globals {
+    pub use crate::h5i::hid_t as id_t;
+    extern_static!(H5VL_NATIVE, H5VL_NATIVE_g);
+    extern_static!(H5VL_PASSTHRU, H5VL_PASSTHRU_g);
+}
+
+#[cfg(all(target_env = "msvc", not(feature = "static")))]
+#[cfg(feature = "2.0.0")]
+mod globals {
+    // dllimport hack
+    pub type id_t = usize;
+    extern_static!(H5VL_NATIVE, __imp_H5VL_NATIVE_g);
+    extern_static!(H5VL_PASSTHRU, __imp_H5VL_PASSTHRU_g);
+}
+
+#[cfg(feature = "2.0.0")]
+pub use globals::*;
