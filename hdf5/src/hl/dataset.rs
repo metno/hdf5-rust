@@ -5,18 +5,8 @@ use std::ops::Deref;
 
 use ndarray::{self, ArrayView};
 
-use hdf5_sys::h5::HADDR_UNDEF;
-use hdf5_sys::h5d::{
-    H5Dcreate2, H5Dcreate_anon, H5Dget_access_plist, H5Dget_create_plist, H5Dget_offset,
-    H5Dset_extent,
-};
-#[cfg(feature = "1.10.0")]
-use hdf5_sys::h5d::{H5Dflush, H5Drefresh};
-use hdf5_sys::h5l::H5Ldelete;
-use hdf5_sys::h5p::H5P_DEFAULT;
-use hdf5_sys::h5z::H5Z_filter_t;
-use hdf5_types::{OwnedDynValue, TypeDescriptor};
-
+#[cfg(feature = "zfp")]
+use crate::hl;
 #[cfg(feature = "blosc")]
 use crate::hl::filters::{Blosc, BloscShuffle};
 use crate::hl::filters::{Filter, SZip, ScaleOffset};
@@ -30,6 +20,17 @@ use crate::hl::plist::dataset_create::{
 };
 use crate::hl::plist::link_create::{CharEncoding, LinkCreate, LinkCreateBuilder};
 use crate::internal_prelude::*;
+use hdf5_sys::h5::HADDR_UNDEF;
+use hdf5_sys::h5d::{
+    H5Dcreate2, H5Dcreate_anon, H5Dget_access_plist, H5Dget_create_plist, H5Dget_offset,
+    H5Dset_extent,
+};
+#[cfg(feature = "1.10.0")]
+use hdf5_sys::h5d::{H5Dflush, H5Drefresh};
+use hdf5_sys::h5l::H5Ldelete;
+use hdf5_sys::h5p::H5P_DEFAULT;
+use hdf5_sys::h5z::H5Z_filter_t;
+use hdf5_types::{OwnedDynValue, TypeDescriptor};
 
 /// Default chunk size when filters are enabled and the chunk size is not specified.
 pub const DEFAULT_CHUNK_SIZE_KB: usize = 64 * 1024;
@@ -247,6 +248,34 @@ impl DatasetBuilder {
             conv: Conversion::Soft,
         }
     }
+    //
+    // #[cfg(feature = "zfp")]
+    // pub fn zfp_rate(self, rate: f64) -> Self {
+    //     let new_ds = self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_rate(rate)]));
+    //
+    //     new_ds
+    // }
+    //
+    // #[cfg(feature = "zfp")]
+    // pub fn zfp_precision(self, precision: u8) -> Self {
+    //     let new_ds = self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_precision(precision)]));
+    //
+    //     new_ds
+    // }
+    //
+    // #[cfg(feature = "zfp")]
+    // pub fn zfp_accuracy(self, accuracy: f64) -> Self {
+    //     let new_ds = self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_accuracy(accuracy)]));
+    //
+    //     new_ds
+    // }
+    //
+    // #[cfg(feature = "zfp")]
+    // pub fn zfp_reversible(self) -> Self {
+    //     let new_ds = self.with_dcpl(|p| p.set_filters(&vec![Filter::zfp_reversible()]));
+    //
+    //     new_ds
+    // }
 }
 
 #[derive(Clone)]
@@ -719,6 +748,36 @@ impl DatasetBuilderInner {
         self.with_dcpl(|pl| pl.blosc_zstd(clevel, shuffle));
     }
 
+    #[cfg(feature = "zfp")]
+    pub fn zfp_rate(&mut self, rate: f64, chunk_dims: Vec<usize>, n_bytes: u8) {
+        hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
+        self.with_dcpl(|p| {
+            p.set_filters(&vec![Filter::zfp_rate(rate, chunk_dims.clone(), n_bytes)])
+        });
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_precision(&mut self, precision: u8, chunk_dims: Vec<usize>, n_bytes: u8) {
+        hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
+        self.with_dcpl(|p| {
+            p.set_filters(&vec![Filter::zfp_precision(precision, chunk_dims.clone(), n_bytes)])
+        });
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_accuracy(&mut self, accuracy: f64, chunk_dims: Vec<usize>, n_bytes: u8) {
+        hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
+        self.with_dcpl(|pl| pl.zfp_accuracy(accuracy, chunk_dims.clone(), n_bytes));
+    }
+
+    #[cfg(feature = "zfp")]
+    pub fn zfp_reversible(&mut self, chunk_dims: Vec<usize>, n_bytes: u8) {
+        hl::filters::zfp::register_zfp().expect("Failed to register ZFP filter");
+        self.with_dcpl(|p| {
+            p.set_filters(&vec![Filter::zfp_reversible(chunk_dims.clone(), n_bytes)])
+        });
+    }
+
     pub fn add_filter(&mut self, id: H5Z_filter_t, cdata: &[c_uint]) {
         self.with_dcpl(|pl| pl.add_filter(id, cdata));
     }
@@ -978,6 +1037,25 @@ macro_rules! impl_builder_methods {
             #[cfg(feature = "blosc-zstd")]
             DatasetCreate: blosc_zstd(clevel: u8, shuffle: impl Into<BloscShuffle>)
         );
+
+        impl_builder!(
+            #[cfg(feature = "zfp")]
+            DatasetCreate: zfp_rate(rate: f64,chunk_dims: Vec<usize>,n_bytes: u8)
+        );
+        impl_builder!(
+            #[cfg(feature = "zfp")]
+            DatasetCreate: zfp_accuracy(accuracy: f64,chunk_dims: Vec<usize>,n_bytes: u8)
+        );
+        impl_builder!(
+            #[cfg(feature = "zfp")]
+            DatasetCreate: zfp_precision(rate: u8,chunk_dims: Vec<usize>,n_bytes: u8)
+        );
+        impl_builder!(
+            #[cfg(feature = "zfp")]
+            DatasetCreate: zfp_reversible(chunk_dims: Vec<usize>,n_bytes: u8)
+        );
+
+
         impl_builder!(DatasetCreate: add_filter(id: H5Z_filter_t, cdata: &[c_uint]));
         impl_builder!(DatasetCreate: clear_filters());
         impl_builder!(DatasetCreate: alloc_time(alloc_time: Option<AllocTime>));
