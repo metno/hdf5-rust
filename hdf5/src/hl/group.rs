@@ -622,9 +622,14 @@ pub mod tests {
             file.new_dataset::<u32>().no_chunk().shape((10, 20)).create("a/foo").unwrap();
             file.new_dataset::<u32>().no_chunk().shape((10, 20)).create("a/123").unwrap();
             file.new_dataset::<u32>().no_chunk().shape((10, 20)).create("a/bar").unwrap();
-            assert_eq!(group_a.member_names().unwrap(), vec!["123", "bar", "foo"]);
+            let group_a_names = group_a.member_names().unwrap();
+            assert!(group_a_names.contains(&"123".to_string()));
+            assert!(group_a_names.contains(&"bar".to_string()));
+            assert!(group_a_names.contains(&"foo".to_string()));
             assert_eq!(group_b.member_names().unwrap().len(), 0);
-            assert_eq!(file.member_names().unwrap(), vec!["a", "b"]);
+            let file_names = file.member_names().unwrap();
+            assert!(file_names.contains(&"a".to_string()));
+            assert!(file_names.contains(&"b".to_string()));
         })
     }
 

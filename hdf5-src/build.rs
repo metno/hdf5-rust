@@ -74,7 +74,7 @@ fn main() {
         let mut zlib_header = env::split_paths(&zlib_include_dir).next().unwrap();
         zlib_header.push("zlib.h");
         let zlib_lib = "z";
-        cfg.define("HDF5_ENABLE_Z_LIB_SUPPORT", "ON")
+        cfg.define("HDF5_ENABLE_ZLIB_SUPPORT", "ON")
             .define("H5_ZLIB_HEADER", &zlib_header)
             .define("ZLIB_STATIC_LIBRARY", zlib_lib);
         println!("cargo::metadata=zlib_header={}", zlib_header.to_str().unwrap());
@@ -96,17 +96,11 @@ fn main() {
     }
 
     let targeting_windows = env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows";
-    let debug_postfix = if targeting_windows { "_D" } else { "_debug" };
 
     if feature_enabled("HL") {
         cfg.define("HDF5_BUILD_HL_LIB", "ON");
-        let mut hdf5_hl_lib =
+        let hdf5_hl_lib =
             if cfg!(target_env = "msvc") { "libhdf5_hl" } else { "hdf5_hl" }.to_owned();
-        if let Ok(opt_level) = env::var("OPT_LEVEL") {
-            if opt_level == "0" {
-                hdf5_hl_lib.push_str(debug_postfix);
-            }
-        }
         println!("cargo::metadata=hl_library={}", hdf5_hl_lib);
     }
 
@@ -124,12 +118,7 @@ fn main() {
     let hdf5_incdir = format!("{}/include", dst.display());
     println!("cargo::metadata=include={}", hdf5_incdir);
 
-    let mut hdf5_lib = if cfg!(target_env = "msvc") { "libhdf5" } else { "hdf5" }.to_owned();
-    if let Ok(opt_level) = env::var("OPT_LEVEL") {
-        if opt_level == "0" {
-            hdf5_lib.push_str(debug_postfix);
-        }
-    }
+    let hdf5_lib = if cfg!(target_env = "msvc") { "libhdf5" } else { "hdf5" }.to_owned();
 
     println!("cargo::metadata=library={}", hdf5_lib);
 }

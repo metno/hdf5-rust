@@ -4,12 +4,10 @@ use std::mem;
 use std::sync::LazyLock;
 
 #[cfg(feature = "have-direct")]
-use hdf5_sys::h5fd::H5FD_direct_init;
-#[cfg(feature = "have-parallel")]
-use hdf5_sys::h5fd::H5FD_mpio_init;
-use hdf5_sys::h5fd::{
-    H5FD_core_init, H5FD_family_init, H5FD_log_init, H5FD_multi_init, H5FD_sec2_init,
-    H5FD_stdio_init,
+use hdf5_sys::h5p::H5Pset_fapl_direct;
+use hdf5_sys::h5p::{
+    H5Pclose, H5Pcreate, H5Pget_driver, H5Pset_fapl_core, H5Pset_fapl_family, H5Pset_fapl_log,
+    H5Pset_fapl_multi, H5Pset_fapl_sec2, H5Pset_fapl_stdio,
 };
 use hdf5_sys::{h5e, h5p, h5t};
 
@@ -42,6 +40,18 @@ macro_rules! link_hid {
     ($rust_name:ident, $c_name:path) => {
         pub static $rust_name: H5GlobalConstant = H5GlobalConstant($c_name);
     };
+}
+
+/// Fetches the driver ID using the workaround from https://github.com/HDFGroup/hdf5/issues/1809
+/// as the _init functions seem to be removed in HDF5 2.0.0
+macro_rules! get_driver {
+    ($set_driver:expr) => {{
+        let fapl = h5call!(H5Pcreate(*H5P_FILE_ACCESS)).expect("should always create FAPL");
+        h5call!($set_driver(fapl)).expect("should always be able to set the driver");
+        let id = h5call!(H5Pget_driver(fapl)).expect("should always be able to extract the driver");
+        h5call!(H5Pclose(fapl)).expect("should always be able to close the FAPL");
+        id
+    }};
 }
 
 // Datatypes
@@ -328,22 +338,42 @@ pub static H5R_DSET_REG_REF_BUF_SIZE: LazyLock<usize> =
     LazyLock::new(|| mem::size_of::<haddr_t>() + 4);
 
 // File drivers
-pub static H5FD_CORE: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_core_init()));
-pub static H5FD_SEC2: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_sec2_init()));
-pub static H5FD_STDIO: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_stdio_init()));
-pub static H5FD_FAMILY: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_family_init()));
-pub static H5FD_LOG: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_log_init()));
-pub static H5FD_MULTI: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_multi_init()));
+pub static H5FD_CORE: LazyLock<hid_t> =
+    LazyLock::new(|| h5lock!(get_driver!(|fapl| H5Pset_fapl_core(fapl, 0, 0))));
+pub static H5FD_SEC2: LazyLock<hid_t> =
+    LazyLock::new(|| h5lock!(get_driver!(|fapl| H5Pset_fapl_sec2(fapl))));
+pub static H5FD_STDIO: LazyLock<hid_t> =
+    LazyLock::new(|| h5lock!(get_driver!(|fapl| H5Pset_fapl_stdio(fapl))));
+pub static H5FD_FAMILY: LazyLock<hid_t> =
+    LazyLock::new(|| h5lock!(get_driver!(|fapl| H5Pset_fapl_family(fapl, 0, 0))));
+pub static H5FD_LOG: LazyLock<hid_t> =
+    LazyLock::new(|| h5lock!(get_driver!(|fapl| H5Pset_fapl_log(fapl, std::ptr::null(), 0, 0))));
+pub static H5FD_MULTI: LazyLock<hid_t> = LazyLock::new(|| {
+    h5lock!(get_driver!(|fapl| H5Pset_fapl_multi(
+        fapl,
+        std::ptr::null(),
+        std::ptr::null(),
+        std::ptr::null(),
+        std::ptr::null(),
+        0
+    )))
+});
 
 // MPI-IO file driver
-#[cfg(feature = "have-parallel")]
-pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_mpio_init()));
-#[cfg(not(feature = "have-parallel"))]
+#[cfg(all(feature = "2.0.0", all(feature = "have-parallel", feature = "mpio")))]
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| *hdf5_sys::h5p::H5FD_MPIO_id);
+#[cfg(all(feature = "2.0.0", not(all(feature = "have-parallel", feature = "mpio"))))]
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
+
+#[cfg(all(not(feature = "2.0.0"), all(feature = "have-parallel", feature = "mpio")))]
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| h5lock!(hdf5_sys::h5fd::H5FD_mpio_init()));
+#[cfg(all(not(feature = "2.0.0"), not(all(feature = "have-parallel", feature = "mpio"))))]
 pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
 
 // Direct VFD
 #[cfg(feature = "have-direct")]
-pub static H5FD_DIRECT: LazyLock<hid_t> = LazyLock::new(|| h5lock!(H5FD_direct_init()));
+pub static H5FD_DIRECT: LazyLock<hid_t> =
+    LazyLock::new(|| h5lock!(get_driver!(|fapl| H5Pset_fapl_direct(fapl, 0, 0, 0))));
 #[cfg(not(feature = "have-direct"))]
 pub static H5FD_DIRECT: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
 

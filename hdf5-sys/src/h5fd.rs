@@ -364,24 +364,9 @@ extern "C" {
     pub fn H5FDtruncate(file: *mut H5FD_t, dxpl_id: hid_t, closing: hbool_t) -> herr_t;
 }
 
-// drivers
-extern "C" {
-    pub fn H5FD_sec2_init() -> hid_t;
-    pub fn H5FD_core_init() -> hid_t;
-    pub fn H5FD_stdio_init() -> hid_t;
-    pub fn H5FD_family_init() -> hid_t;
-    pub fn H5FD_log_init() -> hid_t;
-    pub fn H5FD_multi_init() -> hid_t;
-}
-
-#[cfg(feature = "have-parallel")]
+#[cfg(all(not(feature = "2.0.0"), feature = "have-parallel"))]
 extern "C" {
     pub fn H5FD_mpio_init() -> hid_t;
-}
-
-#[cfg(feature = "have-direct")]
-extern "C" {
-    pub fn H5FD_direct_init() -> hid_t;
 }
 
 #[cfg(feature = "1.10.0")]
@@ -485,5 +470,40 @@ extern "C" {
     pub fn H5FDdelete(name: *const c_char, fapl_id: hid_t) -> herr_t;
     pub fn H5FDis_driver_registered_by_name(driver_name: *const c_char) -> htri_t;
     pub fn H5FDis_driver_registered_by_value(driver_value: H5FD_class_value_t) -> htri_t;
+    #[cfg(not(feature = "2.0.0"))]
     pub fn H5FDperform_init(p: H5FD_perform_init_func_t) -> hid_t;
 }
+
+#[cfg(all(feature = "2.0.0", not(all(target_env = "msvc", not(feature = "static")))))]
+mod globals_2_0_0 {
+    pub use crate::h5i::hid_t as id_t;
+    extern_static!(H5FD_CORE, H5FD_CORE_id_g);
+    extern_static!(H5FD_FAMILY, H5FD_FAMILY_id_g);
+    extern_static!(H5FD_LOG, H5FD_LOG_id_g);
+    extern_static!(H5FD_MULTI, H5FD_MULTI_id_g);
+    extern_static!(H5FD_ONION, H5FD_ONION_id_g);
+    extern_static!(H5FD_SEC2, H5FD_SEC2_id_g);
+    extern_static!(H5FD_SPLITTER, H5FD_SPLITTER_id_g);
+    extern_static!(H5FD_STDIO, H5FD_STDIO_id_g);
+    #[cfg(feature = "have_parallel")]
+    extern_static!(H5FD_MPIO, H5FD_MPIO_id_g);
+}
+
+#[cfg(all(feature = "2.0.0", all(target_env = "msvc", not(feature = "static"))))]
+mod globals {
+    // dllimport hack
+    pub type id_t = usize;
+    extern_static!(H5FD_CORE, __imp_H5FD_CORE_id_g);
+    extern_static!(H5FD_FAMILY, __imp_H5FD_FAMILY_id_g);
+    extern_static!(H5FD_LOG, __imp_H5FD_LOG_id_g);
+    extern_static!(H5FD_MULTI, __imp_H5FD_MULTI_id_g);
+    extern_static!(H5FD_ONION, __imp_H5FD_ONION_id_g);
+    extern_static!(H5FD_SEC2, __imp_H5FD_SEC2_id_g);
+    extern_static!(H5FD_SPLITTER, __imp_H5FD_SPLITTER_id_g);
+    extern_static!(H5FD_STDIO, __imp_H5FD_STDIO_id_g);
+    #[cfg(feature = "have-parallel")]
+    extern_static!(H5FD_MPIO, __imp_H5FD_MPIO_id_g);
+}
+
+#[cfg(feature = "2.0.0")]
+pub use globals_2_0_0::*;

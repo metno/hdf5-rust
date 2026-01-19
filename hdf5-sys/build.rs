@@ -30,7 +30,8 @@ impl Version {
     }
 
     pub fn parse(s: &str) -> Option<Self> {
-        let re = Regex::new(r"^(1)\.(8|10|12|14)\.(\d\d?)(_|.\d+)?((-|.)(patch)?\d+)?$").ok()?;
+        let re =
+            Regex::new(r"^(1|2)\.(0|8|10|12|14)\.(\d\d?)(_|.\d+)?((-|.)(patch)?\d+)?$").ok()?;
         let captures = re.captures(s)?;
         Some(Self {
             major: captures.get(1).and_then(|c| c.as_str().parse::<u8>().ok())?,
@@ -53,6 +54,7 @@ impl Debug for Version {
 fn known_hdf5_versions() -> Vec<Version> {
     // Keep up to date with known_hdf5_versions in hdf5
     let mut vs = Vec::new();
+    vs.push(Version::new(2, 0, 0)); // 2.0.0
     vs.extend((5..=21).map(|v| Version::new(1, 8, v))); // 1.8.[5-23]
     vs.extend((0..=8).map(|v| Version::new(1, 10, v))); // 1.10.[0-10]
     vs.extend((0..=2).map(|v| Version::new(1, 12, v))); // 1.12.[0-2]
@@ -334,19 +336,22 @@ mod macos {
         }
         // We have to explicitly support homebrew since the HDF5 bottle isn't
         // packaged with pkg-config metadata.
-        let (v18, v110, v112, v114) = if let Some(version) = config.version {
+        let (v20, v18, v110, v112, v114) = if let Some(version) = config.version {
             (
+                version.major == 2 && version.minor == 0,
                 version.major == 1 && version.minor == 8,
                 version.major == 1 && version.minor == 10,
                 version.major == 1 && version.minor == 12,
                 version.major == 1 && version.minor == 14,
             )
         } else {
-            (false, false, false, false)
+            (false, false, false, false, false)
         };
         println!(
             "Attempting to find HDF5 via Homebrew ({})...",
-            if v18 {
+            if v20 {
+                "2.0.*"
+            } else if v18 {
                 "1.8.*"
             } else if v110 {
                 "1.10.*"
@@ -704,7 +709,7 @@ impl Config {
         for (flag, feature, native) in [
             (!h.have_no_deprecated, "deprecated", "HDF5_ENABLE_DEPRECATED_SYMBOLS"),
             (h.have_threadsafe, "threadsafe", "HDF5_ENABLE_THREADSAFE"),
-            (h.have_filter_deflate, "zlib", "HDF5_ENABLE_Z_LIB_SUPPORT"),
+            (h.have_filter_deflate, "zlib", "HDF5_ENABLE_ZLIB_SUPPORT"),
         ] {
             if feature_enabled(&feature.to_ascii_uppercase()) {
                 assert!(
