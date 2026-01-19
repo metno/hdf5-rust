@@ -5,6 +5,7 @@ use std::ops::Deref;
 
 use ndarray::{self, ArrayView};
 
+#[cfg(feature = "zfp")]
 use crate::hl;
 #[cfg(feature = "blosc")]
 use crate::hl::filters::{Blosc, BloscShuffle};

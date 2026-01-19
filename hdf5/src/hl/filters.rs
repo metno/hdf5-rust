@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::ptr::{self, addr_of_mut};
 
+#[cfg(feature = "zfp")]
+use crate::globals::{H5E_CALLBACK, H5E_PLIST};
 use hdf5_sys::h5p::{
-    H5Pget_chunk, H5Pget_filter2, H5Pget_nfilters, H5Pset_deflate, H5Pset_filter,
-    H5Pset_fletcher32, H5Pset_nbit, H5Pset_scaleoffset, H5Pset_shuffle, H5Pset_szip,
+    H5Pget_filter2, H5Pget_nfilters, H5Pset_deflate, H5Pset_filter, H5Pset_fletcher32, H5Pset_nbit,
+    H5Pset_scaleoffset, H5Pset_shuffle, H5Pset_szip,
 };
-use hdf5_sys::h5t::{H5T_class_t, H5Tclose, H5Tget_class, H5Tget_size, H5T_FLOAT};
+use hdf5_sys::h5t::H5T_class_t;
 use hdf5_sys::h5z::{
     H5Zfilter_avail, H5Zget_filter_info, H5Z_FILTER_CONFIG_DECODE_ENABLED,
     H5Z_FILTER_CONFIG_ENCODE_ENABLED, H5Z_FILTER_DEFLATE, H5Z_FILTER_FLETCHER32, H5Z_FILTER_NBIT,
@@ -156,7 +158,6 @@ mod zfp_impl {
     }
 }
 
-use crate::globals::{H5E_CALLBACK, H5E_PLIST};
 #[cfg(feature = "zfp")]
 pub use zfp_impl::*;
 
