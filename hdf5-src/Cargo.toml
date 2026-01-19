@@ -1,6 +1,6 @@
 [package]
 name = "hdf5-metno-src"
-license-file = "ext/hdf5/COPYING"
+license-file = "ext/hdf5/LICENSE"
 build = "build.rs"
 description = "Build script for compiling HDF5 C library from source."
 links = "hdf5src"
@@ -12,7 +12,7 @@ include = [
     "README.md",
     "src/**/*.rs",
     "ext/hdf5/**/CMakeLists.txt",
-    "ext/hdf5/COPYING",
+    "ext/hdf5/LICENSE",
     "ext/hdf5/**/*.h",
     "ext/hdf5/**/*.c",
     "ext/hdf5/**/*.am",
