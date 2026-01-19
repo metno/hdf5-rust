@@ -1,20 +1,31 @@
 # Changelog
 
 ## hdf5 unreleased
+## hdf5-types unreleased
+## hdf5-derive unreleased
+## hdf5-sys unreleased
+## hdf5-src unreleased
+
+## hdf5 v0.12.0
+Release date: Jan 19, 2026
 - Add support for hdf5 2.0.0
 - Added support for ZFP compression filters as an optional feature
 
-## hdf5-types unreleased
+## hdf5-types v0.11.0
+Release date: Jan 19, 2026
 - Add support for hdf5 2.0.0
 
-## hdf5-derive unreleased
+## hdf5-derive v0.10.0
+Release date: Jan 19, 2026
 - Add support for hdf5 2.0.0
 
-## hdf5-sys unreleased
+## hdf5-sys v0.11.0
+Release date: Jan 19, 2026
 - Add support for hdf5 2.0.0
 - Remove `H5FD_*_init` functions, these are private to hdf5-c
 
-## hdf5-src unreleased
+## hdf5-src v0.10.0
+Release date: Jan 19, 2026
 - Use hdf5 2.0.0
 
 ## hdf5 v0.11.0
