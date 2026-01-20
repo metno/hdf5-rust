@@ -1,13 +1,18 @@
 # Changelog
 
+## hdf5 unreleased
 ## hdf5-types unreleased
 ## hdf5-derive unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-## hdf5 v0.12.1
+## hdf5-sys v0.11.1
 Release date: Jan 20, 2026
 - Fixed an import for windows using prebuilt hdf5 2.0.0
+
+## hdf5 v0.12.1
+Release date: Jan 20, 2026
+- No changes
 
 ## hdf5 v0.12.0
 Release date: Jan 19, 2026
