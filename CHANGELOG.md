@@ -5,7 +5,8 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-## hdf5 unreleased
+## hdf5 v0.12.1
+Release date: Jan 20, 2026
 - Fixed an import for windows using prebuilt hdf5 2.0.0
 
 ## hdf5 v0.12.0
