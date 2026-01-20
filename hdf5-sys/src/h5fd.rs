@@ -490,7 +490,7 @@ mod globals_2_0_0 {
 }
 
 #[cfg(all(feature = "2.0.0", all(target_env = "msvc", not(feature = "static"))))]
-mod globals {
+mod globals_2_0_0 {
     // dllimport hack
     pub type id_t = usize;
     extern_static!(H5FD_CORE, __imp_H5FD_CORE_id_g);
