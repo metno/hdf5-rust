@@ -229,7 +229,7 @@ jobs:
             BASE_URL=https://support.hdfgroup.org/ftp/HDF5/releases
             echo "MSI_PATH=hdf\\HDF5-1.8.21-win64.msi" >> $GITHUB_ENV
             DL_URL="$BASE_URL/hdf5-${{matrix.version}}/hdf5-$VERSION/bin/$DL_PATH"
-            C:\msys64\usr\bin\wget.exe -q -O hdf5.zip $DL_URL
+            C:/msys64/usr/bin/wget.exe -q -O hdf5.zip $DL_URL
             7z x hdf5.zip -y
           elif [[ "${{matrix.version}}" == "1.10" ]]; then
             VERSION=1.10.0
@@ -237,7 +237,7 @@ jobs:
             BASE_URL=https://support.hdfgroup.org/ftp/HDF5/releases
             echo "MSI_PATH=hdf5\\HDF5-1.10.0-win64.msi" >> $GITHUB_ENV
             DL_URL="$BASE_URL/hdf5-${{matrix.version}}/hdf5-$VERSION/bin/$DL_PATH"
-            C:\msys64\usr\bin\wget.exe -q -O hdf5.zip $DL_URL
+            C:/msys64/usr/bin/wget.exe -q -O hdf5.zip $DL_URL
             7z x hdf5.zip -y
           elif [[ "${{matrix.version}}" == "1.12" ]]; then
             VERSION=1.12.0
@@ -245,7 +245,7 @@ jobs:
             BASE_URL=https://support.hdfgroup.org/ftp/HDF5/releases
             echo "MSI_PATH=hdf\\HDF5-1.12.0-win64.msi" >> $GITHUB_ENV
             DL_URL="$BASE_URL/hdf5-${{matrix.version}}/hdf5-$VERSION/bin/$DL_PATH"
-            C:\msys64\usr\bin\wget.exe -q -O hdf5.zip $DL_URL
+            C:/msys64/usr/bin/wget.exe -q -O hdf5.zip $DL_URL
             7z x hdf5.zip -y
           elif [[ "${{matrix.version}}" == "1.14" ]]; then
             VERSION=1.14.0
@@ -253,13 +253,13 @@ jobs:
             BASE_URL=https://support.hdfgroup.org/ftp/HDF5/releases
             echo "MSI_PATH=hdf\\HDF5-1.14.0-win64.msi" >> $GITHUB_ENV
             DL_URL="$BASE_URL/hdf5-${{matrix.version}}/hdf5-$VERSION/bin/$DL_PATH"
-            C:\msys64\usr\bin\wget.exe -q -O hdf5.zip $DL_URL
+            C:/msys64/usr/bin/wget.exe -q -O hdf5.zip $DL_URL
             7z x hdf5.zip -y
           elif [[ "${{matrix.version}}" = "2.0.0" ]]; then
             VERSION=2.0.0
             echo "MSI_PATH=hdf5.msi" >> $GITHUB_ENV
             DL_URL="https://github.com/HDFGroup/hdf5/releases/download/2.0.0/hdf5-2.0.0-win-vs2022_cl.msi"
-            C:\msys64\usr\bin\wget.exe -q -O hdf5.msi $DL_URL
+            C:/msys64/usr/bin/wget.exe -q -O hdf5.msi $DL_URL
           fi
           echo "C:\\Program Files\\HDF_Group\\HDF5\\$VERSION\\bin" >> $GITHUB_PATH
       - name: Install HDF5 (${{matrix.version}})
