@@ -230,7 +230,7 @@ mod globals {
 
     #[cfg(feature = "1.12.0")]
     #[allow(clippy::module_inception)]
-    pub mod globals {
+    pub mod globals_1_12_0 {
         use super::*;
         extern_static!(H5P_MAP_CREATE, __imp_H5P_CLS_MAP_CREATE_ID_g);
         extern_static!(H5P_MAP_ACCESS, __imp_H5P_CLS_MAP_ACCESS_ID_g);
@@ -242,7 +242,7 @@ mod globals {
         extern_static!(H5P_REFERENCE_ACCESS_DEFAULT, __imp_H5P_LST_REFERENCE_ACCESS_ID_g);
     }
     #[cfg(feature = "1.12.0")]
-    pub use globals::*;
+    pub use globals_1_12_0::*;
 }
 
 extern "C" {
