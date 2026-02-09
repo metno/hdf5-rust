@@ -61,7 +61,7 @@ fn main() {
     for option in &[
         "HDF5_ENABLE_DEPRECATED_SYMBOLS",
         "HDF5_ENABLE_THREADSAFE",
-        "ALLOW_UNSUPPORTED",
+        "HDF5_ALLOW_UNSUPPORTED",
         "HDF5_BUILD_HL_LIB",
         "HDF5_ENABLE_NONSTANDARD_FEATURE_FLOAT16",
         "HDF5_ENABLE_SZIP_SUPPORT",
@@ -91,7 +91,7 @@ fn main() {
         cfg.define("HDF5_ENABLE_THREADSAFE", "ON");
         if feature_enabled("HL") {
             println!("cargo::warning=Unsupported HDF5 options: hl with threadsafe.");
-            cfg.define("ALLOW_UNSUPPORTED", "ON");
+            cfg.define("HDF5_ALLOW_UNSUPPORTED", "ON");
         }
     }
 
