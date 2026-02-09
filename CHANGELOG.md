@@ -6,6 +6,18 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+## hdf5 v0.12.2
+Release date: Feb 09, 2026
+- Fixed MPIO include
+
+## hdf5-sys v0.11.2
+Release date: Feb 09, 2026
+- Fixed name of MPIO include
+
+## hdf5-src v0.10.1
+Release date: Feb 09, 2026
+- Fixed name of cmake build option
+
 ## hdf5-sys v0.11.1
 Release date: Jan 20, 2026
 - Fixed an import for windows using prebuilt hdf5 2.0.0

@@ -70,7 +70,7 @@ jobs:
       matrix:
         include:
           - {version: hdf5@1.10}
-          - {version: hdf5@1.14}
+          - {version: hdf5@2.0}
           - {version: hdf5-mpi, mpi: true}
     steps:
       - name: Checkout repository

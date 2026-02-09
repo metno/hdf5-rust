@@ -361,7 +361,7 @@ pub static H5FD_MULTI: LazyLock<hid_t> = LazyLock::new(|| {
 
 // MPI-IO file driver
 #[cfg(all(feature = "2.0.0", all(feature = "have-parallel", feature = "mpio")))]
-pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| *hdf5_sys::h5p::H5FD_MPIO_id);
+pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| *hdf5_sys::h5fd::H5FD_MPIO);
 #[cfg(all(feature = "2.0.0", not(all(feature = "have-parallel", feature = "mpio"))))]
 pub static H5FD_MPIO: LazyLock<hid_t> = LazyLock::new(|| H5I_INVALID_HID);
 

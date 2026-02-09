@@ -363,6 +363,13 @@ mod macos {
                 "any version"
             }
         );
+        if !(v18 || v110 || v112 || v114) {
+            if let Some(out) = run_command("brew", &["--prefix", "hdf5@2.0"]) {
+                if is_root_dir(&out) {
+                    config.inc_dir = Some(PathBuf::from(out).join("include"));
+                }
+            }
+        }
         if !(v18 || v110 || v112) {
             if let Some(out) = run_command("brew", &["--prefix", "hdf5@1.14"]) {
                 if is_root_dir(&out) {
