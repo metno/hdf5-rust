@@ -485,7 +485,7 @@ mod globals_2_0_0 {
     extern_static!(H5FD_SEC2, H5FD_SEC2_id_g);
     extern_static!(H5FD_SPLITTER, H5FD_SPLITTER_id_g);
     extern_static!(H5FD_STDIO, H5FD_STDIO_id_g);
-    #[cfg(feature = "have_parallel")]
+    #[cfg(feature = "have-parallel")]
     extern_static!(H5FD_MPIO, H5FD_MPIO_id_g);
 }
 
