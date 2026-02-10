@@ -26,11 +26,7 @@ impl Display for Extent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let dim = self.dim;
         if let Some(max) = self.max {
-            if self.dim == max {
-                write!(f, "{dim}")
-            } else {
-                write!(f, "{dim}..={max}")
-            }
+            if self.dim == max { write!(f, "{dim}") } else { write!(f, "{dim}..={max}") }
         } else {
             write!(f, "{dim}..")
         }
@@ -366,7 +362,7 @@ impl Extents {
 
     fn as_simple(&self) -> Option<&SimpleExtents> {
         match self {
-            Self::Simple(ref e) => Some(e),
+            Self::Simple(e) => Some(e),
             _ => None,
         }
     }
@@ -443,11 +439,7 @@ impl Extents {
     /// Returns a slice containing an `Extent` for each dimension, or `None` if the extents are
     /// null or scalar.
     pub fn slice(&self) -> Option<&[Extent]> {
-        if let Self::Simple(x) = self {
-            Some(x)
-        } else {
-            None
-        }
+        if let Self::Simple(x) = self { Some(x) } else { None }
     }
 }
 
@@ -496,7 +488,7 @@ impl Display for Extents {
         match self {
             Self::Null => write!(f, "null"),
             Self::Scalar => write!(f, "scalar"),
-            Self::Simple(ref e) => write!(f, "{e}"),
+            Self::Simple(e) => write!(f, "{e}"),
         }
     }
 }
@@ -504,11 +496,7 @@ impl Display for Extents {
 impl<T: Into<SimpleExtents>> From<T> for Extents {
     fn from(extents: T) -> Self {
         let extents = extents.into();
-        if extents.is_empty() {
-            Self::Scalar
-        } else {
-            Self::Simple(extents)
-        }
+        if extents.is_empty() { Self::Scalar } else { Self::Simple(extents) }
     }
 }
 

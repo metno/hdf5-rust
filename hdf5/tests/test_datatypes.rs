@@ -2,7 +2,7 @@
 mod common;
 
 use hdf5::types::{TypeDescriptor as TD, *};
-use hdf5::{from_id, Datatype, H5Type};
+use hdf5::{Datatype, H5Type, from_id};
 use hdf5_metno as hdf5;
 use hdf5_sys::h5i::H5I_INVALID_HID;
 use pretty_assertions::{assert_eq, assert_str_eq};

@@ -8,9 +8,9 @@ use hdf5_sys::h5s::H5Sencode1;
 use hdf5_sys::h5s::H5Sencode2;
 
 use hdf5_sys::h5s::{
-    H5S_class_t, H5Scopy, H5Screate, H5Screate_simple, H5Sdecode, H5Sget_select_npoints,
-    H5Sget_simple_extent_dims, H5Sget_simple_extent_ndims, H5Sget_simple_extent_npoints,
-    H5Sget_simple_extent_type, H5Sselect_valid, H5S_UNLIMITED,
+    H5S_UNLIMITED, H5S_class_t, H5Scopy, H5Screate, H5Screate_simple, H5Sdecode,
+    H5Sget_select_npoints, H5Sget_simple_extent_dims, H5Sget_simple_extent_ndims,
+    H5Sget_simple_extent_npoints, H5Sget_simple_extent_type, H5Sselect_valid,
 };
 
 use crate::hl::extents::{Extent, Extents, Ix};
@@ -35,11 +35,7 @@ impl ObjectClass for Dataspace {
     }
 
     fn short_repr(&self) -> Option<String> {
-        if let Ok(e) = self.extents() {
-            Some(format!("{e}"))
-        } else {
-            Some("(invalid)".into())
-        }
+        if let Ok(e) = self.extents() { Some(format!("{e}")) } else { Some("(invalid)".into()) }
     }
 }
 
@@ -189,7 +185,7 @@ impl Dataspace {
         h5lock!(Self::from_id(match extents {
             Extents::Null => H5Screate(H5S_class_t::H5S_NULL),
             Extents::Scalar => H5Screate(H5S_class_t::H5S_SCALAR),
-            Extents::Simple(ref e) => {
+            Extents::Simple(e) => {
                 let (mut dims, mut maxdims) = (vec![], vec![]);
                 for extent in e.iter() {
                     dims.push(extent.dim as _);

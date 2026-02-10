@@ -6,9 +6,9 @@ use hdf5_sys::h5o::H5O_type_t;
 use hdf5_sys::h5r::H5R_type_t::H5R_OBJECT2;
 use hdf5_sys::h5r::{H5R_ref_t, H5Rcreate_object, H5Rdestroy, H5Rget_obj_type3, H5Ropen_object};
 
-use super::{private::ObjectReferencePrivate, ObjectReference};
-use crate::internal_prelude::*;
+use super::{ObjectReference, private::ObjectReferencePrivate};
 use crate::Location;
+use crate::internal_prelude::*;
 
 /// A reference to a HDF5 item that can be stored in attributes or datasets.
 #[repr(transparent)]

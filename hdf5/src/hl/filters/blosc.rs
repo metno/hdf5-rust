@@ -3,8 +3,8 @@ use std::slice;
 use std::sync::LazyLock;
 
 use hdf5_sys::h5p::{H5Pget_chunk, H5Pget_filter_by_id2, H5Pmodify_filter};
-use hdf5_sys::h5t::{H5Tclose, H5Tget_class, H5Tget_size, H5Tget_super, H5T_ARRAY};
-use hdf5_sys::h5z::{H5Z_class2_t, H5Z_filter_t, H5Zregister, H5Z_CLASS_T_VERS, H5Z_FLAG_REVERSE};
+use hdf5_sys::h5t::{H5T_ARRAY, H5Tclose, H5Tget_class, H5Tget_size, H5Tget_super};
+use hdf5_sys::h5z::{H5Z_CLASS_T_VERS, H5Z_FLAG_REVERSE, H5Z_class2_t, H5Z_filter_t, H5Zregister};
 
 use crate::error::H5ErrorCode;
 use crate::globals::{H5E_CALLBACK, H5E_PLIST};
@@ -116,11 +116,7 @@ extern "C" fn set_local_blosc(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) 
     }
     values[3] = bufsize as _;
     let r = unsafe { H5Pmodify_filter(dcpl_id, BLOSC_FILTER_ID, flags, nelmts, values.as_ptr()) };
-    if r < 0 {
-        -1
-    } else {
-        1
-    }
+    if r < 0 { -1 } else { 1 }
 }
 
 struct BloscConfig {
