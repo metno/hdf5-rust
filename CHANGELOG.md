@@ -1,11 +1,13 @@
 # Changelog
 
+## hdf5 unreleased
 ## hdf5-types unreleased
 ## hdf5-derive unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-## hdf5 unreleased
+## hdf5 v0.12.3
+Release date: Feb 10, 2026
 - Fixed compression of VarLenUnicode resulting in errors
 
 ## hdf5 v0.12.2
