@@ -52,33 +52,37 @@ pub type H5I_search_func_t =
 #[cfg(feature = "1.12.0")]
 pub type H5I_iterate_func_t = Option<unsafe extern "C" fn(id: hid_t, udata: *mut c_void) -> herr_t>;
 
-extern "C" {
-    pub fn H5Iregister(type_: H5I_type_t, object: *const c_void) -> hid_t;
-    pub fn H5Iobject_verify(id: hid_t, id_type: H5I_type_t) -> *mut c_void;
-    pub fn H5Iremove_verify(id: hid_t, id_type: H5I_type_t) -> *mut c_void;
-    pub fn H5Iget_type(id: hid_t) -> H5I_type_t;
-    pub fn H5Iget_file_id(id: hid_t) -> hid_t;
-    pub fn H5Iget_name(id: hid_t, name: *mut c_char, size: size_t) -> ssize_t;
-    pub fn H5Iinc_ref(id: hid_t) -> c_int;
-    pub fn H5Idec_ref(id: hid_t) -> c_int;
-    pub fn H5Iget_ref(id: hid_t) -> c_int;
+unsafe extern "C" {
+    pub unsafe fn H5Iregister(type_: H5I_type_t, object: *const c_void) -> hid_t;
+    pub unsafe fn H5Iobject_verify(id: hid_t, id_type: H5I_type_t) -> *mut c_void;
+    pub unsafe fn H5Iremove_verify(id: hid_t, id_type: H5I_type_t) -> *mut c_void;
+    pub unsafe fn H5Iget_type(id: hid_t) -> H5I_type_t;
+    pub unsafe fn H5Iget_file_id(id: hid_t) -> hid_t;
+    pub unsafe fn H5Iget_name(id: hid_t, name: *mut c_char, size: size_t) -> ssize_t;
+    pub unsafe fn H5Iinc_ref(id: hid_t) -> c_int;
+    pub unsafe fn H5Idec_ref(id: hid_t) -> c_int;
+    pub unsafe fn H5Iget_ref(id: hid_t) -> c_int;
     #[cfg_attr(not(feature = "2.0.0"), link_name = "H5Iregister_type")]
-    pub fn H5Iregister_type1(
+    pub unsafe fn H5Iregister_type1(
         hash_size: size_t, reserved: c_uint, free_func: H5I_free_t,
     ) -> H5I_type_t;
     #[cfg(feature = "2.0.0")]
-    pub fn H5Iregister_type2(reserved: c_uint, free_func: H5I_free_t) -> H5I_type_t;
-    pub fn H5Iclear_type(type_: H5I_type_t, force: hbool_t) -> herr_t;
-    pub fn H5Idestroy_type(type_: H5I_type_t) -> herr_t;
-    pub fn H5Iinc_type_ref(type_: H5I_type_t) -> c_int;
-    pub fn H5Idec_type_ref(type_: H5I_type_t) -> c_int;
-    pub fn H5Iget_type_ref(type_: H5I_type_t) -> c_int;
-    pub fn H5Isearch(type_: H5I_type_t, func: H5I_search_func_t, key: *mut c_void) -> *mut c_void;
+    pub unsafe fn H5Iregister_type2(reserved: c_uint, free_func: H5I_free_t) -> H5I_type_t;
+    pub unsafe fn H5Iclear_type(type_: H5I_type_t, force: hbool_t) -> herr_t;
+    pub unsafe fn H5Idestroy_type(type_: H5I_type_t) -> herr_t;
+    pub unsafe fn H5Iinc_type_ref(type_: H5I_type_t) -> c_int;
+    pub unsafe fn H5Idec_type_ref(type_: H5I_type_t) -> c_int;
+    pub unsafe fn H5Iget_type_ref(type_: H5I_type_t) -> c_int;
+    pub unsafe fn H5Isearch(
+        type_: H5I_type_t, func: H5I_search_func_t, key: *mut c_void,
+    ) -> *mut c_void;
     #[cfg(feature = "1.12.0")]
-    pub fn H5Iiterate(type_: H5I_type_t, op: H5I_iterate_func_t, op_data: *mut c_void) -> herr_t;
-    pub fn H5Inmembers(type_: H5I_type_t, num_members: *mut hsize_t) -> herr_t;
-    pub fn H5Itype_exists(type_: H5I_type_t) -> htri_t;
-    pub fn H5Iis_valid(id: hid_t) -> htri_t;
+    pub unsafe fn H5Iiterate(
+        type_: H5I_type_t, op: H5I_iterate_func_t, op_data: *mut c_void,
+    ) -> herr_t;
+    pub unsafe fn H5Inmembers(type_: H5I_type_t, num_members: *mut hsize_t) -> herr_t;
+    pub unsafe fn H5Itype_exists(type_: H5I_type_t) -> htri_t;
+    pub unsafe fn H5Iis_valid(id: hid_t) -> htri_t;
 }
 
 #[cfg(not(feature = "2.0.0"))]
@@ -96,8 +100,8 @@ pub type H5I_future_discard_func_t =
     Option<unsafe extern "C" fn(future_object: *mut c_void) -> herr_t>;
 
 #[cfg(feature = "1.14.0")]
-extern "C" {
-    pub fn H5Iregister_future(
+unsafe extern "C" {
+    pub unsafe fn H5Iregister_future(
         type_: H5I_type_t, object: *const c_void, realize_cb: H5I_future_realize_func_t,
         discard_cb: H5I_future_discard_func_t,
     ) -> hid_t;

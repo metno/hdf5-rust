@@ -2,8 +2,8 @@ use std::convert::TryFrom;
 use std::fmt::{self, Debug};
 use std::iter;
 
-use hdf5::types::{FixedAscii, FixedUnicode, VarLenArray, VarLenAscii, VarLenUnicode};
 use hdf5::H5Type;
+use hdf5::types::{FixedAscii, FixedUnicode, VarLenArray, VarLenAscii, VarLenUnicode};
 use hdf5_metno as hdf5;
 
 use half::f16;

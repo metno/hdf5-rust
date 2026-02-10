@@ -1,5 +1,5 @@
-use crate::internal_prelude::*;
 use crate::Location;
+use crate::internal_prelude::*;
 
 mod legacy;
 

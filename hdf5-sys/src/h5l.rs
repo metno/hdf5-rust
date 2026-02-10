@@ -124,10 +124,10 @@ impl Default for H5L_info2_t__u {
 #[cfg(feature = "1.12.0")]
 impl H5L_info2_t__u {
     pub unsafe fn token(&mut self) -> *mut H5O_token_t {
-        &mut self.token as *mut H5O_token_t
+        unsafe { &mut self.token as *mut H5O_token_t }
     }
     pub unsafe fn val_size(&mut self) -> *mut size_t {
-        &mut self.val_size as *mut size_t
+        unsafe { &mut self.val_size as *mut size_t }
     }
 }
 
@@ -232,46 +232,46 @@ pub type H5L_elink_traverse_t = Option<
     ) -> herr_t,
 >;
 
-extern "C" {
-    pub fn H5Lmove(
+unsafe extern "C" {
+    pub unsafe fn H5Lmove(
         src_loc: hid_t, src_name: *const c_char, dst_loc: hid_t, dst_name: *const c_char,
         lcpl_id: hid_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lcopy(
+    pub unsafe fn H5Lcopy(
         src_loc: hid_t, src_name: *const c_char, dst_loc: hid_t, dst_name: *const c_char,
         lcpl_id: hid_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lcreate_hard(
+    pub unsafe fn H5Lcreate_hard(
         cur_loc: hid_t, cur_name: *const c_char, dst_loc: hid_t, dst_name: *const c_char,
         lcpl_id: hid_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lcreate_soft(
+    pub unsafe fn H5Lcreate_soft(
         link_target: *const c_char, link_loc_id: hid_t, link_name: *const c_char, lcpl_id: hid_t,
         lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Ldelete(loc_id: hid_t, name: *const c_char, lapl_id: hid_t) -> herr_t;
-    pub fn H5Ldelete_by_idx(
+    pub unsafe fn H5Ldelete(loc_id: hid_t, name: *const c_char, lapl_id: hid_t) -> herr_t;
+    pub unsafe fn H5Ldelete_by_idx(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lget_val(
+    pub unsafe fn H5Lget_val(
         loc_id: hid_t, name: *const c_char, buf: *mut c_void, size: size_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lget_val_by_idx(
+    pub unsafe fn H5Lget_val_by_idx(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, buf: *mut c_void, size: size_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lexists(loc_id: hid_t, name: *const c_char, lapl_id: hid_t) -> htri_t;
+    pub unsafe fn H5Lexists(loc_id: hid_t, name: *const c_char, lapl_id: hid_t) -> htri_t;
     #[cfg_attr(
         feature = "1.12.0",
         deprecated(note = "deprecated in HDF5 1.12.0, use H5Lget_info2()")
     )]
     #[cfg_attr(not(feature = "1.12.0"), link_name = "H5Lget_info")]
-    pub fn H5Lget_info1(
+    pub unsafe fn H5Lget_info1(
         loc_id: hid_t, name: *const c_char, linfo: *mut H5L_info1_t, lapl_id: hid_t,
     ) -> herr_t;
     #[cfg(feature = "1.12.0")]
-    pub fn H5Lget_info2(
+    pub unsafe fn H5Lget_info2(
         loc_id: hid_t, name: *const c_char, linfo: *mut H5L_info2_t, lapl_id: hid_t,
     ) -> herr_t;
     #[cfg_attr(
@@ -279,16 +279,16 @@ extern "C" {
         deprecated(note = "deprecated in HDF5 1.12.0, use H5Lget_info_by_idx2()")
     )]
     #[cfg_attr(not(feature = "1.12.0"), link_name = "H5Lget_info_by_idx")]
-    pub fn H5Lget_info_by_idx(
+    pub unsafe fn H5Lget_info_by_idx(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, linfo: *mut H5L_info1_t, lapl_id: hid_t,
     ) -> herr_t;
     #[cfg(feature = "1.12.0")]
-    pub fn H5Lget_info_by_idx2(
+    pub unsafe fn H5Lget_info_by_idx2(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, linfo: *mut H5L_info2_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lget_name_by_idx(
+    pub unsafe fn H5Lget_name_by_idx(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, name: *mut c_char, size: size_t, lapl_id: hid_t,
     ) -> ssize_t;
@@ -297,12 +297,12 @@ extern "C" {
         deprecated(note = "deprecated in HDF5 1.12.0, use H5Literate2()")
     )]
     #[cfg_attr(not(feature = "1.12.0"), link_name = "H5Literate")]
-    pub fn H5Literate1(
+    pub unsafe fn H5Literate1(
         grp_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, idx: *mut hsize_t,
         op: H5L_iterate1_t, op_data: *mut c_void,
     ) -> herr_t;
     #[cfg(feature = "1.12.0")]
-    pub fn H5Literate2(
+    pub unsafe fn H5Literate2(
         grp_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, idx: *mut hsize_t,
         op: H5L_iterate2_t, op_data: *mut c_void,
     ) -> herr_t;
@@ -311,23 +311,23 @@ extern "C" {
         deprecated(note = "deprecated in HDF5 1.12.0, use H5Literate_by_name2()")
     )]
     #[cfg_attr(not(feature = "1.12.0"), link_name = "H5Literate_by_name")]
-    pub fn H5Literate_by_name1(
+    pub unsafe fn H5Literate_by_name1(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         idx: *mut hsize_t, op: H5L_iterate1_t, op_data: *mut c_void, lapl_id: hid_t,
     ) -> herr_t;
     #[cfg(feature = "1.12.0")]
-    pub fn H5Literate_by_name2(
+    pub unsafe fn H5Literate_by_name2(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         idx: *mut hsize_t, op: H5L_iterate2_t, op_data: *mut c_void, lapl_id: hid_t,
     ) -> herr_t;
     #[cfg_attr(feature = "1.12.0", deprecated(note = "deprecated in HDF5 1.12.0, use H5Lvisit2()"))]
     #[cfg_attr(not(feature = "1.12.0"), link_name = "H5Lvisit")]
-    pub fn H5Lvisit1(
+    pub unsafe fn H5Lvisit1(
         grp_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, op: H5L_iterate1_t,
         op_data: *mut c_void,
     ) -> herr_t;
     #[cfg(feature = "1.12.0")]
-    pub fn H5Lvisit2(
+    pub unsafe fn H5Lvisit2(
         grp_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, op: H5L_iterate2_t,
         op_data: *mut c_void,
     ) -> herr_t;
@@ -336,27 +336,27 @@ extern "C" {
         deprecated(note = "deprecated in HDF5 1.12.0, use H5Lvisit_by_name2()")
     )]
     #[cfg_attr(not(feature = "1.12.0"), link_name = "H5Lvisit_by_name")]
-    pub fn H5Lvisit_by_name1(
+    pub unsafe fn H5Lvisit_by_name1(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         op: H5L_iterate1_t, op_data: *mut c_void, lapl_id: hid_t,
     ) -> herr_t;
     #[cfg(feature = "1.12.0")]
-    pub fn H5Lvisit_by_name2(
+    pub unsafe fn H5Lvisit_by_name2(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         op: H5L_iterate2_t, op_data: *mut c_void, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lcreate_ud(
+    pub unsafe fn H5Lcreate_ud(
         link_loc_id: hid_t, link_name: *const c_char, link_type: H5L_type_t, udata: *const c_void,
         udata_size: size_t, lcpl_id: hid_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lregister(cls: *const H5L_class_t) -> herr_t;
-    pub fn H5Lunregister(id: H5L_type_t) -> herr_t;
-    pub fn H5Lis_registered(id: H5L_type_t) -> htri_t;
-    pub fn H5Lunpack_elink_val(
+    pub unsafe fn H5Lregister(cls: *const H5L_class_t) -> herr_t;
+    pub unsafe fn H5Lunregister(id: H5L_type_t) -> herr_t;
+    pub unsafe fn H5Lis_registered(id: H5L_type_t) -> htri_t;
+    pub unsafe fn H5Lunpack_elink_val(
         ext_linkval: *const c_void, link_size: size_t, flags: *mut c_uint,
         filename: *mut *const c_char, obj_path: *mut *const c_char,
     ) -> herr_t;
-    pub fn H5Lcreate_external(
+    pub unsafe fn H5Lcreate_external(
         file_name: *const c_char, obj_name: *const c_char, link_loc_id: hid_t,
         link_name: *const c_char, lcpl_id: hid_t, lapl_id: hid_t,
     ) -> herr_t;
@@ -372,31 +372,31 @@ pub use self::{
 };
 
 #[cfg(feature = "1.14.0")]
-extern "C" {
-    pub fn H5Lcreate_hard_async(
+unsafe extern "C" {
+    pub unsafe fn H5Lcreate_hard_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, cur_loc_id: hid_t,
         cur_name: *const c_char, new_loc_id: hid_t, new_name: *const c_char, lcpl_id: hid_t,
         lapl_id: hid_t, es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lcreate_soft_async(
+    pub unsafe fn H5Lcreate_soft_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint,
         link_target: *const c_char, link_loc_id: hid_t, link_name: *const c_char, lcpl_id: hid_t,
         lapl_id: hid_t, es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Ldelete_async(
+    pub unsafe fn H5Ldelete_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, loc_id: hid_t,
         name: *const c_char, lapl_id: hid_t, es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Ldelete_by_idx_async(
+    pub unsafe fn H5Ldelete_by_idx_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, loc_id: hid_t,
         group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t, n: c_ulong,
         lapl_id: hid_t, es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Lexists_async(
+    pub unsafe fn H5Lexists_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, loc_id: hid_t,
         name: *const c_char, exists: *mut hbool_t, lapl_id: hid_t, es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Literate_async(
+    pub unsafe fn H5Literate_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, group_id: hid_t,
         idx_type: H5_index_t, order: H5_iter_order_t, idx_p: *mut c_ulong, op: H5L_iterate2_t,
         op_data: *mut c_void, es_id: hid_t,

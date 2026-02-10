@@ -317,7 +317,7 @@ fn test_fapl_driver_mpio() -> hdf5::Result<()> {
     use std::os::raw::c_int;
     use std::ptr;
 
-    use mpi_sys::{MPI_Comm_compare, MPI_Init, MPI_Initialized, MPI_CONGRUENT, RSMPI_COMM_WORLD};
+    use mpi_sys::{MPI_CONGRUENT, MPI_Comm_compare, MPI_Init, MPI_Initialized, RSMPI_COMM_WORLD};
 
     let mut initialized: c_int = 1;
     unsafe { MPI_Initialized(&mut initialized) };

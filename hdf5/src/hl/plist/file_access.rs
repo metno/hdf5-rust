@@ -18,12 +18,12 @@ use std::ptr::{self, addr_of, addr_of_mut};
 use bitflags::bitflags;
 
 use hdf5_sys::h5ac::{
-    H5AC_cache_config_t, H5AC_METADATA_WRITE_STRATEGY__DISTRIBUTED,
-    H5AC_METADATA_WRITE_STRATEGY__PROCESS_0_ONLY, H5AC__CURR_CACHE_CONFIG_VERSION,
-    H5AC__MAX_TRACE_FILE_NAME_LEN,
+    H5AC__CURR_CACHE_CONFIG_VERSION, H5AC__MAX_TRACE_FILE_NAME_LEN,
+    H5AC_METADATA_WRITE_STRATEGY__DISTRIBUTED, H5AC_METADATA_WRITE_STRATEGY__PROCESS_0_ONLY,
+    H5AC_cache_config_t,
 };
 use hdf5_sys::h5c::{H5C_cache_decr_mode, H5C_cache_flash_incr_mode, H5C_cache_incr_mode};
-use hdf5_sys::h5f::{H5F_close_degree_t, H5F_mem_t, H5F_FAMILY_DEFAULT};
+use hdf5_sys::h5f::{H5F_FAMILY_DEFAULT, H5F_close_degree_t, H5F_mem_t};
 use hdf5_sys::h5fd::H5FD_MEM_NTYPES;
 use hdf5_sys::h5fd::{
     H5FD_LOG_ALL, H5FD_LOG_FILE_IO, H5FD_LOG_FILE_READ, H5FD_LOG_FILE_WRITE, H5FD_LOG_FLAVOR,
@@ -48,7 +48,7 @@ use hdf5_sys::h5p::{H5Pget_fapl_direct, H5Pset_fapl_direct};
 use hdf5_sys::h5p::{H5Pget_fapl_mpio, H5Pset_fapl_mpio};
 
 #[cfg(feature = "1.10.1")]
-use hdf5_sys::h5ac::{H5AC_cache_image_config_t, H5AC__CACHE_IMAGE__ENTRY_AGEOUT__NONE};
+use hdf5_sys::h5ac::{H5AC__CACHE_IMAGE__ENTRY_AGEOUT__NONE, H5AC_cache_image_config_t};
 #[cfg(feature = "1.10.2")]
 use hdf5_sys::h5f::H5F_libver_t;
 #[cfg(all(feature = "1.10.0", feature = "have-parallel"))]
@@ -450,7 +450,7 @@ mod mpio {
 
     use mpi_sys::{MPI_Comm, MPI_Info};
 
-    use super::{c_int, Result};
+    use super::{Result, c_int};
 
     /// MPI-I/O file driver properties.
     #[derive(Debug)]
@@ -1785,11 +1785,9 @@ impl FileAccess {
             ensure!(j < N, "member map index out of bounds: {} (expected 0-{})", j, N - 1);
             if mapping[j] == 0 {
                 mapping[j] = 0xff - (files.len() as u8);
-                files.push(MultiFile::new(
-                    // SAFETY: name produced by HDF5 is nul-terminated and valid UTF-8
-                    unsafe { &string_from_cstr(name) },
-                    addr as _,
-                ));
+                // SAFETY: name produced by HDF5 is nul-terminated and valid UTF-8
+                let tmp_string = unsafe { string_from_cstr(name) };
+                files.push(MultiFile::new(&tmp_string, addr as _));
             }
             *layout.get_mut(i - 1) = 0xff - mapping[j];
         }

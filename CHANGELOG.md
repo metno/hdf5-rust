@@ -5,8 +5,12 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+## hdf5-sys unreleased
+- Use edition 2024
+
 ## hdf5 unreleased
 - MSRV has been increased to 1.85
+- Use edition 2024
 
 ## hdf5 v0.12.3
 Release date: Feb 10, 2026

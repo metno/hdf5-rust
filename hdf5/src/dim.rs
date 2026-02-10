@@ -11,11 +11,7 @@ pub trait Dimension {
 
     fn size(&self) -> Ix {
         let dims = self.dims();
-        if dims.is_empty() {
-            1
-        } else {
-            dims.iter().product()
-        }
+        if dims.is_empty() { 1 } else { dims.iter().product() }
     }
 }
 

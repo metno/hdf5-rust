@@ -17,7 +17,7 @@ extern crate mpi_sys;
 
 macro_rules! extern_static {
     ($dest:ident, $src:ident) => {
-        extern "C" {
+        unsafe extern "C" {
             static $src: id_t;
         }
         pub static $dest: &'static id_t = unsafe { &$src };
@@ -59,12 +59,12 @@ pub mod h5es;
 #[allow(non_camel_case_types)]
 mod internal_prelude {
     pub use crate::h5::{
-        haddr_t, hbool_t, herr_t, hsize_t, hssize_t, htri_t, H5_ih_info_t, H5_index_t,
-        H5_iter_order_t,
+        H5_ih_info_t, H5_index_t, H5_iter_order_t, haddr_t, hbool_t, herr_t, hsize_t, hssize_t,
+        htri_t,
     };
     pub use crate::h5i::hid_t;
     pub use crate::h5t::H5T_cset_t;
-    pub use libc::{int64_t, off_t, size_t, ssize_t, time_t, uint32_t, uint64_t, FILE};
+    pub use libc::{FILE, int64_t, off_t, size_t, ssize_t, time_t, uint32_t, uint64_t};
     #[allow(unused_imports)]
     pub use std::os::raw::{
         c_char, c_double, c_float, c_int, c_long, c_longlong, c_uchar, c_uint, c_ulong,
@@ -83,7 +83,7 @@ mod tests {
     use super::h5::H5get_libversion;
     use super::h5::H5open;
     use super::h5p::H5P_CLS_ROOT;
-    use super::{Version, HDF5_VERSION, LOCK};
+    use super::{HDF5_VERSION, LOCK, Version};
 
     #[test]
     fn version_test() {

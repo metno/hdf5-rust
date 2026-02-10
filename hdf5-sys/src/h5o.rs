@@ -12,9 +12,8 @@ pub use {
 pub use {H5O_info2_t as H5O_info_t, H5O_iterate2_t as H5O_iterate_t};
 #[cfg(not(feature = "1.10.3"))]
 pub use {
-    H5Oget_info1 as H5Oget_info, H5Oget_info_by_idx1 as H5Oget_info_by_idx,
-    H5Oget_info_by_name1 as H5Oget_info_by_name, H5Ovisit1 as H5Ovisit,
-    H5Ovisit_by_name1 as H5Ovisit_by_name,
+    H5Oget_info_by_idx1 as H5Oget_info_by_idx, H5Oget_info_by_name1 as H5Oget_info_by_name,
+    H5Oget_info1 as H5Oget_info, H5Ovisit_by_name1 as H5Ovisit_by_name, H5Ovisit1 as H5Ovisit,
 };
 
 use crate::internal_prelude::*;
@@ -207,116 +206,120 @@ pub type H5O_mcdt_search_cb_t =
     Option<unsafe extern "C" fn(op_data: *mut c_void) -> H5O_mcdt_search_ret_t>;
 
 #[cfg(not(feature = "1.10.3"))]
-extern "C" {
+unsafe extern "C" {
     #[link_name = "H5Oget_info"]
-    pub fn H5Oget_info1(loc_id: hid_t, oinfo: *mut H5O_info1_t) -> herr_t;
+    pub unsafe fn H5Oget_info1(loc_id: hid_t, oinfo: *mut H5O_info1_t) -> herr_t;
     #[link_name = "H5Oget_info_by_name"]
-    pub fn H5Oget_info_by_name1(
+    pub unsafe fn H5Oget_info_by_name1(
         loc_id: hid_t, name: *const c_char, oinfo: *mut H5O_info1_t, lapl_id: hid_t,
     ) -> herr_t;
     #[link_name = "H5Oget_info_by_idx"]
-    pub fn H5Oget_info_by_idx1(
+    pub unsafe fn H5Oget_info_by_idx1(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, oinfo: *mut H5O_info1_t, lapl_id: hid_t,
     ) -> herr_t;
     #[link_name = "H5Ovisit"]
-    pub fn H5Ovisit1(
+    pub unsafe fn H5Ovisit1(
         obj_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, op: H5O_iterate1_t,
         op_data: *mut c_void,
     ) -> herr_t;
     #[link_name = "H5Ovisit_by_name"]
-    pub fn H5Ovisit_by_name1(
+    pub unsafe fn H5Ovisit_by_name1(
         loc_id: hid_t, obj_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         op: H5O_iterate1_t, op_data: *mut c_void, lapl_id: hid_t,
     ) -> herr_t;
 }
 
-extern "C" {
-    pub fn H5Oopen(loc_id: hid_t, name: *const c_char, lapl_id: hid_t) -> hid_t;
-    pub fn H5Oopen_by_addr(loc_id: hid_t, addr: haddr_t) -> hid_t;
-    pub fn H5Oopen_by_idx(
+unsafe extern "C" {
+    pub unsafe fn H5Oopen(loc_id: hid_t, name: *const c_char, lapl_id: hid_t) -> hid_t;
+    pub unsafe fn H5Oopen_by_addr(loc_id: hid_t, addr: haddr_t) -> hid_t;
+    pub unsafe fn H5Oopen_by_idx(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, lapl_id: hid_t,
     ) -> hid_t;
-    pub fn H5Olink(
+    pub unsafe fn H5Olink(
         obj_id: hid_t, new_loc_id: hid_t, new_name: *const c_char, lcpl_id: hid_t, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oincr_refcount(object_id: hid_t) -> herr_t;
-    pub fn H5Odecr_refcount(object_id: hid_t) -> herr_t;
-    pub fn H5Ocopy(
+    pub unsafe fn H5Oincr_refcount(object_id: hid_t) -> herr_t;
+    pub unsafe fn H5Odecr_refcount(object_id: hid_t) -> herr_t;
+    pub unsafe fn H5Ocopy(
         src_loc_id: hid_t, src_name: *const c_char, dst_loc_id: hid_t, dst_name: *const c_char,
         ocpypl_id: hid_t, lcpl_id: hid_t,
     ) -> herr_t;
     #[deprecated(note = "function is deprecated in favor of object attributes")]
-    pub fn H5Oset_comment(obj_id: hid_t, comment: *const c_char) -> herr_t;
+    pub unsafe fn H5Oset_comment(obj_id: hid_t, comment: *const c_char) -> herr_t;
     #[deprecated(note = "function is deprecated in favor of object attributes")]
-    pub fn H5Oset_comment_by_name(
+    pub unsafe fn H5Oset_comment_by_name(
         loc_id: hid_t, name: *const c_char, comment: *const c_char, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oget_comment(obj_id: hid_t, comment: *mut c_char, bufsize: size_t) -> ssize_t;
-    pub fn H5Oget_comment_by_name(
+    pub unsafe fn H5Oget_comment(obj_id: hid_t, comment: *mut c_char, bufsize: size_t) -> ssize_t;
+    pub unsafe fn H5Oget_comment_by_name(
         loc_id: hid_t, name: *const c_char, comment: *mut c_char, bufsize: size_t, lapl_id: hid_t,
     ) -> ssize_t;
-    pub fn H5Oclose(object_id: hid_t) -> herr_t;
+    pub unsafe fn H5Oclose(object_id: hid_t) -> herr_t;
 }
 
 #[cfg(feature = "1.8.5")]
 use crate::h5::htri_t;
 
 #[cfg(feature = "1.8.5")]
-extern "C" {
-    pub fn H5Oexists_by_name(loc_id: hid_t, name: *const c_char, lapl_id: hid_t) -> htri_t;
+unsafe extern "C" {
+    pub unsafe fn H5Oexists_by_name(loc_id: hid_t, name: *const c_char, lapl_id: hid_t) -> htri_t;
 }
 
 #[cfg(feature = "1.10.0")]
-extern "C" {
-    pub fn H5Odisable_mdc_flushes(object_id: hid_t) -> herr_t;
-    pub fn H5Oenable_mdc_flushes(object_id: hid_t) -> herr_t;
-    pub fn H5Oare_mdc_flushes_disabled(object_id: hid_t, are_disabled: *mut hbool_t) -> herr_t;
-    pub fn H5Oflush(obj_id: hid_t) -> herr_t;
-    pub fn H5Orefresh(oid: hid_t) -> herr_t;
+unsafe extern "C" {
+    pub unsafe fn H5Odisable_mdc_flushes(object_id: hid_t) -> herr_t;
+    pub unsafe fn H5Oenable_mdc_flushes(object_id: hid_t) -> herr_t;
+    pub unsafe fn H5Oare_mdc_flushes_disabled(
+        object_id: hid_t, are_disabled: *mut hbool_t,
+    ) -> herr_t;
+    pub unsafe fn H5Oflush(obj_id: hid_t) -> herr_t;
+    pub unsafe fn H5Orefresh(oid: hid_t) -> herr_t;
 }
 
 #[cfg(feature = "1.10.3")]
 mod hdf5_1_10_3 {
     use super::*;
 
-    extern "C" {
-        pub fn H5Oget_info2(loc_id: hid_t, oinfo: *mut H5O_info1_t, fields: c_uint) -> herr_t;
-        pub fn H5Oget_info_by_name2(
+    unsafe extern "C" {
+        pub unsafe fn H5Oget_info2(
+            loc_id: hid_t, oinfo: *mut H5O_info1_t, fields: c_uint,
+        ) -> herr_t;
+        pub unsafe fn H5Oget_info_by_name2(
             loc_id: hid_t, name: *const c_char, oinfo: *mut H5O_info1_t, fields: c_uint,
             lapl_id: hid_t,
         ) -> herr_t;
-        pub fn H5Oget_info_by_idx2(
+        pub unsafe fn H5Oget_info_by_idx2(
             loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
             n: hsize_t, oinfo: *mut H5O_info1_t, fields: c_uint, lapl_id: hid_t,
         ) -> herr_t;
-        pub fn H5Ovisit2(
+        pub unsafe fn H5Ovisit2(
             obj_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, op: H5O_iterate1_t,
             op_data: *mut c_void, fields: c_uint,
         ) -> herr_t;
-        pub fn H5Ovisit_by_name2(
+        pub unsafe fn H5Ovisit_by_name2(
             loc_id: hid_t, obj_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
             op: H5O_iterate1_t, op_data: *mut c_void, fields: c_uint, lapl_id: hid_t,
         ) -> herr_t;
         #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Oget_info2")]
-        pub fn H5Oget_info1(loc_id: hid_t, oinfo: *mut H5O_info1_t) -> herr_t;
+        pub unsafe fn H5Oget_info1(loc_id: hid_t, oinfo: *mut H5O_info1_t) -> herr_t;
         #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Oget_info_by_name2")]
-        pub fn H5Oget_info_by_name1(
+        pub unsafe fn H5Oget_info_by_name1(
             loc_id: hid_t, name: *const c_char, oinfo: *mut H5O_info1_t, lapl_id: hid_t,
         ) -> herr_t;
         #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Oget_info_by_idx2")]
-        pub fn H5Oget_info_by_idx1(
+        pub unsafe fn H5Oget_info_by_idx1(
             loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
             n: hsize_t, oinfo: *mut H5O_info1_t, lapl_id: hid_t,
         ) -> herr_t;
         #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Ovisit2")]
-        pub fn H5Ovisit1(
+        pub unsafe fn H5Ovisit1(
             obj_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, op: H5O_iterate1_t,
             op_data: *mut c_void,
         ) -> herr_t;
         #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Ovisit_by_name2")]
-        pub fn H5Ovisit_by_name1(
+        pub unsafe fn H5Ovisit_by_name1(
             loc_id: hid_t, obj_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
             op: H5O_iterate1_t, op_data: *mut c_void, lapl_id: hid_t,
         ) -> herr_t;
@@ -324,9 +327,8 @@ mod hdf5_1_10_3 {
 
     #[cfg(not(feature = "1.10.5"))]
     pub use self::{
-        H5Oget_info1 as H5Oget_info, H5Oget_info_by_idx1 as H5Oget_info_by_idx,
-        H5Oget_info_by_name1 as H5Oget_info_by_name, H5Ovisit1 as H5Ovisit,
-        H5Ovisit_by_name1 as H5Ovisit_by_name,
+        H5Oget_info_by_idx1 as H5Oget_info_by_idx, H5Oget_info_by_name1 as H5Oget_info_by_name,
+        H5Oget_info1 as H5Oget_info, H5Ovisit_by_name1 as H5Ovisit_by_name, H5Ovisit1 as H5Ovisit,
     };
 }
 
@@ -334,28 +336,28 @@ mod hdf5_1_10_3 {
 pub use self::hdf5_1_10_3::*;
 
 #[cfg(feature = "1.10.5")]
-extern "C" {
+unsafe extern "C" {
     // They've messed up when introducing compatibility macros which broke ABI compatibility;
     // in 1.10.5 those APIs were copied over to old names in order to be compatible with
     // older library versions - so we can link to them directly again.
     #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Oget_info2")]
-    pub fn H5Oget_info(loc_id: hid_t, oinfo: *mut H5O_info1_t) -> herr_t;
+    pub unsafe fn H5Oget_info(loc_id: hid_t, oinfo: *mut H5O_info1_t) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Oget_info_by_name2")]
-    pub fn H5Oget_info_by_name(
+    pub unsafe fn H5Oget_info_by_name(
         loc_id: hid_t, name: *const c_char, oinfo: *mut H5O_info1_t, lapl_id: hid_t,
     ) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Oget_info_by_idx2")]
-    pub fn H5Oget_info_by_idx(
+    pub unsafe fn H5Oget_info_by_idx(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, oinfo: *mut H5O_info1_t, lapl_id: hid_t,
     ) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Ovisit2")]
-    pub fn H5Ovisit(
+    pub unsafe fn H5Ovisit(
         obj_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, op: H5O_iterate1_t,
         op_data: *mut c_void,
     ) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.10.3, use H5Ovisit_by_name2")]
-    pub fn H5Ovisit_by_name(
+    pub unsafe fn H5Ovisit_by_name(
         loc_id: hid_t, obj_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         op: H5O_iterate1_t, op_data: *mut c_void, lapl_id: hid_t,
     ) -> herr_t;
@@ -419,42 +421,42 @@ pub struct H5O_stat_t {
 }
 
 #[cfg(feature = "1.12.0")]
-extern "C" {
-    pub fn H5Oget_info3(loc_id: hid_t, oinfo: *mut H5O_info2_t, fields: c_uint) -> herr_t;
-    pub fn H5Oget_info_by_idx3(
+unsafe extern "C" {
+    pub unsafe fn H5Oget_info3(loc_id: hid_t, oinfo: *mut H5O_info2_t, fields: c_uint) -> herr_t;
+    pub unsafe fn H5Oget_info_by_idx3(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, oinfo: *mut H5O_info2_t, fields: c_uint, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oget_info_by_name3(
+    pub unsafe fn H5Oget_info_by_name3(
         loc_id: hid_t, name: *const c_char, oinfo: *mut H5O_info2_t, fields: c_uint, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oget_native_info(
+    pub unsafe fn H5Oget_native_info(
         loc_id: hid_t, oinfor: *mut H5O_native_info_t, fields: c_uint,
     ) -> herr_t;
-    pub fn H5Oget_native_info_by_idx(
+    pub unsafe fn H5Oget_native_info_by_idx(
         loc_id: hid_t, group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         n: hsize_t, oinfo: *mut H5O_native_info_t, fields: c_uint, lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oget_native_info_by_name(
+    pub unsafe fn H5Oget_native_info_by_name(
         loc_id: hid_t, name: *const c_char, oinfo: *mut H5O_native_info_t, fields: c_uint,
         lapl_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oopen_by_token(loc_id: hid_t, token: H5O_token_t) -> hid_t;
-    pub fn H5Otoken_cmp(
+    pub unsafe fn H5Oopen_by_token(loc_id: hid_t, token: H5O_token_t) -> hid_t;
+    pub unsafe fn H5Otoken_cmp(
         loc_id: hid_t, token1: *const H5O_token_t, token2: *const H5O_token_t,
         cmp_value: *mut c_int,
     ) -> herr_t;
-    pub fn H5Otoken_from_str(
+    pub unsafe fn H5Otoken_from_str(
         loc_id: hid_t, token_str: *const c_char, token: *mut H5O_token_t,
     ) -> herr_t;
-    pub fn H5Otoken_to_str(
+    pub unsafe fn H5Otoken_to_str(
         loc_id: hid_t, token: *const H5O_token_t, token_str: *mut *mut c_char,
     ) -> herr_t;
-    pub fn H5Ovisit3(
+    pub unsafe fn H5Ovisit3(
         obj_id: hid_t, idx_type: H5_index_t, order: H5_iter_order_t, op: H5O_iterate2_t,
         op_data: *mut c_void, fields: c_uint,
     ) -> herr_t;
-    pub fn H5Ovisit_by_name3(
+    pub unsafe fn H5Ovisit_by_name3(
         loc_id: hid_t, obj_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t,
         op: H5O_iterate2_t, op_data: *mut c_void, fields: c_uint, lapl_id: hid_t,
     ) -> herr_t;
@@ -477,34 +479,34 @@ mod globals {
 }
 
 #[cfg(feature = "1.14.0")]
-extern "C" {
-    pub fn H5Oclose_async(
+unsafe extern "C" {
+    pub unsafe fn H5Oclose_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, object_id: hid_t,
         es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Ocopy_async(
+    pub unsafe fn H5Ocopy_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, src_loc_id: hid_t,
         src_name: *const c_char, dst_loc_id: hid_t, dst_name: *const c_char, ocpypl_id: hid_t,
         lcpl_id: hid_t, es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oflush_async(
+    pub unsafe fn H5Oflush_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, obj_id: hid_t,
         es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oget_info_by_name_async(
+    pub unsafe fn H5Oget_info_by_name_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, loc_id: hid_t,
         name: *const c_char, oinfo: *mut H5O_info2_t, fields: c_uint, lapl_id: hid_t, es_id: hid_t,
     ) -> herr_t;
-    pub fn H5Oopen_async(
+    pub unsafe fn H5Oopen_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, loc_id: hid_t,
         name: *const c_char, lapl_id: hid_t, es_id: hid_t,
     ) -> hid_t;
-    pub fn H5Oopen_by_idx_async(
+    pub unsafe fn H5Oopen_by_idx_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, loc_id: hid_t,
         group_name: *const c_char, idx_type: H5_index_t, order: H5_iter_order_t, n: c_ulong,
         lapl_id: hid_t, es_id: hid_t,
     ) -> hid_t;
-    pub fn H5Orefresh_async(
+    pub unsafe fn H5Orefresh_async(
         app_file: *const c_char, app_func: *const c_char, app_line: c_uint, oid: hid_t,
         es_id: hid_t,
     ) -> herr_t;

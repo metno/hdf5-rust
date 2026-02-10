@@ -9,11 +9,11 @@ use hdf5_sys::h5p::{
 };
 use hdf5_sys::h5t::H5T_class_t;
 use hdf5_sys::h5z::{
-    H5Zfilter_avail, H5Zget_filter_info, H5Z_FILTER_CONFIG_DECODE_ENABLED,
-    H5Z_FILTER_CONFIG_ENCODE_ENABLED, H5Z_FILTER_DEFLATE, H5Z_FILTER_FLETCHER32, H5Z_FILTER_NBIT,
-    H5Z_FILTER_SCALEOFFSET, H5Z_FILTER_SHUFFLE, H5Z_FILTER_SZIP, H5Z_FLAG_OPTIONAL,
-    H5Z_SO_FLOAT_DSCALE, H5Z_SO_INT, H5_SZIP_EC_OPTION_MASK, H5_SZIP_MAX_PIXELS_PER_BLOCK,
-    H5_SZIP_NN_OPTION_MASK,
+    H5_SZIP_EC_OPTION_MASK, H5_SZIP_MAX_PIXELS_PER_BLOCK, H5_SZIP_NN_OPTION_MASK,
+    H5Z_FILTER_CONFIG_DECODE_ENABLED, H5Z_FILTER_CONFIG_ENCODE_ENABLED, H5Z_FILTER_DEFLATE,
+    H5Z_FILTER_FLETCHER32, H5Z_FILTER_NBIT, H5Z_FILTER_SCALEOFFSET, H5Z_FILTER_SHUFFLE,
+    H5Z_FILTER_SZIP, H5Z_FLAG_OPTIONAL, H5Z_SO_FLOAT_DSCALE, H5Z_SO_INT, H5Zfilter_avail,
+    H5Zget_filter_info,
 };
 
 /// A filter identifier.
@@ -87,11 +87,7 @@ mod blosc_impl {
     #[cfg(feature = "blosc")]
     impl From<bool> for BloscShuffle {
         fn from(shuffle: bool) -> Self {
-            if shuffle {
-                Self::Byte
-            } else {
-                Self::None
-            }
+            if shuffle { Self::Byte } else { Self::None }
         }
     }
 
@@ -751,7 +747,7 @@ impl Filter {
             #[cfg(feature = "zfp")]
             Self::Zfp(mode, chunk_dims, n_bytes) =>
                 Self::apply_zfp(id, *n_bytes, chunk_dims.clone(), *mode),
-            Self::User(filter_id, ref cdata) => Self::apply_user(id, *filter_id, cdata),
+            Self::User(filter_id, cdata) => Self::apply_user(id, *filter_id, cdata),
         });
         Ok(())
     }
@@ -842,12 +838,12 @@ mod tests {
     use std::io::{Seek, SeekFrom};
 
     use super::{
-        blosc_available, deflate_available, lzf_available, szip_available, validate_filters,
-        Filter, FilterInfo, SZip, ScaleOffset,
+        Filter, FilterInfo, SZip, ScaleOffset, blosc_available, deflate_available, lzf_available,
+        szip_available, validate_filters,
     };
     use crate::hl::filters::zfp_available;
     use crate::test::with_tmp_file;
-    use crate::{plist::DatasetCreate, Result};
+    use crate::{Result, plist::DatasetCreate};
 
     #[test]
     fn test_filter_pipeline() -> Result<()> {

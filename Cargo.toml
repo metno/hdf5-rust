@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = ["hdf5", "hdf5-types", "hdf5-derive", "hdf5-sys", "hdf5-src"]
 default-members = ["hdf5", "hdf5-types", "hdf5-derive", "hdf5-sys"]
 
@@ -13,7 +13,7 @@ keywords = ["hdf5"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/metno/hdf5-rust"
 homepage = "https://github.com/metno/hdf5-rust"
-edition = "2021"
+edition = "2024"
 
 [workspace.dependencies]
 # external

@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::io::{Read, Seek, SeekFrom};
 
-use ndarray::{s, Array1, Array2, ArrayD, IxDyn, SliceInfo};
+use ndarray::{Array1, Array2, ArrayD, IxDyn, SliceInfo, s};
 use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 
 use hdf5_metno as hdf5;
@@ -10,9 +10,9 @@ use hdf5_types::TypeDescriptor;
 
 mod common;
 
-use self::common::gen::{
-    gen_arr, gen_slice, Enum, FixedStruct, Gen, RenameEnum, RenameStruct, RenameTupleStruct,
-    TupleStruct, VarLenStruct,
+use self::common::generate::{
+    Enum, FixedStruct, Gen, RenameEnum, RenameStruct, RenameTupleStruct, TupleStruct, VarLenStruct,
+    gen_arr, gen_slice,
 };
 use self::common::util::new_in_memory_file;
 
