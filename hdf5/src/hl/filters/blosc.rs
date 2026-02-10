@@ -193,6 +193,9 @@ unsafe extern "C" fn filter_blosc(
     buf_size: *mut size_t, buf: *mut *mut c_void,
 ) -> size_t {
     let cfg = if let Some(cfg) = parse_blosc_cdata(cd_nelmts, cd_values) {
+        if cfg.typesize == 0 {
+            return 0;
+        }
         cfg
     } else {
         return 0;
