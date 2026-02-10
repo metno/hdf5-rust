@@ -23,9 +23,9 @@ mod hdf5_1_8_15 {
     pub const H5PL_FILTER_PLUGIN: c_uint = 0x0001;
     pub const H5PL_ALL_PLUGIN: c_uint = 0xffff;
 
-    extern "C" {
-        pub fn H5PLget_loading_state(plugin_flags: *mut c_int) -> herr_t;
-        pub fn H5PLset_loading_state(plugin_flags: *mut c_int) -> herr_t;
+    unsafe extern "C" {
+        pub unsafe fn H5PLget_loading_state(plugin_flags: *mut c_int) -> herr_t;
+        pub unsafe fn H5PLset_loading_state(plugin_flags: *mut c_int) -> herr_t;
     }
 }
 
@@ -33,12 +33,12 @@ mod hdf5_1_8_15 {
 pub use self::hdf5_1_8_15::*;
 
 #[cfg(feature = "1.10.1")]
-extern "C" {
-    pub fn H5PLappend(search_path: *const c_char) -> herr_t;
-    pub fn H5PLprepend(search_path: *const c_char) -> herr_t;
-    pub fn H5PLreplace(search_path: *const c_char, index: c_uint) -> herr_t;
-    pub fn H5PLinsert(search_path: *const c_char, index: c_uint) -> herr_t;
-    pub fn H5PLremove(index: c_uint) -> herr_t;
-    pub fn H5PLget(index: c_uint, path_buf: *mut c_char, buf_size: size_t) -> ssize_t;
-    pub fn H5PLsize(num_paths: *mut c_uint) -> herr_t;
+unsafe extern "C" {
+    pub unsafe fn H5PLappend(search_path: *const c_char) -> herr_t;
+    pub unsafe fn H5PLprepend(search_path: *const c_char) -> herr_t;
+    pub unsafe fn H5PLreplace(search_path: *const c_char, index: c_uint) -> herr_t;
+    pub unsafe fn H5PLinsert(search_path: *const c_char, index: c_uint) -> herr_t;
+    pub unsafe fn H5PLremove(index: c_uint) -> herr_t;
+    pub unsafe fn H5PLget(index: c_uint, path_buf: *mut c_char, buf_size: size_t) -> ssize_t;
+    pub unsafe fn H5PLsize(num_paths: *mut c_uint) -> herr_t;
 }

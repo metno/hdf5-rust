@@ -1,4 +1,4 @@
-use super::gen::gen_ascii;
+use super::generate::gen_ascii;
 
 use hdf5_metno as hdf5;
 

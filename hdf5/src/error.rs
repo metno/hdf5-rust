@@ -11,8 +11,8 @@ use ndarray::ShapeError;
 #[cfg(not(feature = "1.10.0"))]
 use hdf5_sys::h5::hssize_t;
 use hdf5_sys::h5e::{
-    H5E_auto2_t, H5E_error2_t, H5Eget_current_stack, H5Eget_msg, H5Eprint2, H5Eset_auto2, H5Ewalk2,
-    H5E_DEFAULT, H5E_WALK_DOWNWARD,
+    H5E_DEFAULT, H5E_WALK_DOWNWARD, H5E_auto2_t, H5E_error2_t, H5Eget_current_stack, H5Eget_msg,
+    H5Eprint2, H5Eset_auto2, H5Ewalk2,
 };
 
 use crate::internal_prelude::*;
@@ -298,11 +298,7 @@ pub trait H5ErrorCode: Copy {
     fn is_err_code(value: Self) -> bool;
 
     fn h5check(value: Self) -> Result<Self> {
-        if Self::is_err_code(value) {
-            Err(Error::query().unwrap_or_else(|e| e))
-        } else {
-            Ok(value)
-        }
+        if Self::is_err_code(value) { Err(Error::query().unwrap_or_else(|e| e)) } else { Ok(value) }
     }
 }
 

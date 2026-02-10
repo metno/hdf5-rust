@@ -7,7 +7,7 @@ use hdf5_sys::h5p::{
     H5Pcreate, H5Pget_char_encoding, H5Pget_create_intermediate_group, H5Pset_char_encoding,
     H5Pset_create_intermediate_group,
 };
-use hdf5_sys::h5t::{H5T_cset_t, H5T_CSET_ASCII, H5T_CSET_UTF8};
+use hdf5_sys::h5t::{H5T_CSET_ASCII, H5T_CSET_UTF8, H5T_cset_t};
 
 use crate::globals::H5P_LINK_CREATE;
 use crate::internal_prelude::*;

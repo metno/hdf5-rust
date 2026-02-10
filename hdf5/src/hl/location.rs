@@ -6,16 +6,16 @@ use std::ptr;
 use hdf5_sys::h5o::H5Ocopy;
 #[allow(deprecated)]
 use hdf5_sys::h5o::H5Oset_comment;
-#[cfg(feature = "1.12.0")]
-use hdf5_sys::h5o::{
-    H5O_info2_t, H5O_token_t, H5Oget_info3, H5Oget_info_by_name3, H5Oopen_by_token,
-};
-#[cfg(not(feature = "1.10.3"))]
-use hdf5_sys::h5o::{H5Oget_info1, H5Oget_info_by_name1};
-#[cfg(all(feature = "1.10.3", not(feature = "1.12.0")))]
-use hdf5_sys::h5o::{H5Oget_info2, H5Oget_info_by_name2};
 #[cfg(feature = "1.10.3")]
 use hdf5_sys::h5o::{H5O_INFO_BASIC, H5O_INFO_NUM_ATTRS, H5O_INFO_TIME};
+#[cfg(feature = "1.12.0")]
+use hdf5_sys::h5o::{
+    H5O_info2_t, H5O_token_t, H5Oget_info_by_name3, H5Oget_info3, H5Oopen_by_token,
+};
+#[cfg(not(feature = "1.10.3"))]
+use hdf5_sys::h5o::{H5Oget_info_by_name1, H5Oget_info1};
+#[cfg(all(feature = "1.10.3", not(feature = "1.12.0")))]
+use hdf5_sys::h5o::{H5Oget_info_by_name2, H5Oget_info2};
 #[cfg(not(feature = "1.12.0"))]
 use hdf5_sys::{h5::haddr_t, h5o::H5O_info1_t, h5o::H5Oopen_by_addr};
 use hdf5_sys::{
@@ -338,11 +338,7 @@ impl From<H5O_info2_t> for LocationInfo {
 
 #[cfg(feature = "1.10.3")]
 fn info_fields(full: bool) -> c_uint {
-    if full {
-        H5O_INFO_BASIC | H5O_INFO_NUM_ATTRS | H5O_INFO_TIME
-    } else {
-        H5O_INFO_BASIC
-    }
+    if full { H5O_INFO_BASIC | H5O_INFO_NUM_ATTRS | H5O_INFO_TIME } else { H5O_INFO_BASIC }
 }
 
 #[allow(non_snake_case, unused_variables)]

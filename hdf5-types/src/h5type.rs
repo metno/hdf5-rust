@@ -223,12 +223,12 @@ impl Display for TypeDescriptor {
             TypeDescriptor::Float(FloatSize::U4) => write!(f, "float32"),
             TypeDescriptor::Float(FloatSize::U8) => write!(f, "float64"),
             TypeDescriptor::Boolean => write!(f, "bool"),
-            TypeDescriptor::Enum(ref tp) => write!(f, "enum ({})", tp.base_type()),
-            TypeDescriptor::Compound(ref tp) => write!(f, "compound ({} fields)", tp.fields.len()),
-            TypeDescriptor::FixedArray(ref tp, n) => write!(f, "[{tp}; {n}]"),
+            TypeDescriptor::Enum(tp) => write!(f, "enum ({})", tp.base_type()),
+            TypeDescriptor::Compound(tp) => write!(f, "compound ({} fields)", tp.fields.len()),
+            TypeDescriptor::FixedArray(tp, n) => write!(f, "[{tp}; {n}]"),
             TypeDescriptor::FixedAscii(n) => write!(f, "string (len {n})"),
             TypeDescriptor::FixedUnicode(n) => write!(f, "unicode (len {n})"),
-            TypeDescriptor::VarLenArray(ref tp) => write!(f, "[{tp}] (var len)"),
+            TypeDescriptor::VarLenArray(tp) => write!(f, "[{tp}] (var len)"),
             TypeDescriptor::VarLenAscii => write!(f, "string (var len)"),
             TypeDescriptor::VarLenUnicode => write!(f, "unicode (var len)"),
             TypeDescriptor::Reference(Reference::Object) => write!(f, "reference (object)"),
@@ -442,7 +442,7 @@ unsafe impl H5Type for VarLenUnicode {
 #[cfg(test)]
 pub mod tests {
     use super::TypeDescriptor as TD;
-    use super::{hvl_t, FloatSize, H5Type, IntSize};
+    use super::{FloatSize, H5Type, IntSize, hvl_t};
     use crate::array::VarLenArray;
     use crate::string::{FixedAscii, FixedUnicode, VarLenAscii, VarLenUnicode};
     use std::mem;

@@ -33,9 +33,9 @@ use crate::dim::Dimension;
 
 use crate::globals::H5P_DATASET_CREATE;
 use crate::hl::datatype::Datatype;
-use crate::hl::filters::{validate_filters, Filter, SZip, ScaleOffset};
 #[cfg(feature = "blosc")]
 use crate::hl::filters::{Blosc, BloscShuffle};
+use crate::hl::filters::{Filter, SZip, ScaleOffset, validate_filters};
 pub use crate::hl::plist::common::{AttrCreationOrder, AttrPhaseChange};
 use crate::internal_prelude::*;
 

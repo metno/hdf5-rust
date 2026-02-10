@@ -5,12 +5,12 @@ use std::ops::Deref;
 use std::ptr::{addr_of, addr_of_mut};
 
 use hdf5_sys::h5t::{
-    H5T_cdata_t, H5T_class_t, H5T_cset_t, H5T_order_t, H5T_sign_t, H5T_str_t, H5Tarray_create2,
-    H5Tcompiler_conv, H5Tcopy, H5Tcreate, H5Tenum_create, H5Tenum_insert, H5Tequal, H5Tfind,
-    H5Tget_array_dims2, H5Tget_array_ndims, H5Tget_class, H5Tget_cset, H5Tget_member_name,
-    H5Tget_member_offset, H5Tget_member_type, H5Tget_member_value, H5Tget_nmembers, H5Tget_order,
-    H5Tget_sign, H5Tget_size, H5Tget_super, H5Tinsert, H5Tis_variable_str, H5Tset_cset,
-    H5Tset_size, H5Tset_strpad, H5Tvlen_create, H5T_VARIABLE,
+    H5T_VARIABLE, H5T_cdata_t, H5T_class_t, H5T_cset_t, H5T_order_t, H5T_sign_t, H5T_str_t,
+    H5Tarray_create2, H5Tcompiler_conv, H5Tcopy, H5Tcreate, H5Tenum_create, H5Tenum_insert,
+    H5Tequal, H5Tfind, H5Tget_array_dims2, H5Tget_array_ndims, H5Tget_class, H5Tget_cset,
+    H5Tget_member_name, H5Tget_member_offset, H5Tget_member_type, H5Tget_member_value,
+    H5Tget_nmembers, H5Tget_order, H5Tget_sign, H5Tget_size, H5Tget_super, H5Tinsert,
+    H5Tis_variable_str, H5Tset_cset, H5Tset_size, H5Tset_strpad, H5Tvlen_create,
 };
 use hdf5_types::{
     CompoundField, CompoundType, EnumMember, EnumType, FloatSize, H5Type, IntSize, TypeDescriptor,
@@ -21,14 +21,14 @@ use crate::internal_prelude::*;
 
 #[cfg(target_endian = "big")]
 use crate::globals::{
-    H5T_IEEE_F32BE, H5T_IEEE_F64BE, H5T_STD_I16BE, H5T_STD_I32BE, H5T_STD_I64BE, H5T_STD_I8BE,
-    H5T_STD_U16BE, H5T_STD_U32BE, H5T_STD_U64BE, H5T_STD_U8BE,
+    H5T_IEEE_F32BE, H5T_IEEE_F64BE, H5T_STD_I8BE, H5T_STD_I16BE, H5T_STD_I32BE, H5T_STD_I64BE,
+    H5T_STD_U8BE, H5T_STD_U16BE, H5T_STD_U32BE, H5T_STD_U64BE,
 };
 
 #[cfg(target_endian = "little")]
 use crate::globals::{
-    H5T_IEEE_F32LE, H5T_IEEE_F64LE, H5T_STD_I16LE, H5T_STD_I32LE, H5T_STD_I64LE, H5T_STD_I8LE,
-    H5T_STD_U16LE, H5T_STD_U32LE, H5T_STD_U64LE, H5T_STD_U8LE,
+    H5T_IEEE_F32LE, H5T_IEEE_F64LE, H5T_STD_I8LE, H5T_STD_I16LE, H5T_STD_I32LE, H5T_STD_I64LE,
+    H5T_STD_U8LE, H5T_STD_U16LE, H5T_STD_U32LE, H5T_STD_U64LE,
 };
 
 #[cfg(target_endian = "big")]
@@ -235,7 +235,9 @@ impl Datatype {
     pub(crate) fn ensure_convertible(&self, dst: &Self, required: Conversion) -> Result<()> {
         if let Some(conv) = self.conv_path(dst) {
             ensure!(
-                conv <= required, "Cannot convert from {self} to {dst}, required conversion {required}; available: {conv}",);
+                conv <= required,
+                "Cannot convert from {self} to {dst}, required conversion {required}; available: {conv}",
+            );
             Ok(())
         } else {
             fail!("no conversion paths found from '{self:#?}' to '{dst:#?}'",)
@@ -474,7 +476,10 @@ mod tests {
 
         let err_msg = src.ensure_convertible(&dst, Conversion::NoOp).unwrap_err().to_string();
 
-        assert_str_eq!(err_msg, "no conversion paths found from '<HDF5 datatype: unicode (len 10)>' to '<HDF5 datatype: string (len 10)>'");
+        assert_str_eq!(
+            err_msg,
+            "no conversion paths found from '<HDF5 datatype: unicode (len 10)>' to '<HDF5 datatype: string (len 10)>'"
+        );
     }
 
     #[test]

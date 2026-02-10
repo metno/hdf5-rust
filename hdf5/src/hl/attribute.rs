@@ -314,7 +314,7 @@ impl AttributeBuilderInner {
 #[cfg(test)]
 pub mod attribute_tests {
     use crate::internal_prelude::*;
-    use ndarray::{arr2, Array2};
+    use ndarray::{Array2, arr2};
     use std::str::FromStr;
     use types::VarLenUnicode;
 

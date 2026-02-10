@@ -77,69 +77,71 @@ pub type H5E_walk2_t = Option<
 pub type H5E_auto2_t =
     Option<unsafe extern "C" fn(estack: hid_t, client_data: *mut c_void) -> herr_t>;
 
-extern "C" {
-    pub fn H5Eregister_class(
+unsafe extern "C" {
+    pub unsafe fn H5Eregister_class(
         cls_name: *const c_char, lib_name: *const c_char, version: *const c_char,
     ) -> hid_t;
-    pub fn H5Eunregister_class(class_id: hid_t) -> herr_t;
-    pub fn H5Eclose_msg(err_id: hid_t) -> herr_t;
-    pub fn H5Ecreate_msg(cls: hid_t, msg_type: H5E_type_t, msg: *const c_char) -> hid_t;
-    pub fn H5Ecreate_stack() -> hid_t;
-    pub fn H5Eget_current_stack() -> hid_t;
+    pub unsafe fn H5Eunregister_class(class_id: hid_t) -> herr_t;
+    pub unsafe fn H5Eclose_msg(err_id: hid_t) -> herr_t;
+    pub unsafe fn H5Ecreate_msg(cls: hid_t, msg_type: H5E_type_t, msg: *const c_char) -> hid_t;
+    pub unsafe fn H5Ecreate_stack() -> hid_t;
+    pub unsafe fn H5Eget_current_stack() -> hid_t;
     #[cfg(feature = "1.14.0")]
-    pub fn H5Eappend_stack(
+    pub unsafe fn H5Eappend_stack(
         dst_stack_id: hid_t, src_stack_id: hid_t, close_source_stack: hbool_t,
     ) -> herr_t;
     #[cfg(feature = "1.14.5")]
-    pub fn H5Eis_paused(stack_id: hid_t, is_paused: *mut hbool_t) -> herr_t;
+    pub unsafe fn H5Eis_paused(stack_id: hid_t, is_paused: *mut hbool_t) -> herr_t;
     #[cfg(feature = "1.14.5")]
-    pub fn H5Epause_stack(stack_id: hid_t) -> herr_t;
+    pub unsafe fn H5Epause_stack(stack_id: hid_t) -> herr_t;
     #[cfg(feature = "1.14.5")]
-    pub fn H5Eresume_stack(stack_id: hid_t) -> herr_t;
-    pub fn H5Eclose_stack(stack_id: hid_t) -> herr_t;
-    pub fn H5Eget_class_name(class_id: hid_t, name: *mut c_char, size: size_t) -> ssize_t;
-    pub fn H5Eset_current_stack(err_stack_id: hid_t) -> herr_t;
-    pub fn H5Epush2(
+    pub unsafe fn H5Eresume_stack(stack_id: hid_t) -> herr_t;
+    pub unsafe fn H5Eclose_stack(stack_id: hid_t) -> herr_t;
+    pub unsafe fn H5Eget_class_name(class_id: hid_t, name: *mut c_char, size: size_t) -> ssize_t;
+    pub unsafe fn H5Eset_current_stack(err_stack_id: hid_t) -> herr_t;
+    pub unsafe fn H5Epush2(
         err_stack: hid_t, file: *const c_char, func: *const c_char, line: c_uint, cls_id: hid_t,
         maj_id: hid_t, min_id: hid_t, msg: *const c_char, ...
     ) -> herr_t;
-    pub fn H5Epop(err_stack: hid_t, count: size_t) -> herr_t;
-    pub fn H5Eprint2(err_stack: hid_t, stream: *mut FILE) -> herr_t;
-    pub fn H5Ewalk2(
+    pub unsafe fn H5Epop(err_stack: hid_t, count: size_t) -> herr_t;
+    pub unsafe fn H5Eprint2(err_stack: hid_t, stream: *mut FILE) -> herr_t;
+    pub unsafe fn H5Ewalk2(
         err_stack: hid_t, direction: H5E_direction_t, func: H5E_walk2_t, client_data: *mut c_void,
     ) -> herr_t;
-    pub fn H5Eget_auto2(
+    pub unsafe fn H5Eget_auto2(
         estack_id: hid_t, func: *mut H5E_auto2_t, client_data: *mut *mut c_void,
     ) -> herr_t;
-    pub fn H5Eset_auto2(estack_id: hid_t, func: H5E_auto2_t, client_data: *mut c_void) -> herr_t;
-    pub fn H5Eclear2(err_stack: hid_t) -> herr_t;
-    pub fn H5Eauto_is_v2(err_stack: hid_t, is_stack: *mut c_uint) -> herr_t;
-    pub fn H5Eget_msg(
+    pub unsafe fn H5Eset_auto2(
+        estack_id: hid_t, func: H5E_auto2_t, client_data: *mut c_void,
+    ) -> herr_t;
+    pub unsafe fn H5Eclear2(err_stack: hid_t) -> herr_t;
+    pub unsafe fn H5Eauto_is_v2(err_stack: hid_t, is_stack: *mut c_uint) -> herr_t;
+    pub unsafe fn H5Eget_msg(
         msg_id: hid_t, type_: *mut H5E_type_t, msg: *mut c_char, size: size_t,
     ) -> ssize_t;
-    pub fn H5Eget_num(error_stack_id: hid_t) -> ssize_t;
+    pub unsafe fn H5Eget_num(error_stack_id: hid_t) -> ssize_t;
 
     #[deprecated(note = "deprecated in HDF5 1.8.0, use H5Epush2")]
-    pub fn H5Epush1(
+    pub unsafe fn H5Epush1(
         file: *const c_char, func: *const c_char, line: c_uint, maj: H5E_major_t, min: H5E_minor_t,
         str_: *const c_char,
     ) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.8.0, use H5Eprint2")]
-    pub fn H5Eprint1(stream: *mut FILE) -> herr_t;
+    pub unsafe fn H5Eprint1(stream: *mut FILE) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.8.0, use H5Ewalk2")]
-    pub fn H5Ewalk1(
+    pub unsafe fn H5Ewalk1(
         direction: H5E_direction_t, func: H5E_walk1_t, client_data: *mut c_void,
     ) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.8.0, use H5Eget_auto2")]
-    pub fn H5Eget_auto1(func: *mut H5E_auto1_t, client_data: *mut *mut c_void) -> herr_t;
+    pub unsafe fn H5Eget_auto1(func: *mut H5E_auto1_t, client_data: *mut *mut c_void) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.8.0, use H5Eset_auto2")]
-    pub fn H5Eset_auto1(func: H5E_auto1_t, client_data: *mut c_void) -> herr_t;
+    pub unsafe fn H5Eset_auto1(func: H5E_auto1_t, client_data: *mut c_void) -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.8.0, use H5Eclear2")]
-    pub fn H5Eclear1() -> herr_t;
+    pub unsafe fn H5Eclear1() -> herr_t;
     #[deprecated(note = "deprecated in HDF5 1.8.0, use H5Eget_msg")]
-    pub fn H5Eget_major(maj: H5E_major_t) -> *mut c_char;
+    pub unsafe fn H5Eget_major(maj: H5E_major_t) -> *mut c_char;
     #[deprecated(note = "deprecated in HDF5 1.8.0")]
-    pub fn H5Eget_minor(min: H5E_minor_t) -> *mut c_char;
+    pub unsafe fn H5Eget_minor(min: H5E_minor_t) -> *mut c_char;
 }
 
 pub use self::globals::*;

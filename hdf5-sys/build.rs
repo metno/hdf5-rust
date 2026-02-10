@@ -253,7 +253,7 @@ pub struct LibrarySearcher {
 
 #[cfg(any(all(unix, not(target_os = "macos")), windows))]
 mod pkgconf {
-    use super::{is_inc_dir, LibrarySearcher};
+    use super::{LibrarySearcher, is_inc_dir};
 
     pub fn find_hdf5_via_pkg_config(config: &mut LibrarySearcher) {
         if config.inc_dir.is_some() {
@@ -263,7 +263,10 @@ mod pkgconf {
         // If we're going to windows-gnu we can use pkg-config, but only so long as
         // we're coming from a windows host.
         if cfg!(windows) {
-            std::env::set_var("PKG_CONFIG_ALLOW_CROSS", "1");
+            // Safety: build.rs is run single-threaded
+            unsafe {
+                std::env::set_var("PKG_CONFIG_ALLOW_CROSS", "1");
+            }
         }
 
         // Try pkg-config. Note that HDF5 only ships pkg-config metadata
@@ -304,7 +307,7 @@ mod pkgconf {
 #[cfg(all(unix, not(target_os = "macos")))]
 mod unix {
     pub use super::pkgconf::find_hdf5_via_pkg_config;
-    use super::{is_inc_dir, LibrarySearcher};
+    use super::{LibrarySearcher, is_inc_dir};
 
     pub fn find_hdf5_in_default_location(config: &mut LibrarySearcher) {
         if config.inc_dir.is_some() {
@@ -422,8 +425,8 @@ mod windows {
     use serde::de::Error;
     use serde::{Deserialize, Deserializer};
     use serde_derive::Deserialize as DeriveDeserialize;
-    use winreg::enums::HKEY_LOCAL_MACHINE;
     use winreg::RegKey;
+    use winreg::enums::HKEY_LOCAL_MACHINE;
 
     impl<'de> Deserialize<'de> for Version {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

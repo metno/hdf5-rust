@@ -4,12 +4,12 @@ use std::iter;
 use std::mem;
 use std::str::FromStr;
 
-use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error2::{abort, proc_macro_error};
-use quote::{quote, ToTokens};
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{ToTokens, quote};
 use syn::{
-    parse_macro_input, AttrStyle, Attribute, Data, DeriveInput, Expr, Fields, Index, LitStr, Type,
-    TypeGenerics, TypePath,
+    AttrStyle, Attribute, Data, DeriveInput, Expr, Fields, Index, LitStr, Type, TypeGenerics,
+    TypePath, parse_macro_input,
 };
 
 /// Derive macro generating an impl of the trait `H5Type`.
@@ -190,11 +190,12 @@ fn impl_trait(
                     abort!(ty, "cannot derive `H5Type` for empty structs");
                 }
 
-                let repr =
-                    find_repr(attrs, &["C", "packed", "transparent"]).unwrap_or_else(|| {
-                        abort!(ty,
-                    "`H5Type` requires repr(C), repr(packed) or repr(transparent) for structs")
-                    });
+                let repr = find_repr(attrs, &["C", "packed", "transparent"]).unwrap_or_else(|| {
+                    abort!(
+                        ty,
+                        "`H5Type` requires repr(C), repr(packed) or repr(transparent) for structs"
+                    )
+                });
                 if repr == "transparent" {
                     assert_eq!(fields.len(), 1);
                     impl_transparent(&fields[0].ty)

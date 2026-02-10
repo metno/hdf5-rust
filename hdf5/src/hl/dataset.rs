@@ -22,7 +22,7 @@ use crate::hl::plist::link_create::{CharEncoding, LinkCreate, LinkCreateBuilder}
 use crate::internal_prelude::*;
 use hdf5_sys::h5::HADDR_UNDEF;
 use hdf5_sys::h5d::{
-    H5Dcreate2, H5Dcreate_anon, H5Dget_access_plist, H5Dget_create_plist, H5Dget_offset,
+    H5Dcreate_anon, H5Dcreate2, H5Dget_access_plist, H5Dget_create_plist, H5Dget_offset,
     H5Dset_extent,
 };
 #[cfg(feature = "1.10.0")]
@@ -393,11 +393,7 @@ fn compute_chunk_shape(dims: &SimpleExtents, minimum_elements: usize) -> Vec<Ix>
             // in dividing the chunk in two uneven parts,
             // we instead merge these into the same chunk
             // to prevent having small chunks
-            if 2 * wanted_size > maxdim + 1 {
-                maxdim
-            } else {
-                std::cmp::min(wanted_size, maxdim)
-            }
+            if 2 * wanted_size > maxdim + 1 { maxdim } else { std::cmp::min(wanted_size, maxdim) }
         });
 
         product_cs *= *cs;
@@ -1111,7 +1107,7 @@ impl<'d, T2: H5Type, D2: ndarray::Dimension> DatasetBuilderData<'d, T2, D2> {
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_chunk_shape, DatasetBuilder};
+    use super::{DatasetBuilder, compute_chunk_shape};
     use crate::filters::Filter;
     use crate::test::with_tmp_file;
     use crate::{Extent, Result, SimpleExtents};
