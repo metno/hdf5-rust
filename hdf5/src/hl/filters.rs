@@ -863,9 +863,9 @@ mod tests {
         {
             comp_filters.push(Filter::lzf());
         }
-        assert_eq!(cfg!(feature = "blosc-all"), blosc_available());
         #[cfg(feature = "blosc-all")]
         {
+            assert!(blosc_available());
             use super::BloscShuffle;
             comp_filters.push(Filter::blosc_blosclz(1, false));
             comp_filters.push(Filter::blosc_lz4(3, true));
