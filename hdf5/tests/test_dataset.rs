@@ -3,7 +3,7 @@ use std::fmt;
 use std::io::{Read, Seek, SeekFrom};
 
 use ndarray::{s, Array1, Array2, ArrayD, IxDyn, SliceInfo};
-use rand::prelude::{Rng, SeedableRng, SmallRng};
+use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 
 use hdf5_metno as hdf5;
 use hdf5_types::TypeDescriptor;

@@ -11,8 +11,8 @@ use ndarray::{ArrayD, SliceInfo, SliceInfoElem};
 use num_complex::Complex;
 use rand::distr::StandardUniform;
 use rand::distr::{Alphanumeric, Uniform};
-use rand::prelude::Rng;
 use rand::prelude::{Distribution, IndexedRandom};
+use rand::prelude::{Rng, RngExt};
 
 pub fn gen_shape<R: Rng + ?Sized>(rng: &mut R, ndim: usize) -> Vec<usize> {
     iter::repeat(()).map(|_| rng.random_range(0..11)).take(ndim).collect()
