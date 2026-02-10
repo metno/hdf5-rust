@@ -99,6 +99,9 @@ fn lzf() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn szip() -> Result<(), Box<dyn std::error::Error>> {
+    if !hdf5::filters::szip_available() {
+        return Ok(());
+    }
     let file = new_in_memory_file()?;
 
     let dset_name = "x";
