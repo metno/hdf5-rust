@@ -145,6 +145,9 @@ impl Default for BloscConfig {
 }
 
 fn parse_blosc_cdata(cd_nelmts: size_t, cd_values: *const c_uint) -> Option<BloscConfig> {
+    if cd_values.is_null() || cd_nelmts < 1 {
+        return None;
+    }
     let cdata = unsafe { slice::from_raw_parts(cd_values, cd_nelmts as _) };
     let mut cfg = BloscConfig {
         typesize: cdata[2] as _,

@@ -125,7 +125,11 @@ unsafe fn filter_lzf_decompress(
     cd_nelmts: size_t, cd_values: *const c_uint, nbytes: size_t, buf_size: *mut size_t,
     buf: *mut *mut c_void,
 ) -> size_t {
-    let cdata = slice::from_raw_parts(cd_values, cd_nelmts as _);
+    let cdata = if cd_values.is_null() || cd_nelmts < 1 {
+        &[]
+    } else {
+        slice::from_raw_parts(cd_values, cd_nelmts as _)
+    };
     let mut outbuf_size = if cd_nelmts >= 3 && cdata[2] != 0 { cdata[2] as _ } else { *buf_size };
     let mut outbuf: *mut c_void;
     let mut status: c_uint;
