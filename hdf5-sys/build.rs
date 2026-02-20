@@ -251,7 +251,6 @@ pub struct LibrarySearcher {
     pub pkg_conf_found: bool,
 }
 
-#[cfg(any(all(unix, not(target_os = "macos")), windows))]
 mod pkgconf {
     use super::{is_inc_dir, LibrarySearcher};
 
@@ -303,7 +302,6 @@ mod pkgconf {
 
 #[cfg(all(unix, not(target_os = "macos")))]
 mod unix {
-    pub use super::pkgconf::find_hdf5_via_pkg_config;
     use super::{is_inc_dir, LibrarySearcher};
 
     pub fn find_hdf5_in_default_location(config: &mut LibrarySearcher) {
@@ -414,7 +412,6 @@ mod macos {
 
 #[cfg(windows)]
 mod windows {
-    pub use super::pkgconf::find_hdf5_via_pkg_config;
     use super::*;
 
     use std::io;
@@ -573,9 +570,9 @@ impl LibrarySearcher {
     }
 
     pub fn try_locate_hdf5_library(&mut self) {
+        self::pkgconf::find_hdf5_via_pkg_config(self);
         #[cfg(all(unix, not(target_os = "macos")))]
         {
-            self::unix::find_hdf5_via_pkg_config(self);
             self::unix::find_hdf5_in_default_location(self);
         }
         #[cfg(target_os = "macos")]
@@ -585,7 +582,6 @@ impl LibrarySearcher {
         #[cfg(windows)]
         {
             self::windows::find_hdf5_via_winreg(self);
-            self::windows::find_hdf5_via_pkg_config(self);
             // the check below is for dynamic linking only
             self::windows::validate_env_path(self);
         }
