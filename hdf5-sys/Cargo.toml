@@ -34,8 +34,6 @@ deprecated = ["hdf5-src?/deprecated"]
 [build-dependencies]
 libloading = "0.8"
 regex = { workspace = true }
-
-[target.'cfg(any(all(unix, not(target_os = "macos")), windows))'.build-dependencies]
 pkg-config = "0.3"
 
 [target.'cfg(windows)'.build-dependencies]
