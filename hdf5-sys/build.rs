@@ -30,8 +30,7 @@ impl Version {
     }
 
     pub fn parse(s: &str) -> Option<Self> {
-        let re =
-            Regex::new(r"^(1|2)\.(0|8|10|12|14)\.(\d\d?)(_|.\d+)?((-|.)(patch)?\d+)?$").ok()?;
+        let re = Regex::new(r"^(1|2)\.(\d+)\.(\d+)(_|.\d+)?((-|.)(patch)?\d+)?$").ok()?;
         let captures = re.captures(s)?;
         Some(Self {
             major: captures.get(1).and_then(|c| c.as_str().parse::<u8>().ok())?,
@@ -59,6 +58,7 @@ fn known_hdf5_versions() -> Vec<Version> {
     vs.extend((0..=8).map(|v| Version::new(1, 10, v))); // 1.10.[0-10]
     vs.extend((0..=2).map(|v| Version::new(1, 12, v))); // 1.12.[0-2]
     vs.extend((0..=6).map(|v| Version::new(1, 14, v))); // 1.14.[0-6]
+    vs.extend((0..=5).flat_map(|minor| (0..=20).map(move |micro| Version::new(2, minor, micro)))); // 2.[0-5].[0-20]
     vs
 }
 
@@ -150,7 +150,9 @@ fn validate_runtime_version(config: &Config) {
                         match get_runtime_version_single(&path) {
                             Ok(version) => {
                                 println!("    => runtime version = {version:?}");
-                                if version == config.header.version {
+                                if version.major == config.header.version.major
+                                    && version.minor == config.header.version.minor
+                                {
                                     println!("HDF5 library runtime version matches headers.");
                                     return;
                                 }
@@ -363,6 +365,14 @@ mod macos {
                 "any version"
             }
         );
+        let v2x = if let Some(version) = config.version { version.major == 2 } else { false };
+        if v2x {
+            if let Some(out) = run_command("brew", &["--prefix", "hdf5"]) {
+                if is_root_dir(&out) {
+                    config.inc_dir = Some(PathBuf::from(out).join("include"));
+                }
+            }
+        }
         if !(v18 || v110 || v112 || v114) {
             if let Some(out) = run_command("brew", &["--prefix", "hdf5@2.0"]) {
                 if is_root_dir(&out) {
