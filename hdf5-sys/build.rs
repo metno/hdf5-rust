@@ -336,8 +336,9 @@ mod macos {
         }
         // We have to explicitly support homebrew since the HDF5 bottle isn't
         // packaged with pkg-config metadata.
-        let (v20, v18, v110, v112, v114) = if let Some(version) = config.version {
+        let (v21, v20, v18, v110, v112, v114) = if let Some(version) = config.version {
             (
+                version.major == 2 && version.minor == 1,
                 version.major == 2 && version.minor == 0,
                 version.major == 1 && version.minor == 8,
                 version.major == 1 && version.minor == 10,
@@ -345,11 +346,13 @@ mod macos {
                 version.major == 1 && version.minor == 14,
             )
         } else {
-            (false, false, false, false, false)
+            (false, false, false, false, false, false)
         };
         println!(
             "Attempting to find HDF5 via Homebrew ({})...",
-            if v20 {
+            if v21 {
+                "2.1.*"
+            } else if v20 {
                 "2.0.*"
             } else if v18 {
                 "1.8.*"
@@ -363,6 +366,13 @@ mod macos {
                 "any version"
             }
         );
+        if !(v18 || v110 || v112 || v114 || v20) {
+            if let Some(out) = run_command("brew", &["--prefix", "hdf5@2.1"]) {
+                if is_root_dir(&out) {
+                    config.inc_dir = Some(PathBuf::from(out).join("include"));
+                }
+            }
+        }
         if !(v18 || v110 || v112 || v114) {
             if let Some(out) = run_command("brew", &["--prefix", "hdf5@2.0"]) {
                 if is_root_dir(&out) {
