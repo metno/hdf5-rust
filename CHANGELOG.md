@@ -1,12 +1,23 @@
 # Changelog
 
+## hdf5 unreleased
 ## hdf5-types unreleased
 ## hdf5-derive unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-## hdf5 unreleased
+## hdf5 0.12.4
+Release date: Mar 23, 2026
+- Support for hdf5 2.1.0
 - MSRV has been increased to 1.85
+
+## hdf5-sys 0.11.3
+Release date: Mar 23, 2026
+- Support for hdf5 2.1.0
+
+## hdf5-src 0.10.2
+Release date: Mar 23, 2026
+- Update to hdf5 2.1.0
 
 ## hdf5 v0.12.3
 Release date: Feb 10, 2026

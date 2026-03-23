@@ -71,6 +71,7 @@ jobs:
         include:
           - {version: hdf5@1.10}
           - {version: hdf5@2.0}
+          - {version: hdf5}
           - {version: hdf5-mpi, mpi: true}
     steps:
       - name: Checkout repository
@@ -193,6 +194,7 @@ jobs:
           [ "${{matrix.mpi}}" == "mpich" ] && PACKAGES="libhdf5-mpich-dev mpich"
           [ "${{matrix.mpi}}" == "openmpi" ] && PACKAGES="libhdf5-openmpi-dev openmpi-bin"
           [ "${{matrix.mpi}}" == "serial" ] && PACKAGES="libhdf5-dev"
+          sudo apt-get update
           sudo apt-get install $PACKAGES
       - name: Build and test all crates
         run: |
