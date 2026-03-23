@@ -30,7 +30,7 @@ hdf5 = { package = "hdf5-metno", version = "0.12.0", path = "hdf5" }            
 hdf5-derive = { package = "hdf5-metno-derive", version = "0.10.0", path = "hdf5-derive" } # !V
 hdf5-types = { package = "hdf5-metno-types", version = "0.11.0", path = "hdf5-types" }   # !V
 hdf5-src = { package = "hdf5-metno-src", version = "0.10.0", path = "hdf5-src" }          # !V
-hdf5-sys = { package = "hdf5-metno-sys", version = "0.11.0", path = "hdf5-sys" }         # !V
+hdf5-sys = { package = "hdf5-metno-sys", version = "0.11.3", path = "hdf5-sys" }         # !V
 
 
 [profile.dev]
