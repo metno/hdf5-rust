@@ -935,3 +935,11 @@ fn test_lcpl_char_encoding() -> hdf5::Result<()> {
     assert_eq!(LCB::from_plist(&pl)?.finish()?.get_char_encoding()?, CharEncoding::Utf8);
     Ok(())
 }
+
+#[test]
+#[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+fn test_fapl_file_locking() -> hdf5::Result<()> {
+    test_pl!(FA, file_locking: true);
+    test_pl!(FA, file_locking: false);
+    Ok(())
+}

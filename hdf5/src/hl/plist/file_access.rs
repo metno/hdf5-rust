@@ -65,6 +65,8 @@ use hdf5_sys::h5p::{
     H5Pget_evict_on_close, H5Pget_mdc_image_config, H5Pget_page_buffer_size, H5Pset_evict_on_close,
     H5Pset_mdc_image_config, H5Pset_page_buffer_size,
 };
+#[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+use hdf5_sys::h5p::{H5Pget_file_locking, H5Pset_file_locking};
 #[cfg(feature = "1.10.2")]
 use hdf5_sys::h5p::{H5Pget_libver_bounds, H5Pset_libver_bounds};
 #[cfg(feature = "1.10.0")]
@@ -116,6 +118,8 @@ impl Debug for FileAccess {
         formatter.field("fclose_degree", &self.fclose_degree());
         formatter.field("gc_references", &self.gc_references());
         formatter.field("small_data_block_size", &self.small_data_block_size());
+        #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+        formatter.field("file_locking", &self.file_locking());
         #[cfg(feature = "1.10.2")]
         formatter.field("libver_bounds", &self.libver_bounds());
         #[cfg(feature = "1.8.7")]
@@ -1138,6 +1142,8 @@ pub struct FileAccessBuilder {
     small_data_block_size: Option<u64>,
     #[cfg(feature = "1.10.2")]
     libver_bounds: Option<LibVerBounds>,
+    #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+    file_locking: Option<bool>,
 }
 
 impl FileAccessBuilder {
@@ -1193,6 +1199,10 @@ impl FileAccessBuilder {
             if let FileDriver::Core(ref drv) = drv {
                 builder.write_tracking(drv.write_tracking);
             }
+        }
+        #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+        {
+            builder.file_locking(plist.get_file_locking()?);
         }
         Ok(builder)
     }
@@ -1306,6 +1316,13 @@ impl FileAccessBuilder {
     /// Sets whether reference garbage collection is enabled.
     pub fn gc_references(&mut self, gc_ref: bool) -> &mut Self {
         self.gc_references = Some(gc_ref);
+        self
+    }
+
+    /// Sets whether file locking is enabled.
+    #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+    pub fn file_locking(&mut self, file_locking: bool) -> &mut Self {
+        self.file_locking = Some(file_locking);
         self
     }
 
@@ -1692,6 +1709,14 @@ impl FileAccessBuilder {
         if let Some(ref v) = self.mdc_config {
             let v = v.clone().into();
             h5try!(H5Pset_mdc_config(id, addr_of!(v)));
+        }
+
+        #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+        {
+            if let Some(v) = self.file_locking {
+                let ignore_when_disabled = true;
+                h5try!(H5Pset_file_locking(id, v as _, ignore_when_disabled as _));
+            }
         }
         Ok(())
     }
@@ -2094,5 +2119,17 @@ impl FileAccess {
     #[cfg(feature = "1.10.2")]
     pub fn libver(&self) -> LibraryVersion {
         self.get_libver_bounds().ok().unwrap_or_default().low
+    }
+
+    #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+    #[doc(hidden)]
+    pub fn get_file_locking(&self) -> Result<bool> {
+        h5get!(H5Pget_file_locking(self.id()): hbool_t, hbool_t).map(|(x, _)| x > 0)
+    }
+
+    /// Returns ``true`` if file locking is enabled
+    #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+    pub fn file_locking(&self) -> bool {
+        self.get_file_locking().unwrap_or(true)
     }
 }
