@@ -1,11 +1,13 @@
 # Changelog
 
+## hdf5 unreleased
 ## hdf5-types unreleased
 ## hdf5-derive unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-## hdf5 unreleased
+## hdf5 0.12.5
+Release date: Jun 04, 2026
 - Added option for setting file locking on access
 
 ## hdf5 0.12.4
