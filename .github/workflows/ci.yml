@@ -123,7 +123,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with: {toolchain: '${{matrix.rust}}'}
       - name: Install conda
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with: {auto-update-conda: false, activate-environment: testenv, miniconda-version: latest}
       - name: Set conda for Arm64
         if: runner.arch == 'arm64' && runner.os == 'macOS'
