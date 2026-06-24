@@ -143,11 +143,13 @@ impl Default for H5Z_class2_t {
     }
 }
 
-extern "C" {
-    pub fn H5Zregister(cls: *const c_void) -> herr_t;
-    pub fn H5Zunregister(id: H5Z_filter_t) -> herr_t;
-    pub fn H5Zfilter_avail(id: H5Z_filter_t) -> htri_t;
-    pub fn H5Zget_filter_info(filter: H5Z_filter_t, filter_config_flags: *mut c_uint) -> herr_t;
+unsafe extern "C" {
+    pub unsafe fn H5Zregister(cls: *const c_void) -> herr_t;
+    pub unsafe fn H5Zunregister(id: H5Z_filter_t) -> herr_t;
+    pub unsafe fn H5Zfilter_avail(id: H5Z_filter_t) -> htri_t;
+    pub unsafe fn H5Zget_filter_info(
+        filter: H5Z_filter_t, filter_config_flags: *mut c_uint,
+    ) -> herr_t;
 }
 
 #[repr(C)]

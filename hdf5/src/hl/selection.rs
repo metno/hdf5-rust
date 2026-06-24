@@ -5,12 +5,12 @@ use std::mem;
 use std::ops::{Deref, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 use std::slice;
 
-use ndarray::{self, s, Array1, Array2, ArrayView1, ArrayView2};
+use ndarray::{self, Array1, Array2, ArrayView1, ArrayView2, s};
 
 use hdf5_sys::h5s::{
-    H5S_sel_type, H5Sget_select_elem_npoints, H5Sget_select_elem_pointlist, H5Sget_select_type,
-    H5Sget_simple_extent_ndims, H5Sselect_all, H5Sselect_elements, H5Sselect_hyperslab,
-    H5Sselect_none, H5S_SELECT_SET, H5S_UNLIMITED,
+    H5S_SELECT_SET, H5S_UNLIMITED, H5S_sel_type, H5Sget_select_elem_npoints,
+    H5Sget_select_elem_pointlist, H5Sget_select_type, H5Sget_simple_extent_ndims, H5Sselect_all,
+    H5Sselect_elements, H5Sselect_hyperslab, H5Sselect_none,
 };
 #[cfg(feature = "1.10.0")]
 use hdf5_sys::h5s::{H5Sget_regular_hyperslab, H5Sis_regular_hyperslab};
@@ -201,8 +201,8 @@ impl RawSelection {
             Self::All => {
                 h5check(H5Sselect_all(space_id))?;
             }
-            Self::Points(ref coords) => set_points_selection(space_id, coords.view())?,
-            Self::RegularHyperslab(ref hyper) => set_regular_hyperslab(space_id, hyper)?,
+            Self::Points(coords) => set_points_selection(space_id, coords.view())?,
+            Self::RegularHyperslab(hyper) => set_regular_hyperslab(space_id, hyper)?,
             Self::ComplexHyperslab => fail!("Complex hyperslabs are not supported"),
         };
         Ok(())
@@ -843,14 +843,14 @@ impl Selection {
     pub fn in_ndim(&self) -> Option<usize> {
         match self {
             Self::All => None,
-            Self::Points(ref points) => {
+            Self::Points(points) => {
                 if points.shape() == [0, 0] {
                     None
                 } else {
                     Some(points.shape()[1])
                 }
             }
-            Self::Hyperslab(ref hyper) => Some(hyper.len()),
+            Self::Hyperslab(hyper) => Some(hyper.len()),
         }
     }
 
@@ -858,10 +858,8 @@ impl Selection {
     pub fn out_ndim(&self) -> Option<usize> {
         match self {
             Self::All => None,
-            Self::Points(ref points) => Some(usize::from(points.shape() != [0, 0])),
-            Self::Hyperslab(ref hyper) => {
-                Some(hyper.iter().map(|&s| usize::from(s.is_slice())).sum())
-            }
+            Self::Points(points) => Some(usize::from(points.shape() != [0, 0])),
+            Self::Hyperslab(hyper) => Some(hyper.iter().map(|&s| usize::from(s.is_slice())).sum()),
         }
     }
 
@@ -874,9 +872,9 @@ impl Selection {
         let in_shape = in_shape.as_ref();
         match self {
             Self::All => Ok(in_shape.to_owned()),
-            Self::Points(ref points) => check_coords(points, in_shape)
+            Self::Points(points) => check_coords(points, in_shape)
                 .and(Ok(if points.shape() == [0, 0] { vec![] } else { vec![points.shape()[0]] })),
-            Self::Hyperslab(ref hyper) => hyper
+            Self::Hyperslab(hyper) => hyper
                 .clone()
                 .into_raw(in_shape)?
                 .iter()
@@ -899,20 +897,12 @@ impl Selection {
 
     /// Returns `true` if the selection is a sequence of points.
     pub fn is_points(&self) -> bool {
-        if let Self::Points(ref points) = self {
-            points.shape() != [0, 0]
-        } else {
-            false
-        }
+        if let Self::Points(points) = self { points.shape() != [0, 0] } else { false }
     }
 
     /// Returns `true` if the selection is empty.
     pub fn is_none(&self) -> bool {
-        if let Self::Points(points) = self {
-            points.shape() == [0, 0]
-        } else {
-            false
-        }
+        if let Self::Points(points) = self { points.shape() == [0, 0] } else { false }
     }
 
     /// Returns `true` if the selection is a hyperslab.
@@ -925,7 +915,7 @@ impl Display for Selection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::All => write!(f, ".."),
-            Self::Points(ref points) => {
+            Self::Points(points) => {
                 if points.shape() == [0, 0] {
                     write!(f, "[]")
                 } else {
@@ -1082,7 +1072,7 @@ impl_tuple! { T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, }
 
 #[cfg(test)]
 mod test {
-    use ndarray::{arr1, arr2, s, Array2};
+    use ndarray::{Array2, arr1, arr2, s};
     use pretty_assertions::assert_eq;
 
     use super::{
@@ -1440,14 +1430,18 @@ mod test {
             Some(Selection::new(&[])),
         );
 
-        assert!(Hyperslab::try_new(
-            s![.., ..;2, 1.., 1..;2, -3..=1, -3..=-1;2, ..=-1, ..=-1;3, 0..-1, 2..=-1]
-        )
-        .is_err());
-        assert!(Hyperslab::try_new(
-            s![.., ..;2, 1.., 1..;2, -3..=1, -3..=-1;2, ..=-1, ..=-1;3, 0..-1, 2..=-1]
-        )
-        .is_err());
+        assert!(
+            Hyperslab::try_new(
+                s![.., ..;2, 1.., 1..;2, -3..=1, -3..=-1;2, ..=-1, ..=-1;3, 0..-1, 2..=-1]
+            )
+            .is_err()
+        );
+        assert!(
+            Hyperslab::try_new(
+                s![.., ..;2, 1.., 1..;2, -3..=1, -3..=-1;2, ..=-1, ..=-1;3, 0..-1, 2..=-1]
+            )
+            .is_err()
+        );
         assert!(Hyperslab::try_new(s![-5.., -10, 1..-1;2, 1],).is_err());
         assert!(Hyperslab::try_new(s![5..10, 0..1, 1..8;2, 1..2],).is_ok());
 

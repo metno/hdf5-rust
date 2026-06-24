@@ -5,7 +5,7 @@ use crate::internal_prelude::*;
 use hdf5_sys::{
     h5o::H5O_type_t,
     h5p::H5P_DEFAULT,
-    h5r::{hobj_ref_t, H5Rcreate, H5Rdereference, H5Rget_obj_type2},
+    h5r::{H5Rcreate, H5Rdereference, H5Rget_obj_type2, hobj_ref_t},
 };
 use hdf5_types::H5Type;
 
@@ -14,7 +14,7 @@ use hdf5_sys::h5r::H5R_OBJECT as H5R_OBJECT1;
 #[cfg(feature = "1.12.0")]
 use hdf5_sys::h5r::H5R_OBJECT1;
 
-use super::{private::ObjectReferencePrivate, ObjectReference};
+use super::{ObjectReference, private::ObjectReferencePrivate};
 use crate::Location;
 
 #[repr(transparent)]

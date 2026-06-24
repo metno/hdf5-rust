@@ -46,6 +46,7 @@
 // To build docs locally:
 // RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --features blosc,lzf
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![allow(unsafe_op_in_unsafe_fn)]
 
 #[cfg(all(feature = "mpio", not(feature = "have-parallel")))]
 compile_error!("Enabling \"mpio\" feature requires HDF5 library built with MPI support");
@@ -54,16 +55,16 @@ mod export {
     pub use crate::{
         class::from_id,
         dim::{Dimension, Ix},
-        error::{silence_errors, Error, ErrorFrame, ErrorStack, ExpandedErrorStack, Result},
+        error::{Error, ErrorFrame, ErrorStack, ExpandedErrorStack, Result, silence_errors},
         hl::extents::{Extent, Extents, SimpleExtents},
         hl::selection::{Hyperslab, Selection, SliceOrIndex},
         hl::{
-            references::{ObjectReference, ObjectReference1, ReferencedObject},
             Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
             AttributeBuilderEmptyShape, ByteReader, Container, Conversion, Dataset, DatasetBuilder,
             DatasetBuilderData, DatasetBuilderEmpty, DatasetBuilderEmptyShape, Dataspace, Datatype,
             File, FileBuilder, Group, LinkInfo, LinkType, Location, LocationInfo, LocationToken,
             LocationType, Object, OpenMode, PropertyList, Reader, Writer,
+            references::{ObjectReference, ObjectReference1, ReferencedObject},
         },
     };
 
@@ -168,7 +169,7 @@ mod internal_prelude {
     pub use hdf5_sys::{
         h5::{haddr_t, hbool_t, herr_t, hsize_t},
         h5i::H5I_type_t::{self, *},
-        h5i::{hid_t, H5I_INVALID_HID},
+        h5i::{H5I_INVALID_HID, hid_t},
         h5p::H5P_DEFAULT,
         h5s::H5S_ALL,
     };
@@ -224,8 +225,8 @@ pub const HDF5_VERSION: hdf5_sys::Version = hdf5_sys::HDF5_VERSION;
 
 #[cfg(test)]
 pub mod tests {
-    use crate::library_version;
     use crate::HDF5_VERSION;
+    use crate::library_version;
 
     #[test]
     pub fn test_minimum_library_version() {

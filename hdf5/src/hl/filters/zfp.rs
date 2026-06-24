@@ -3,8 +3,8 @@ use std::slice;
 use std::sync::LazyLock;
 
 use hdf5_sys::h5p::{H5Pget_chunk, H5Pget_filter_by_id2, H5Pmodify_filter};
-use hdf5_sys::h5t::{H5Tclose, H5Tget_class, H5Tget_size, H5Tget_super, H5T_FLOAT};
-use hdf5_sys::h5z::{H5Z_class2_t, H5Z_filter_t, H5Zregister, H5Z_CLASS_T_VERS, H5Z_FLAG_REVERSE};
+use hdf5_sys::h5t::{H5T_FLOAT, H5Tclose, H5Tget_class, H5Tget_size, H5Tget_super};
+use hdf5_sys::h5z::{H5Z_CLASS_T_VERS, H5Z_FLAG_REVERSE, H5Z_class2_t, H5Z_filter_t, H5Zregister};
 
 use crate::error::H5ErrorCode;
 use crate::globals::{H5E_CALLBACK, H5E_PLIST};
@@ -12,8 +12,10 @@ use crate::internal_prelude::*;
 
 use zfp_sys::zfp_stream;
 pub use zfp_sys::{
-    bitstream, stream_close, stream_open, zfp_codec_version, zfp_compress, zfp_decompress,
-    zfp_field, zfp_field_1d, zfp_field_2d, zfp_field_3d, zfp_field_4d, zfp_field_alloc,
+    ZFP_HEADER_FULL, ZFP_HEADER_MAGIC, ZFP_HEADER_MAX_BITS, ZFP_HEADER_META, ZFP_HEADER_MODE,
+    ZFP_VERSION_MAJOR, ZFP_VERSION_MINOR, ZFP_VERSION_PATCH, ZFP_VERSION_TWEAK, bitstream,
+    stream_close, stream_open, zfp_codec_version, zfp_compress, zfp_decompress, zfp_field,
+    zfp_field_1d, zfp_field_2d, zfp_field_3d, zfp_field_4d, zfp_field_alloc,
     zfp_field_dimensionality, zfp_field_free, zfp_field_metadata, zfp_field_size, zfp_field_type,
     zfp_library_version, zfp_mode, zfp_mode_zfp_mode_fixed_accuracy,
     zfp_mode_zfp_mode_fixed_precision, zfp_mode_zfp_mode_fixed_rate, zfp_read_header,
@@ -21,9 +23,7 @@ pub use zfp_sys::{
     zfp_stream_maximum_size, zfp_stream_open, zfp_stream_precision, zfp_stream_rate,
     zfp_stream_rewind, zfp_stream_set_accuracy, zfp_stream_set_bit_stream,
     zfp_stream_set_precision, zfp_stream_set_rate, zfp_stream_set_reversible, zfp_type,
-    zfp_type_zfp_type_double, zfp_type_zfp_type_float, zfp_write_header, ZFP_HEADER_FULL,
-    ZFP_HEADER_MAGIC, ZFP_HEADER_MAX_BITS, ZFP_HEADER_META, ZFP_HEADER_MODE, ZFP_VERSION_MAJOR,
-    ZFP_VERSION_MINOR, ZFP_VERSION_PATCH, ZFP_VERSION_TWEAK,
+    zfp_type_zfp_type_double, zfp_type_zfp_type_float, zfp_write_header,
 };
 
 use crate::filters::ZfpMode;
@@ -70,11 +70,7 @@ pub fn register_zfp() -> Result<(), &'static str> {
 
 extern "C" fn can_apply_zfp(_dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) -> i32 {
     let type_class = unsafe { H5Tget_class(type_id) };
-    if type_class == H5T_FLOAT {
-        1
-    } else {
-        0
-    }
+    if type_class == H5T_FLOAT { 1 } else { 0 }
 }
 
 /// Sets the local properties for the ZFP filter.
@@ -151,11 +147,7 @@ extern "C" fn set_local_zfp(dcpl_id: hid_t, type_id: hid_t, _space_id: hid_t) ->
     let nelmts = 4;
 
     let r = unsafe { H5Pmodify_filter(dcpl_id, ZFP_FILTER_ID, flags, nelmts, orig.as_ptr()) };
-    if r < 0 {
-        -1
-    } else {
-        1
-    }
+    if r < 0 { -1 } else { 1 }
 }
 
 const H5Z_ZFP_CD_NELMTS_MAX: usize = 8; // whatever the header says; set correctly.

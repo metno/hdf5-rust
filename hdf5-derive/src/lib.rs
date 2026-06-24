@@ -5,10 +5,10 @@ use std::mem;
 use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
-    parse_macro_input, spanned::Spanned, AttrStyle, Attribute, Data, DeriveInput, Expr, Fields,
-    Index, LitStr, Type, TypeGenerics, TypePath,
+    AttrStyle, Attribute, Data, DeriveInput, Expr, Fields, Index, LitStr, Type, TypeGenerics,
+    TypePath, parse_macro_input, spanned::Spanned,
 };
 
 /// Derive macro generating an impl of the trait `H5Type`.

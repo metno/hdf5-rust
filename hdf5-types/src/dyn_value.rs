@@ -5,7 +5,7 @@ use std::mem;
 use std::ptr;
 use std::slice;
 
-use crate::h5type::{hvl_t, CompoundType, EnumType, FloatSize, H5Type, IntSize, TypeDescriptor};
+use crate::h5type::{CompoundType, EnumType, FloatSize, H5Type, IntSize, TypeDescriptor, hvl_t};
 use crate::string::{VarLenAscii, VarLenUnicode};
 
 fn read_raw<T: Copy>(buf: &[u8]) -> T {
@@ -550,11 +550,7 @@ impl<'a> DynVarLenString<'a> {
     }
 
     fn get_ptr(&self) -> *const u8 {
-        if self.unicode {
-            self.as_unicode().as_ptr()
-        } else {
-            self.as_ascii().as_ptr()
-        }
+        if self.unicode { self.as_unicode().as_ptr() } else { self.as_ascii().as_ptr() }
     }
 
     fn raw_len(&self) -> usize {
@@ -708,10 +704,10 @@ impl<'a> DynValue<'a> {
             Integer(size) | Unsigned(size) => DynInteger::read(buf, true, *size).into(),
             Float(size) => DynFloat::read(buf, *size).into(),
             Boolean => DynScalar::Boolean(read_raw(buf)).into(),
-            Enum(ref tp) => DynEnum::new(tp, DynInteger::read(buf, tp.signed, tp.size)).into(),
-            Compound(ref tp) => DynCompound::new(tp, buf).into(),
-            FixedArray(ref tp, n) => DynArray::new(tp, buf, Some(*n)).into(),
-            VarLenArray(ref tp) => DynArray::new(tp, buf, None).into(),
+            Enum(tp) => DynEnum::new(tp, DynInteger::read(buf, tp.signed, tp.size)).into(),
+            Compound(tp) => DynCompound::new(tp, buf).into(),
+            FixedArray(tp, n) => DynArray::new(tp, buf, Some(*n)).into(),
+            VarLenArray(tp) => DynArray::new(tp, buf, None).into(),
             FixedAscii(_) => DynFixedString::new(buf, false).into(),
             FixedUnicode(_) => DynFixedString::new(buf, true).into(),
             VarLenAscii => DynVarLenString::new(buf, false).into(),

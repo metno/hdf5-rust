@@ -3,6 +3,7 @@
 #![allow(clippy::missing_const_for_fn)]
 #![allow(clippy::redundant_pub_crate)]
 #![allow(clippy::must_use_candidate)]
+#![allow(unsafe_op_in_unsafe_fn)]
 
 //! Types that can be stored and retrieved from a `HDF5` dataset
 //!
