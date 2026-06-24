@@ -1,5 +1,5 @@
 error: cannot derive `H5Type` for empty tuple structs
  --> tests/compile-fail/pd-empty-tuple-struct.rs:8:8
   |
-8 | struct Foo<T>(PhantomData<T>);
+8 | struct Foo<T: 'static>(PhantomData<T>);
   |        ^^^
