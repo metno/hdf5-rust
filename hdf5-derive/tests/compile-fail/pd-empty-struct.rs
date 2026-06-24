@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 #[derive(H5Type)]
 //~^ ERROR proc-macro derive
 //~^^ HELP Cannot derive H5Type for empty structs
-struct Foo<T> {
+struct Foo<T: 'static> {
     t: PhantomData<T>,
 }
 
