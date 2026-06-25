@@ -6,11 +6,14 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-
 ## hdf5 0.12.6
 Release date: Jun 25, 2026
 - Use edition 2024
 - Replace dependency paste with pastey
+
+## hdf5-types 0.11.1
+Release date: Jun 25, 2026
+- Use updated hdf5-sys
 
 ## hdf5-derive 0.10.1
 Release date: Jun 25, 2026
