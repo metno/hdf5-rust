@@ -6,9 +6,9 @@ use std::ptr::{addr_of, addr_of_mut};
 
 use hdf5_sys::h5t::{
     H5T_VARIABLE, H5T_cdata_t, H5T_class_t, H5T_cset_t, H5T_order_t, H5T_sign_t, H5T_str_t,
-    H5Tarray_create2, H5Tcompiler_conv, H5Tcopy, H5Tcreate, H5Tenum_create, H5Tenum_insert,
-    H5Tequal, H5Tfind, H5Tget_array_dims2, H5Tget_array_ndims, H5Tget_class, H5Tget_cset,
-    H5Tget_member_name, H5Tget_member_offset, H5Tget_member_type, H5Tget_member_value,
+    H5Tarray_create2, H5Tcompiler_conv, H5Tcopy, H5Tcreate, H5Tdetect_class, H5Tenum_create,
+    H5Tenum_insert, H5Tequal, H5Tfind, H5Tget_array_dims2, H5Tget_array_ndims, H5Tget_class,
+    H5Tget_cset, H5Tget_member_name, H5Tget_member_offset, H5Tget_member_type, H5Tget_member_value,
     H5Tget_nmembers, H5Tget_order, H5Tget_sign, H5Tget_size, H5Tget_super, H5Tinsert,
     H5Tis_variable_str, H5Tset_cset, H5Tset_size, H5Tset_strpad, H5Tvlen_create,
 };
@@ -282,15 +282,22 @@ impl Datatype {
                 conv <= required,
                 "Cannot convert from {self} to {dst}, required conversion {required}; available: {conv}",
             );
-            Self::ensure_enum_members_convertible(
-                &self.to_descriptor()?,
-                &dst.to_descriptor()?,
-                "datatype",
-            )?;
+            if self.contains_enum()? || dst.contains_enum()? {
+                Self::ensure_enum_members_convertible(
+                    &self.to_descriptor()?,
+                    &dst.to_descriptor()?,
+                    "datatype",
+                )?;
+            }
             Ok(())
         } else {
             fail!("no conversion paths found from '{self:#?}' to '{dst:#?}'",)
         }
+    }
+
+    /// Uses HDF5 class detection to avoid descriptor conversion for non-enum datatypes.
+    fn contains_enum(&self) -> Result<bool> {
+        Ok(h5call!(H5Tdetect_class(self.id(), H5T_class_t::H5T_ENUM))? > 0)
     }
 
     /// Compares enum leaves directly, otherwise follows matching nested descriptors.
@@ -437,6 +444,19 @@ impl Datatype {
                 H5T_class_t::H5T_VLEN => {
                     let base_dt = Self::from_id(H5Tget_super(id))?;
                     Ok(TD::VarLenArray(Box::new(base_dt.to_descriptor()?)))
+                }
+                H5T_class_t::H5T_REFERENCE => {
+                    #[cfg(feature = "1.12.0")]
+                    if h5try!(H5Tequal(id, *crate::globals::H5T_STD_REF)) > 0 {
+                        return Ok(TD::Reference(hdf5_types::Reference::Std));
+                    }
+                    if h5try!(H5Tequal(id, *crate::globals::H5T_STD_REF_OBJ)) > 0 {
+                        Ok(TD::Reference(hdf5_types::Reference::Object))
+                    } else if h5try!(H5Tequal(id, *crate::globals::H5T_STD_REF_DSETREG)) > 0 {
+                        Ok(TD::Reference(hdf5_types::Reference::Region))
+                    } else {
+                        Err("Unsupported reference datatype".into())
+                    }
                 }
                 _ => Err("Unsupported datatype class".into()),
             }
