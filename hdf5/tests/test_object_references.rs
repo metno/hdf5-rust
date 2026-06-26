@@ -153,6 +153,60 @@ fn test_reference_in_datatype<R: ObjectReference>() {
     }
 }
 
+fn test_reference_in_enum_datatype<R: ObjectReference>() {
+    let dummy_data = [1, 2, 3, 4];
+    let file = new_in_memory_file().unwrap();
+    let _ds1 = file.new_dataset_builder().with_data(&dummy_data).create("ds1").unwrap();
+    let ref1 = file.reference::<R>("ds1").unwrap();
+    let _ds2 = file.new_dataset_builder().with_data(&dummy_data).create("ds2").unwrap();
+    let ref2 = file.reference::<R>("ds2").unwrap();
+
+    #[derive(H5Type, Debug, PartialEq)]
+    #[repr(u8)]
+    enum State {
+        First = 0,
+        Second = 1,
+    }
+
+    #[derive(H5Type)]
+    #[repr(C)]
+    struct RefData<R: ObjectReference> {
+        dataset: R,
+        state: State,
+    }
+
+    let ds3 = file
+        .new_dataset_builder()
+        .with_data(&[
+            RefData { dataset: ref1, state: State::First },
+            RefData { dataset: ref2, state: State::Second },
+        ])
+        .create("ds3")
+        .unwrap();
+
+    let read_data = ds3.read_1d::<RefData<R>>().unwrap();
+    assert_eq!(read_data[0].state, State::First);
+    assert_eq!(read_data[1].state, State::Second);
+    match file.dereference(&read_data[0].dataset).unwrap() {
+        ReferencedObject::Dataset(ds) => {
+            assert_eq!(ds.name(), "/ds1");
+            assert_eq!(ds.read_1d::<i32>().unwrap().as_slice().unwrap(), &dummy_data);
+        }
+        _ => {
+            panic!("Expected a dataset reference");
+        }
+    }
+    match file.dereference(&read_data[1].dataset).unwrap() {
+        ReferencedObject::Dataset(ds) => {
+            assert_eq!(ds.name(), "/ds2");
+            assert_eq!(ds.read_1d::<i32>().unwrap().as_slice().unwrap(), &dummy_data);
+        }
+        _ => {
+            panic!("Expected a dataset reference");
+        }
+    }
+}
+
 /* TODO: Should this be possible? Reference not implementing Copy blocks this in a few places.
 #[test]
 fn test_references_in_array_types() {
@@ -218,6 +272,12 @@ fn test_reference_in_datatype_object_reference1() {
     test_reference_in_datatype::<ObjectReference1>();
 }
 
+// Compound datatypes can mix reference and enum fields without enum checks inspecting references.
+#[test]
+fn test_reference_in_enum_datatype_object_reference1() {
+    test_reference_in_enum_datatype::<ObjectReference1>();
+}
+
 #[cfg(feature = "1.12.1")]
 #[test]
 fn test_group_references_with_objectreference2() {
@@ -245,4 +305,11 @@ fn test_reference_errors_on_attribute_object_reference2() {
 #[test]
 fn test_reference_in_datatype_object_reference2() {
     test_reference_in_datatype::<ObjectReference2>();
+}
+
+// Compound datatypes can mix reference and enum fields without enum checks inspecting references.
+#[cfg(feature = "1.12.1")]
+#[test]
+fn test_reference_in_enum_datatype_object_reference2() {
+    test_reference_in_enum_datatype::<ObjectReference2>();
 }

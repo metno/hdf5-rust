@@ -474,6 +474,25 @@ fn test_read_compound_enum_rejects_missing_destination_variants() -> hdf5::Resul
 }
 
 #[test]
+fn test_read_attribute_enum_rejects_missing_destination_variants() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let data =
+        [ExtendedEnum::A, ExtendedEnum::B, ExtendedEnum::C, ExtendedEnum::D, ExtendedEnum::E];
+    let attr = file.new_attr::<ExtendedEnum>().shape(data.len()).create("extended")?;
+    attr.write(&data)?;
+    let actual = attr.read_1d::<ExtendedEnum>()?;
+
+    match attr.read_1d::<ShortEnum>() {
+        Ok(values) => panic!(
+            "reading attribute enum values not representable by the requested type unexpectedly succeeded\nread as short enum: {:?}\nactual extended enum values: {:?}",
+            values.as_slice().unwrap(),
+            actual.as_slice().unwrap(),
+        ),
+        Err(_) => Ok(()),
+    }
+}
+
+#[test]
 fn test_read_write_tuple_struct() -> hdf5::Result<()> {
     test_read_write::<TupleStruct>()
 }
