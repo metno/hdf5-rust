@@ -19,6 +19,50 @@ use hdf5_types::{
 use crate::globals::{H5T_C_S1, H5T_NATIVE_INT, H5T_NATIVE_INT8};
 use crate::internal_prelude::*;
 
+enum EnumMembers<'a> {
+    Bool,
+    Enum(&'a [EnumMember]),
+}
+
+const BOOL_MEMBER_NAMES: &[&str] = &["FALSE", "TRUE"];
+
+impl EnumMembers<'_> {
+    /// Checks the fixed bool names or scans the enum member slice.
+    fn contains_name(&self, name: &str) -> bool {
+        match self {
+            Self::Bool => BOOL_MEMBER_NAMES.contains(&name),
+            Self::Enum(members) => members.iter().any(|member| member.name == name),
+        }
+    }
+
+    /// Collects source names that the destination member set cannot resolve.
+    fn missing_from(&self, dst: &Self) -> Vec<String> {
+        match self {
+            Self::Bool => BOOL_MEMBER_NAMES
+                .iter()
+                .filter(|name| !dst.contains_name(name))
+                .map(|name| name.to_string())
+                .collect(),
+            Self::Enum(members) => members
+                .iter()
+                .filter(|member| !dst.contains_name(&member.name))
+                .map(|member| member.name.to_owned())
+                .collect(),
+        }
+    }
+}
+
+impl<'a> EnumMembers<'a> {
+    /// Borrows enum members from descriptors, bool uses its normalized HDF5 enum names.
+    fn from_descriptor(desc: &'a TypeDescriptor) -> Option<Self> {
+        match desc {
+            TypeDescriptor::Boolean => Some(Self::Bool),
+            TypeDescriptor::Enum(enum_type) => Some(Self::Enum(&enum_type.members)),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(target_endian = "big")]
 use crate::globals::{
     H5T_IEEE_F32BE, H5T_IEEE_F64BE, H5T_STD_I8BE, H5T_STD_I16BE, H5T_STD_I32BE, H5T_STD_I64BE,
@@ -238,10 +282,71 @@ impl Datatype {
                 conv <= required,
                 "Cannot convert from {self} to {dst}, required conversion {required}; available: {conv}",
             );
+            Self::ensure_enum_members_convertible(
+                &self.to_descriptor()?,
+                &dst.to_descriptor()?,
+                "datatype",
+            )?;
             Ok(())
         } else {
             fail!("no conversion paths found from '{self:#?}' to '{dst:#?}'",)
         }
+    }
+
+    /// Compares enum leaves directly, otherwise follows matching nested descriptors.
+    fn ensure_enum_members_convertible(
+        src: &TypeDescriptor, dst: &TypeDescriptor, path: &str,
+    ) -> Result<()> {
+        if let Some((src_members, dst_members)) = Self::enum_member_sets(src, dst) {
+            Self::ensure_enum_member_names_present(&src_members, &dst_members, path)
+        } else {
+            Self::ensure_nested_enum_members_convertible(src, dst, path)
+        }
+    }
+
+    /// Treats bool as the HDF5 FALSE/TRUE enum when both descriptors are enum-like.
+    fn enum_member_sets<'a>(
+        src: &'a TypeDescriptor, dst: &'a TypeDescriptor,
+    ) -> Option<(EnumMembers<'a>, EnumMembers<'a>)> {
+        Some((EnumMembers::from_descriptor(src)?, EnumMembers::from_descriptor(dst)?))
+    }
+
+    /// Fails when a source enum name is absent from the destination enum.
+    fn ensure_enum_member_names_present(
+        src_members: &EnumMembers<'_>, dst_members: &EnumMembers<'_>, path: &str,
+    ) -> Result<()> {
+        let missing = src_members.missing_from(dst_members);
+        ensure!(
+            missing.is_empty(),
+            "Cannot convert enum at {path}: destination is missing source member{pluralize}: {}",
+            missing.join(", "),
+            pluralize = if missing.len() == 1 { "" } else { "s" }
+        );
+        Ok(())
+    }
+
+    /// Descends through matching compound fields and array element descriptors.
+    fn ensure_nested_enum_members_convertible(
+        src: &TypeDescriptor, dst: &TypeDescriptor, path: &str,
+    ) -> Result<()> {
+        match (src, dst) {
+            (TypeDescriptor::Compound(src_type), TypeDescriptor::Compound(dst_type)) => {
+                for &CompoundField { ref name, ref ty, offset: _, index: _ } in &src_type.fields {
+                    if let Some(dst_field) =
+                        dst_type.fields.iter().find(|dst_field| dst_field.name == *name)
+                    {
+                        let field_path = format!("{path}.{name}");
+                        Self::ensure_enum_members_convertible(&ty, &dst_field.ty, &field_path)?;
+                    }
+                }
+            }
+            (TypeDescriptor::FixedArray(src_type, _), TypeDescriptor::FixedArray(dst_type, _))
+            | (TypeDescriptor::VarLenArray(src_type), TypeDescriptor::VarLenArray(dst_type)) => {
+                Self::ensure_enum_members_convertible(src_type, dst_type, path)?;
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     /// Returns a type descriptor for the datatype.
