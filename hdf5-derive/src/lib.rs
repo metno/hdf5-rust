@@ -127,6 +127,22 @@ fn is_phantom_data(ty: &Type) -> bool {
     }
 }
 
+fn is_hdf5_skip(attrs: &[Attribute]) -> bool {
+    let mut skip = false;
+    let attr = match attrs.iter().find(|a| a.path().is_ident("hdf5")) {
+        Some(a) => a,
+        None => return false,
+    };
+    attr.parse_nested_meta(|meta| {
+        if meta.path.is_ident("skip") {
+            skip = true;
+        }
+        Ok(())
+    })
+    .ok();
+    skip
+}
+
 fn find_repr(attrs: &[Attribute], expected: &[&str]) -> Option<Ident> {
     let mut repr = None;
     for attr in attrs.iter() {
@@ -181,8 +197,11 @@ fn impl_trait(
             Fields::Unit => syn::Error::new(ty.span(), "cannot derive `H5Type` for unit structs")
                 .into_compile_error(),
             Fields::Named(ref fields) => {
-                let fields: Vec<_> =
-                    fields.named.iter().filter(|f| !is_phantom_data(&f.ty)).collect();
+                let fields: Vec<_> = fields
+                    .named
+                    .iter()
+                    .filter(|f| !is_phantom_data(&f.ty) && !is_hdf5_skip(&f.attrs))
+                    .collect();
                 if fields.is_empty() {
                     return syn::Error::new(ty.span(), "cannot derive `H5Type` for empty structs")
                         .into_compile_error();
@@ -214,7 +233,7 @@ fn impl_trait(
                     .unnamed
                     .iter()
                     .enumerate()
-                    .filter(|&(_, f)| !is_phantom_data(&f.ty))
+                    .filter(|&(_, f)| !is_phantom_data(&f.ty) && !is_hdf5_skip(&f.attrs))
                     .map(|(i, f)| (Index::from(i), f))
                     .unzip();
                 if fields.is_empty() {
