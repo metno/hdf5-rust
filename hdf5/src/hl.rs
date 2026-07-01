@@ -26,7 +26,7 @@ pub use self::{
     dataspace::Dataspace,
     datatype::{Conversion, Datatype},
     file::{File, FileBuilder, OpenMode},
-    group::{Group, LinkInfo, LinkType},
+    group::{Group, GroupBuilder, LinkInfo, LinkType},
     location::{Location, LocationInfo, LocationToken, LocationType},
     object::Object,
     plist::PropertyList,
