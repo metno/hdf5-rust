@@ -332,6 +332,182 @@ fn test_read_write_enum() -> hdf5::Result<()> {
     test_read_write::<Enum>()
 }
 
+#[derive(hdf5::H5Type, Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
+#[allow(dead_code)]
+enum ShortEnum {
+    A = 0,
+    B = 1,
+    C = 2,
+}
+
+#[derive(hdf5::H5Type, Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
+enum ExtendedEnum {
+    A = 0,
+    B = 1,
+    C = 2,
+    D = 3,
+    E = 4,
+}
+
+#[derive(hdf5::H5Type, Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+struct ShortEnumRecord {
+    value: ShortEnum,
+}
+
+#[derive(hdf5::H5Type, Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+struct ExtendedEnumRecord {
+    value: ExtendedEnum,
+}
+
+#[test]
+fn test_read_enum_rejects_missing_destination_variants() -> hdf5::Result<()> {
+    // Regression test for https://github.com/metno/hdf5-rust/issues/131
+    let file = new_in_memory_file()?;
+    let data =
+        [ExtendedEnum::A, ExtendedEnum::B, ExtendedEnum::C, ExtendedEnum::D, ExtendedEnum::E];
+    let ds = file.new_dataset::<ExtendedEnum>().shape(data.len()).create("extended")?;
+    ds.write(&data)?;
+    let actual = ds.read_1d::<ExtendedEnum>()?;
+
+    match ds.read_1d::<ShortEnum>() {
+        Ok(values) => panic!(
+            "reading enum values not representable by the requested type unexpectedly succeeded\nread as short enum: {:?}\nactual extended enum values: {:?}",
+            values.as_slice().unwrap(),
+            actual.as_slice().unwrap(),
+        ),
+        Err(_) => Ok(()),
+    }
+}
+
+#[test]
+fn test_read_enum_allows_destination_superset() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let data = [ShortEnum::A, ShortEnum::B, ShortEnum::C];
+    let ds = file.new_dataset::<ShortEnum>().shape(data.len()).create("short")?;
+    ds.write(&data)?;
+
+    let values = ds.read_1d::<ExtendedEnum>()?;
+    assert_eq!(values.as_slice().unwrap(), &[ExtendedEnum::A, ExtendedEnum::B, ExtendedEnum::C],);
+    Ok(())
+}
+
+#[test]
+fn test_read_enum_converts_by_member_name() -> hdf5::Result<()> {
+    // HDF5 enum types are symbol/value pairs, and enum conversion has a "No field" case:
+    // https://support.hdfgroup.org/documentation/hdf5/latest/_h5_t__u_g.html#subsubsec_datatype_other_enum
+    // https://support.hdfgroup.org/documentation/hdf5/latest/_h5_t__u_g.html#subsec_datatype_transfer
+    #[derive(hdf5::H5Type, Clone, Copy, Debug, PartialEq)]
+    #[repr(u8)]
+    enum StoredNumberedEnum {
+        A = 0,
+        B = 1,
+        C = 2,
+    }
+
+    #[derive(hdf5::H5Type, Clone, Copy, Debug, PartialEq)]
+    #[repr(u8)]
+    enum MemoryNumberedEnum {
+        A = 2,
+        B = 1,
+        C = 0,
+    }
+
+    let file = new_in_memory_file()?;
+    let data = [StoredNumberedEnum::A, StoredNumberedEnum::B, StoredNumberedEnum::C];
+    let ds = file.new_dataset::<StoredNumberedEnum>().shape(data.len()).create("numbered")?;
+    ds.write(&data)?;
+
+    let values = ds.read_1d::<MemoryNumberedEnum>()?;
+    assert_eq!(
+        values.as_slice().unwrap(),
+        &[MemoryNumberedEnum::A, MemoryNumberedEnum::B, MemoryNumberedEnum::C],
+    );
+    Ok(())
+}
+
+#[test]
+fn test_write_enum_rejects_missing_dataset_variants() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let data =
+        [ExtendedEnum::A, ExtendedEnum::B, ExtendedEnum::C, ExtendedEnum::D, ExtendedEnum::E];
+    let ds = file.new_dataset::<ShortEnum>().shape(data.len()).create("short")?;
+
+    match ds.write(&data) {
+        Ok(()) => {
+            let stored = ds.read_1d::<ShortEnum>()?;
+            panic!(
+                "writing enum values not representable by the dataset type unexpectedly succeeded\nwritten as extended enum: {:?}\nstored as short enum: {:?}",
+                data,
+                stored.as_slice().unwrap(),
+            );
+        }
+        Err(_) => Ok(()),
+    }
+}
+
+#[test]
+fn test_read_compound_enum_rejects_missing_destination_variants() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let data = [
+        ExtendedEnumRecord { value: ExtendedEnum::A },
+        ExtendedEnumRecord { value: ExtendedEnum::B },
+        ExtendedEnumRecord { value: ExtendedEnum::C },
+        ExtendedEnumRecord { value: ExtendedEnum::D },
+        ExtendedEnumRecord { value: ExtendedEnum::E },
+    ];
+    let ds = file.new_dataset::<ExtendedEnumRecord>().shape(data.len()).create("extended")?;
+    ds.write(&data)?;
+    let actual = ds.read_1d::<ExtendedEnumRecord>()?;
+
+    match ds.read_1d::<ShortEnumRecord>() {
+        Ok(values) => panic!(
+            "reading compound enum values not representable by the requested type unexpectedly succeeded\nread as short record: {:?}\nactual extended record values: {:?}",
+            values.as_slice().unwrap(),
+            actual.as_slice().unwrap(),
+        ),
+        Err(_) => Ok(()),
+    }
+}
+
+#[test]
+fn test_read_compound_enum_accepts_superset() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let data = [
+        ShortEnumRecord { value: ShortEnum::A },
+        ShortEnumRecord { value: ShortEnum::B },
+        ShortEnumRecord { value: ShortEnum::C },
+        ShortEnumRecord { value: ShortEnum::A },
+        ShortEnumRecord { value: ShortEnum::B },
+    ];
+    let ds = file.new_dataset::<ShortEnumRecord>().shape(data.len()).create("extended")?;
+    ds.write(&data)?;
+
+    ds.read_1d::<ExtendedEnumRecord>().map(|_| ())
+}
+
+#[test]
+fn test_read_attribute_enum_rejects_missing_destination_variants() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let data =
+        [ExtendedEnum::A, ExtendedEnum::B, ExtendedEnum::C, ExtendedEnum::D, ExtendedEnum::E];
+    let attr = file.new_attr::<ExtendedEnum>().shape(data.len()).create("extended")?;
+    attr.write(&data)?;
+    let actual = attr.read_1d::<ExtendedEnum>()?;
+
+    match attr.read_1d::<ShortEnum>() {
+        Ok(values) => panic!(
+            "reading attribute enum values not representable by the requested type unexpectedly succeeded\nread as short enum: {:?}\nactual extended enum values: {:?}",
+            values.as_slice().unwrap(),
+            actual.as_slice().unwrap(),
+        ),
+        Err(_) => Ok(()),
+    }
+}
+
 #[test]
 fn test_read_write_tuple_struct() -> hdf5::Result<()> {
     test_read_write::<TupleStruct>()

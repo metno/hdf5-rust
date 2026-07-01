@@ -1,10 +1,13 @@
 # Changelog
 
-## hdf5 unreleased
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
+
+
+## hdf5 unreleased
+- Restrict enum conversions (breaking change, it is now an error reading incompatible enums)
 
 ## hdf5 0.12.6
 Release date: Jun 25, 2026
