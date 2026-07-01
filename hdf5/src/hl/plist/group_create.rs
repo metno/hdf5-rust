@@ -10,7 +10,6 @@ use crate::internal_prelude::*;
 
 /// Group creation properties.
 #[repr(transparent)]
-#[derive(Clone)]
 pub struct GroupCreate(Handle);
 
 impl ObjectClass for GroupCreate {
@@ -32,6 +31,12 @@ impl ObjectClass for GroupCreate {
             self.class()
         );
         Ok(())
+    }
+}
+
+impl Clone for GroupCreate {
+    fn clone(&self) -> Self {
+        unsafe { self.deref().clone().cast_unchecked() }
     }
 }
 
