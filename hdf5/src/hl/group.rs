@@ -6,7 +6,7 @@ use std::ptr::addr_of_mut;
 use hdf5_sys::{
     h5::{H5_index_t, H5_iter_order_t, hsize_t},
     h5d::H5Dopen2,
-    h5g::{H5G_info_t, H5Gcreate2, H5Gget_info, H5Gopen2},
+    h5g::{H5G_info_t, H5Gcreate_anon, H5Gcreate2, H5Gget_create_plist, H5Gget_info, H5Gopen2},
     h5l::{
         H5L_SAME_LOC, H5L_info_t, H5L_iterate_t, H5L_type_t, H5Lcreate_external, H5Lcreate_hard,
         H5Lcreate_soft, H5Ldelete, H5Lexists, H5Literate, H5Lmove,
@@ -16,6 +16,9 @@ use hdf5_sys::{
 };
 
 use crate::globals::H5P_LINK_CREATE;
+use crate::hl::dataset::Maybe;
+use crate::hl::plist::group_create::{GroupCreate, GroupCreateBuilder};
+use crate::hl::plist::link_create::{CharEncoding, LinkCreate, LinkCreateBuilder};
 use crate::internal_prelude::*;
 use crate::{Location, LocationType};
 
@@ -86,17 +89,15 @@ impl Group {
     /// Create a new group in a file or group.
     pub fn create_group(&self, name: &str) -> Result<Self> {
         // TODO: &mut self?
-        h5lock!({
-            let lcpl = make_lcpl()?;
-            let name = to_cstring(name)?;
-            Self::from_id(h5try!(H5Gcreate2(
-                self.id(),
-                name.as_ptr(),
-                lcpl.id(),
-                H5P_DEFAULT,
-                H5P_DEFAULT
-            )))
-        })
+        self.create_group_builder().create(name)
+    }
+
+    /// Instantiates a new group builder for configuring group creation properties.
+    ///
+    /// Intermediate groups are created automatically (as with [`create_group`](Self::create_group))
+    /// unless disabled via [`GroupBuilder::create_intermediate_group`].
+    pub fn create_group_builder(&self) -> GroupBuilder {
+        GroupBuilder::new(self)
     }
 
     /// Opens an existing group in a file or group.
@@ -214,6 +215,207 @@ impl Group {
     pub fn dataset(&self, name: &str) -> Result<Dataset> {
         let name = to_cstring(name)?;
         Dataset::from_id(h5try!(H5Dopen2(self.id(), name.as_ptr(), H5P_DEFAULT)))
+    }
+
+    /// Returns a copy of the group creation property list.
+    pub fn create_plist(&self) -> Result<GroupCreate> {
+        h5lock!(GroupCreate::from_id(h5try!(H5Gget_create_plist(self.id()))))
+    }
+
+    /// A short alias for `create_plist()`.
+    pub fn gcpl(&self) -> Result<GroupCreate> {
+        self.create_plist()
+    }
+}
+
+/// A builder for creating a new [`Group`].
+///
+/// Created via [`Group::create_group_builder`]. Allows configuring the group
+/// creation property list (e.g. [`obj_track_times`](Self::obj_track_times)) and the
+/// link creation property list before creating the group.
+#[derive(Clone)]
+pub struct GroupBuilder {
+    parent: Result<Handle>,
+    gcpl_base: Option<GroupCreate>,
+    gcpl_builder: GroupCreateBuilder,
+    lcpl_base: Option<LinkCreate>,
+    lcpl_builder: LinkCreateBuilder,
+}
+
+impl GroupBuilder {
+    /// Creates a new group builder with the given parent location.
+    pub fn new(parent: &Group) -> Self {
+        // enable creation of intermediate groups by default, matching `create_group`
+        let mut lcpl_builder = LinkCreateBuilder::default();
+        lcpl_builder.create_intermediate_group(true);
+        Self {
+            parent: parent.try_borrow(),
+            gcpl_base: None,
+            gcpl_builder: GroupCreateBuilder::default(),
+            lcpl_base: None,
+            lcpl_builder,
+        }
+    }
+
+    /// Uses an existing group creation property list as the base.
+    #[inline]
+    #[must_use]
+    pub fn set_create_plist(mut self, gcpl: &GroupCreate) -> Self {
+        self.gcpl_base = Some(gcpl.clone());
+        self
+    }
+
+    /// Alias for [`set_create_plist`](Self::set_create_plist).
+    #[inline]
+    #[must_use]
+    pub fn set_gcpl(self, gcpl: &GroupCreate) -> Self {
+        self.set_create_plist(gcpl)
+    }
+
+    /// Returns a mutable reference to the group creation property list builder.
+    #[inline]
+    pub fn create_plist(&mut self) -> &mut GroupCreateBuilder {
+        &mut self.gcpl_builder
+    }
+
+    /// Alias for [`create_plist`](Self::create_plist).
+    #[inline]
+    pub fn gcpl(&mut self) -> &mut GroupCreateBuilder {
+        self.create_plist()
+    }
+
+    /// Applies a closure to the group creation property list builder.
+    #[inline]
+    #[must_use]
+    pub fn with_create_plist<F>(mut self, func: F) -> Self
+    where
+        F: Fn(&mut GroupCreateBuilder) -> &mut GroupCreateBuilder,
+    {
+        func(&mut self.gcpl_builder);
+        self
+    }
+
+    /// Alias for [`with_create_plist`](Self::with_create_plist).
+    #[inline]
+    #[must_use]
+    pub fn with_gcpl<F>(self, func: F) -> Self
+    where
+        F: Fn(&mut GroupCreateBuilder) -> &mut GroupCreateBuilder,
+    {
+        self.with_create_plist(func)
+    }
+
+    #[inline]
+    #[must_use]
+    #[doc = "\u{21b3} [`GroupCreateBuilder::obj_track_times`](crate::plist::GroupCreateBuilder::obj_track_times)"]
+    pub fn obj_track_times(mut self, track_times: bool) -> Self {
+        self.gcpl_builder.obj_track_times(track_times);
+        self
+    }
+
+    /// Uses an existing link creation property list as the base.
+    #[inline]
+    #[must_use]
+    pub fn set_link_create_plist(mut self, lcpl: &LinkCreate) -> Self {
+        self.lcpl_base = Some(lcpl.clone());
+        self
+    }
+
+    /// Alias for [`set_link_create_plist`](Self::set_link_create_plist).
+    #[inline]
+    #[must_use]
+    pub fn set_lcpl(self, lcpl: &LinkCreate) -> Self {
+        self.set_link_create_plist(lcpl)
+    }
+
+    /// Returns a mutable reference to the link creation property list builder.
+    #[inline]
+    pub fn link_create_plist(&mut self) -> &mut LinkCreateBuilder {
+        &mut self.lcpl_builder
+    }
+
+    /// Alias for [`link_create_plist`](Self::link_create_plist).
+    #[inline]
+    pub fn lcpl(&mut self) -> &mut LinkCreateBuilder {
+        self.link_create_plist()
+    }
+
+    /// Applies a closure to the link creation property list builder.
+    #[inline]
+    #[must_use]
+    pub fn with_link_create_plist<F>(mut self, func: F) -> Self
+    where
+        F: Fn(&mut LinkCreateBuilder) -> &mut LinkCreateBuilder,
+    {
+        func(&mut self.lcpl_builder);
+        self
+    }
+
+    /// Alias for [`with_link_create_plist`](Self::with_link_create_plist).
+    #[inline]
+    #[must_use]
+    pub fn with_lcpl<F>(self, func: F) -> Self
+    where
+        F: Fn(&mut LinkCreateBuilder) -> &mut LinkCreateBuilder,
+    {
+        self.with_link_create_plist(func)
+    }
+
+    #[inline]
+    #[must_use]
+    #[doc = "\u{21b3} [`LinkCreateBuilder::create_intermediate_group`](crate::plist::LinkCreateBuilder::create_intermediate_group)"]
+    pub fn create_intermediate_group(mut self, create: bool) -> Self {
+        self.lcpl_builder.create_intermediate_group(create);
+        self
+    }
+
+    #[inline]
+    #[must_use]
+    #[doc = "\u{21b3} [`LinkCreateBuilder::char_encoding`](crate::plist::LinkCreateBuilder::char_encoding)"]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.lcpl_builder.char_encoding(encoding);
+        self
+    }
+
+    fn build_gcpl(&self) -> Result<GroupCreate> {
+        let mut gcpl = match &self.gcpl_base {
+            Some(gcpl) => gcpl.clone(),
+            None => GroupCreate::try_new()?,
+        };
+        self.gcpl_builder.apply(&mut gcpl).map(|()| gcpl)
+    }
+
+    fn build_lcpl(&self) -> Result<LinkCreate> {
+        let mut lcpl = match &self.lcpl_base {
+            Some(lcpl) => lcpl.clone(),
+            None => LinkCreate::try_new()?,
+        };
+        self.lcpl_builder.apply(&mut lcpl).map(|()| lcpl)
+    }
+
+    /// Creates the group.
+    ///
+    /// Passing a name creates a named (linked) group. Passing `None` creates an
+    /// anonymous group that is not linked into the file until linked explicitly.
+    pub fn create<'n, T: Into<Maybe<&'n str>>>(&self, name: T) -> Result<Group> {
+        h5lock!({
+            let parent = try_ref_clone!(self.parent);
+            let gcpl = self.build_gcpl()?;
+            let name: Option<&str> = name.into().into();
+            if let Some(name) = name {
+                let lcpl = self.build_lcpl()?;
+                let name = to_cstring(name)?;
+                Group::from_id(h5try!(H5Gcreate2(
+                    parent.id(),
+                    name.as_ptr(),
+                    lcpl.id(),
+                    gcpl.id(),
+                    H5P_DEFAULT
+                )))
+            } else {
+                Group::from_id(h5try!(H5Gcreate_anon(parent.id(), gcpl.id(), H5P_DEFAULT)))
+            }
+        })
     }
 }
 
@@ -456,6 +658,95 @@ pub mod tests {
             file.group("foo").unwrap().group("bar").unwrap();
             file.create_group("x/y/").unwrap();
             file.group("/x").unwrap().group("./y/").unwrap();
+        })
+    }
+
+    #[test]
+    pub fn test_create_group_builder() {
+        with_tmp_file(|file| {
+            // the builder creates a named group
+            let group = file.create_group_builder().create("foo").unwrap();
+            assert_eq!(group.name(), "/foo");
+
+            // intermediate groups are created by default, and can be disabled
+            file.create_group_builder().create("a/b/c").unwrap();
+            assert!(file.group("/a/b/c").is_ok());
+            assert!(
+                file.create_group_builder()
+                    .create_intermediate_group(false)
+                    .create("x/y/z")
+                    .is_err()
+            );
+        })
+    }
+
+    #[test]
+    pub fn test_create_group_anon() {
+        with_tmp_file(|file| {
+            // passing `None` creates an anonymous group
+            let group = file.create_group_builder().create(None).unwrap();
+            assert!(group.is_valid());
+            // an anonymous group is not linked anywhere yet
+            assert_eq!(file.len(), 0);
+        })
+    }
+
+    #[test]
+    pub fn test_group_track_times_default() {
+        with_tmp_file(|file| {
+            // groups track object times by default
+            let group = file.create_group("default").unwrap();
+            assert!(group.create_plist().unwrap().obj_track_times());
+            // and the builder can request it explicitly
+            let enabled =
+                file.create_group_builder().obj_track_times(true).create("enabled").unwrap();
+            assert!(enabled.create_plist().unwrap().obj_track_times());
+        })
+    }
+
+    // `obj_track_times` maps to a flag bit in the object header. Only a version-2
+    // object header carries that flag (`H5O_HDR_STORE_TIMES` in the header prefix),
+    // so only a v2 header can record the setting and report it back through
+    // `H5Gget_create_plist`. A version-1 header has no such flag, so a disabled
+    // setting is not stored and reads back as the default (enabled). Version-2
+    // headers need at least the v18 file format. libhdf5 2.0 makes that the
+    // default, older versions have to opt in with the library version bounds. The
+    // `libver_*` API itself only exists from 1.10.2 on. See the format spec section
+    // IV.A.1.b, where bit 5 of the version-2 prefix Flags field stores the times
+    // (the version-1 prefix in IV.A.1.a has no Flags field):
+    // https://support.hdfgroup.org/documentation/hdf5/latest/_f_m_t2.html#subsubsec_fmt2_dataobject_hdr_prefix_two
+    #[cfg(feature = "1.10.2")]
+    #[test]
+    pub fn test_group_track_times_disabled() {
+        use crate::hl::plist::file_access::LibraryVersion;
+        // exercise both the minimum v18 format and the newest one
+        for low in [LibraryVersion::V18, LibraryVersion::latest()] {
+            with_tmp_path(|path| {
+                let file = File::with_options()
+                    .with_fapl(|fapl| fapl.libver_bounds(low, LibraryVersion::latest()))
+                    .create(&path)
+                    .unwrap();
+                let group = file.create_group_builder().obj_track_times(false).create("g").unwrap();
+                // the disabled setting round-trips through the created group
+                assert!(!group.create_plist().unwrap().obj_track_times());
+                // `gcpl` is an alias for `create_plist` and reports the same value
+                assert!(!file.group("g").unwrap().gcpl().unwrap().obj_track_times());
+            })
+        }
+    }
+
+    #[cfg(feature = "1.10.2")]
+    #[test]
+    pub fn test_group_track_times_anon() {
+        with_tmp_path(|path| {
+            let file =
+                File::with_options().with_fapl(|fapl| fapl.libver_v18()).create(&path).unwrap();
+            // an anonymous group also honors the disabled time tracking setting
+            let group = file.create_group_builder().obj_track_times(false).create(None).unwrap();
+            assert!(group.is_valid());
+            assert!(!group.create_plist().unwrap().obj_track_times());
+            // and it is still not linked anywhere in the file
+            assert_eq!(file.len(), 0);
         })
     }
 

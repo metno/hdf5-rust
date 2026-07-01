@@ -16,6 +16,7 @@ pub mod dataset_access;
 pub mod dataset_create;
 pub mod file_access;
 pub mod file_create;
+pub mod group_create;
 pub mod link_create;
 pub mod object_copy;
 

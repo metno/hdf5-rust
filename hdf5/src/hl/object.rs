@@ -150,10 +150,20 @@ pub mod tests {
     #[test]
     pub fn test_incref_decref_drop() {
         use std::mem::ManuallyDrop;
-        let mut obj = TestObject::from_id(h5call!(H5Pcreate(*H5P_FILE_ACCESS)).unwrap()).unwrap();
-        let obj_id = obj.id();
-        obj = TestObject::from_id(h5call!(H5Pcreate(*H5P_FILE_ACCESS)).unwrap()).unwrap();
-        assert_ne!(obj_id, obj.id());
+        // Hold the lock across both allocations and the comparison. libhdf5 hands
+        // out identifiers from a single global pool shared with the other test
+        // threads, and it recycles freed ones. On the old non-thread-safe 1.8
+        // builds, allocations and frees interleaved from other threads can make
+        // these two H5Pcreate calls return the same identifier, which flakily
+        // trips the assert_ne. Serialising the sequence keeps the ids distinct.
+        let obj = h5lock!({
+            let mut obj =
+                TestObject::from_id(h5call!(H5Pcreate(*H5P_FILE_ACCESS)).unwrap()).unwrap();
+            let obj_id = obj.id();
+            obj = TestObject::from_id(h5call!(H5Pcreate(*H5P_FILE_ACCESS)).unwrap()).unwrap();
+            assert_ne!(obj_id, obj.id());
+            obj
+        });
         assert!(obj.id() > 0);
         assert!(obj.is_valid());
         assert!(obj.handle().is_valid_id());

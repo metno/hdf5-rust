@@ -625,6 +625,30 @@ fn test_dapl_set_virtual_printf_gap() -> hdf5::Result<()> {
     Ok(())
 }
 
+type GC = GroupCreate;
+type GCB = GroupCreateBuilder;
+
+#[test]
+fn test_gcpl_common() -> hdf5::Result<()> {
+    test_pl_common!(GC, PropertyListClass::GroupCreate, |b: &mut GCB| b
+        .obj_track_times(false)
+        .finish());
+    Ok(())
+}
+
+#[test]
+fn test_gcpl_obj_track_times() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_obj_track_times()?, true);
+    assert_eq!(GC::try_new()?.obj_track_times(), true);
+    test_pl!(GC, obj_track_times: true);
+    test_pl!(GC, obj_track_times: false);
+    assert_eq!(
+        GCB::from_plist(&GCB::new().obj_track_times(false).finish()?)?.finish()?.obj_track_times(),
+        false
+    );
+    Ok(())
+}
+
 type DC = DatasetCreate;
 type DCB = DatasetCreateBuilder;
 
