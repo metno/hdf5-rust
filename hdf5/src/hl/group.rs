@@ -395,7 +395,7 @@ impl GroupBuilder {
 
     /// Creates the group.
     ///
-    /// Passing a name creates a named (linked) group; passing `None` creates an
+    /// Passing a name creates a named (linked) group. Passing `None` creates an
     /// anonymous group that is not linked into the file until linked explicitly.
     pub fn create<'n, T: Into<Maybe<&'n str>>>(&self, name: T) -> Result<Group> {
         h5lock!({
@@ -664,16 +664,9 @@ pub mod tests {
     #[test]
     pub fn test_create_group_builder() {
         with_tmp_file(|file| {
-            // time tracking is enabled by default
-            let plain = file.create_group("plain").unwrap();
-            assert_eq!(plain.create_plist().unwrap().obj_track_times(), true);
-
-            // the builder can disable time tracking on the new group
-            let tracked =
-                file.create_group_builder().obj_track_times(false).create("tracked").unwrap();
-            assert_eq!(tracked.name(), "/tracked");
-            assert_eq!(tracked.create_plist().unwrap().obj_track_times(), false);
-            assert_eq!(file.group("tracked").unwrap().gcpl().unwrap().obj_track_times(), false);
+            // the builder creates a named group
+            let group = file.create_group_builder().create("foo").unwrap();
+            assert_eq!(group.name(), "/foo");
 
             // intermediate groups are created by default, and can be disabled
             file.create_group_builder().create("a/b/c").unwrap();
@@ -691,10 +684,68 @@ pub mod tests {
     pub fn test_create_group_anon() {
         with_tmp_file(|file| {
             // passing `None` creates an anonymous group
+            let group = file.create_group_builder().create(None).unwrap();
+            assert!(group.is_valid());
+            // an anonymous group is not linked anywhere yet
+            assert_eq!(file.len(), 0);
+        })
+    }
+
+    #[test]
+    pub fn test_group_track_times_default() {
+        with_tmp_file(|file| {
+            // groups track object times by default
+            let group = file.create_group("default").unwrap();
+            assert!(group.create_plist().unwrap().obj_track_times());
+            // and the builder can request it explicitly
+            let enabled =
+                file.create_group_builder().obj_track_times(true).create("enabled").unwrap();
+            assert!(enabled.create_plist().unwrap().obj_track_times());
+        })
+    }
+
+    // `obj_track_times` maps to a flag bit in the object header. Only a version-2
+    // object header carries that flag (`H5O_HDR_STORE_TIMES` in the header prefix),
+    // so only a v2 header can record the setting and report it back through
+    // `H5Gget_create_plist`. A version-1 header has no such flag, so a disabled
+    // setting is not stored and reads back as the default (enabled). Version-2
+    // headers need at least the v18 file format. libhdf5 2.0 makes that the
+    // default, older versions have to opt in with the library version bounds. The
+    // `libver_*` API itself only exists from 1.10.2 on. See the format spec section
+    // IV.A.1.b, where bit 5 of the version-2 prefix Flags field stores the times
+    // (the version-1 prefix in IV.A.1.a has no Flags field):
+    // https://support.hdfgroup.org/documentation/hdf5/latest/_f_m_t2.html#subsubsec_fmt2_dataobject_hdr_prefix_two
+    #[cfg(feature = "1.10.2")]
+    #[test]
+    pub fn test_group_track_times_disabled() {
+        use crate::hl::plist::file_access::LibraryVersion;
+        // exercise both the minimum v18 format and the newest one
+        for low in [LibraryVersion::V18, LibraryVersion::latest()] {
+            with_tmp_path(|path| {
+                let file = File::with_options()
+                    .with_fapl(|fapl| fapl.libver_bounds(low, LibraryVersion::latest()))
+                    .create(&path)
+                    .unwrap();
+                let group = file.create_group_builder().obj_track_times(false).create("g").unwrap();
+                // the disabled setting round-trips through the created group
+                assert!(!group.create_plist().unwrap().obj_track_times());
+                // `gcpl` is an alias for `create_plist` and reports the same value
+                assert!(!file.group("g").unwrap().gcpl().unwrap().obj_track_times());
+            })
+        }
+    }
+
+    #[cfg(feature = "1.10.2")]
+    #[test]
+    pub fn test_group_track_times_anon() {
+        with_tmp_path(|path| {
+            let file =
+                File::with_options().with_fapl(|fapl| fapl.libver_v18()).create(&path).unwrap();
+            // an anonymous group also honors the disabled time tracking setting
             let group = file.create_group_builder().obj_track_times(false).create(None).unwrap();
             assert!(group.is_valid());
-            assert_eq!(group.create_plist().unwrap().obj_track_times(), false);
-            // an anonymous group is not linked anywhere yet
+            assert!(!group.create_plist().unwrap().obj_track_times());
+            // and it is still not linked anywhere in the file
             assert_eq!(file.len(), 0);
         })
     }
