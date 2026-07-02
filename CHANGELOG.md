@@ -1,5 +1,8 @@
 # Changelog
 
+## hdf5 unreleased
+- Added `GroupCreate` property list and `GroupBuilder` for configurable group creation
+- Added support for setting `obj_track_times` when creating groups
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
