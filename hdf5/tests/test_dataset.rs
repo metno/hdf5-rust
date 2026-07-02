@@ -484,16 +484,45 @@ mod test_reading_and_written_skipped_structs {
     use super::*;
     #[derive(hdf5_derive::H5Type)]
     #[repr(C)]
+    struct PlainStruct {
+        id: u32,
+        value: u8,
+    }
+    #[derive(hdf5_derive::H5Type)]
+    #[repr(C)]
     struct NamedSkippedStruct {
         id: u32,
         #[hdf5(skip)]
         skipped: String,
         value: u8,
     }
-
     #[derive(hdf5_derive::H5Type)]
     #[repr(C)]
     struct TupleSkippedStruct(u32, #[hdf5(skip)] Vec<u8>, u8);
+
+    #[test]
+    fn skipped_and_plain_structs_deserialize_the_same() {
+        let written = vec![PlainStruct { id: 1, value: 10 }, PlainStruct { id: 2, value: 20 }];
+
+        let dataset = new_in_memory_file()
+            .unwrap()
+            .new_dataset::<PlainStruct>()
+            .shape((written.len(),))
+            .create("plain")
+            .unwrap();
+
+        dataset.write_raw(&written).unwrap();
+
+        let plain = dataset.read_raw::<PlainStruct>().unwrap();
+        let skipped = dataset.read_raw::<NamedSkippedStruct>().unwrap();
+
+        assert_eq!(plain.len(), skipped.len());
+        for (p, s) in plain.iter().zip(skipped.iter()) {
+            assert_eq!(p.id, s.id);
+            assert_eq!(p.value, s.value);
+            assert_eq!(s.skipped, String::default());
+        }
+    }
 
     #[test]
     fn named_struct_defaults_skipped_field() {
@@ -523,7 +552,7 @@ mod test_reading_and_written_skipped_structs {
     }
 
     #[test]
-    fn tuple_struct_defaults_skipped_field_in_array_roundtrip() {
+    fn tuple_struct_defaults_skipped_field() {
         let written = vec![
             TupleSkippedStruct(11, vec![1, 2, 3], 9),
             TupleSkippedStruct(21, vec![4, 5, 6], 19),
@@ -558,7 +587,6 @@ mod test_reading_and_written_skipped_structs {
 
         attr.write_scalar(&written).unwrap();
         let read = attr.read_scalar::<NamedSkippedStruct>().unwrap();
-
         assert_eq!(read.id, 99);
         assert_eq!(read.value, 5);
         assert_eq!(read.skipped, String::default());

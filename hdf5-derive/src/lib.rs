@@ -2,7 +2,6 @@
 
 use std::iter;
 use std::mem;
-use std::result;
 use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenStream};
@@ -19,7 +18,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let type_descriptor_body = impl_type_descriptor(&name, &input.data, &input.attrs, &ty_generics);
-    let initialize_skipped_fields_body = impl_initialize_skipped_fields(&input.data);
+    let init_skipped_fields_body = impl_initialize_skipped_fields(&input.data);
 
     // Determine name of parent crate, even if renamed using "package"
     // CARGO_CRATE_NAME is the name of the actual crate being compiled (e.g., "simple" for examples)
@@ -55,8 +54,8 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #type_descriptor_body
                 }
                 #[inline]
-                unsafe fn initialize_skipped_fields(ptr: *mut Self, size: usize) {
-                    #initialize_skipped_fields_body
+                unsafe fn init_skipped_fields(element: &mut ::std::mem::MaybeUninit<Self>) {
+                    #init_skipped_fields_body
                 }
             }
         };
@@ -348,14 +347,13 @@ fn impl_initialize_skipped_fields_body(fields: &[TokenStream]) -> TokenStream {
 
     let fields = fields.iter();
     quote! {
-        for i in 0..size {
-            let ptr = ptr.add(i);
-            #(
-                ::std::ptr::write_unaligned(
-                    ::std::ptr::addr_of_mut!((*ptr).#fields),
-                    ::core::default::Default::default(),
-                );
-            )*
-        }
+       let ptr = element.as_mut_ptr();
+
+        #(
+            ::std::ptr::write_unaligned(
+                ::std::ptr::addr_of_mut!((*ptr).#fields),
+                ::core::default::Default::default(),
+            );
+        )*
     }
 }
