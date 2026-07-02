@@ -62,8 +62,8 @@ mod export {
             Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
             AttributeBuilderEmptyShape, ByteReader, Container, Conversion, Dataset, DatasetBuilder,
             DatasetBuilderData, DatasetBuilderEmpty, DatasetBuilderEmptyShape, Dataspace, Datatype,
-            File, FileBuilder, Group, LinkInfo, LinkType, Location, LocationInfo, LocationToken,
-            LocationType, Object, OpenMode, PropertyList, Reader, Writer,
+            File, FileBuilder, Group, GroupBuilder, LinkInfo, LinkType, Location, LocationInfo,
+            LocationToken, LocationType, Object, OpenMode, PropertyList, Reader, Writer,
             references::{ObjectReference, ObjectReference1, ReferencedObject},
         },
     };
@@ -111,6 +111,7 @@ mod export {
         pub use crate::hl::plist::dataset_create::{DatasetCreate, DatasetCreateBuilder};
         pub use crate::hl::plist::file_access::{FileAccess, FileAccessBuilder};
         pub use crate::hl::plist::file_create::{FileCreate, FileCreateBuilder};
+        pub use crate::hl::plist::group_create::{GroupCreate, GroupCreateBuilder};
         pub use crate::hl::plist::link_create::{LinkCreate, LinkCreateBuilder};
         pub use crate::hl::plist::object_copy::{ObjectCopy, ObjectCopyBuilder};
         pub use crate::hl::plist::{PropertyList, PropertyListClass};
@@ -130,6 +131,10 @@ mod export {
         /// File creation property lists.
         pub mod file_create {
             pub use crate::hl::plist::file_create::*;
+        }
+        /// Group creation property lists.
+        pub mod group_create {
+            pub use crate::hl::plist::group_create::*;
         }
         /// Link creation property lists.
         pub mod link_create {
