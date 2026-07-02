@@ -46,7 +46,13 @@ impl<'a> Reader<'a> {
         let mem_dtype = Datatype::from_type::<T>()?;
         file_dtype.ensure_convertible(&mem_dtype, self.conv)?;
         let (obj_id, tp_id) = (self.obj.id(), mem_dtype.id());
-
+        let n_elements = match mspace {
+            Some(space) => space.size(),
+            None => self.obj.space()?.size(),
+        };
+        unsafe {
+            T::initialize_skipped_fields(buf, n_elements);
+        }
         if self.obj.is_attr() {
             h5try!(H5Aread(obj_id, tp_id, buf.cast()));
         } else {

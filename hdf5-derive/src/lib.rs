@@ -2,6 +2,7 @@
 
 use std::iter;
 use std::mem;
+use std::result;
 use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenStream};
@@ -17,7 +18,8 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-    let body = impl_trait(&name, &input.data, &input.attrs, &ty_generics);
+    let type_descriptor_body = impl_type_descriptor(&name, &input.data, &input.attrs, &ty_generics);
+    let initialize_skipped_fields_body = impl_initialize_skipped_fields(&input.data);
 
     // Determine name of parent crate, even if renamed using "package"
     // CARGO_CRATE_NAME is the name of the actual crate being compiled (e.g., "simple" for examples)
@@ -50,7 +52,11 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             unsafe impl #impl_generics _h5::types::H5Type for #name #ty_generics #where_clause {
                 #[inline]
                 fn type_descriptor() -> _h5::types::TypeDescriptor {
-                    #body
+                    #type_descriptor_body
+                }
+                #[inline]
+                unsafe fn initialize_skipped_fields(ptr: *mut Self, size: usize) {
+                    #initialize_skipped_fields_body
                 }
             }
         };
@@ -127,6 +133,22 @@ fn is_phantom_data(ty: &Type) -> bool {
     }
 }
 
+fn is_hdf5_skip(attrs: &[Attribute]) -> bool {
+    let mut skip = false;
+    let attr = match attrs.iter().find(|a| a.path().is_ident("hdf5")) {
+        Some(a) => a,
+        None => return false,
+    };
+    attr.parse_nested_meta(|meta| {
+        if meta.path.is_ident("skip") {
+            skip = true;
+        }
+        Ok(())
+    })
+    .ok();
+    skip
+}
+
 fn find_repr(attrs: &[Attribute], expected: &[&str]) -> Option<Ident> {
     let mut repr = None;
     for attr in attrs.iter() {
@@ -173,7 +195,7 @@ where
     iter.map(func).collect()
 }
 
-fn impl_trait(
+fn impl_type_descriptor(
     ty: &Ident, data: &Data, attrs: &[Attribute], ty_generics: &TypeGenerics,
 ) -> TokenStream {
     match *data {
@@ -181,8 +203,11 @@ fn impl_trait(
             Fields::Unit => syn::Error::new(ty.span(), "cannot derive `H5Type` for unit structs")
                 .into_compile_error(),
             Fields::Named(ref fields) => {
-                let fields: Vec<_> =
-                    fields.named.iter().filter(|f| !is_phantom_data(&f.ty)).collect();
+                let fields: Vec<_> = fields
+                    .named
+                    .iter()
+                    .filter(|f| !is_phantom_data(&f.ty) && !is_hdf5_skip(&f.attrs))
+                    .collect();
                 if fields.is_empty() {
                     return syn::Error::new(ty.span(), "cannot derive `H5Type` for empty structs")
                         .into_compile_error();
@@ -214,7 +239,7 @@ fn impl_trait(
                     .unnamed
                     .iter()
                     .enumerate()
-                    .filter(|&(_, f)| !is_phantom_data(&f.ty))
+                    .filter(|&(_, f)| !is_phantom_data(&f.ty) && !is_hdf5_skip(&f.attrs))
                     .map(|(i, f)| (Index::from(i), f))
                     .unzip();
                 if fields.is_empty() {
@@ -283,5 +308,54 @@ fn impl_trait(
         }
         Data::Union(_) => syn::Error::new(ty.span(), "cannot derive `H5Type` for tagged unions")
             .to_compile_error(),
+    }
+}
+
+fn impl_initialize_skipped_fields(data: &Data) -> TokenStream {
+    match *data {
+        Data::Struct(ref data) => match data.fields {
+            Fields::Named(ref fields) => {
+                let skipped_fields = fields
+                    .named
+                    .iter()
+                    .filter(|field| is_hdf5_skip(&field.attrs))
+                    .filter_map(|field| field.ident.as_ref())
+                    .map(|field| quote!(#field))
+                    .collect::<Vec<_>>();
+                impl_initialize_skipped_fields_body(&skipped_fields)
+            }
+            Fields::Unnamed(ref fields) => {
+                let skipped_fields = fields
+                    .unnamed
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, field)| is_hdf5_skip(&field.attrs))
+                    .map(|(index, _)| Index::from(index))
+                    .map(|index| quote!(#index))
+                    .collect::<Vec<_>>();
+                impl_initialize_skipped_fields_body(&skipped_fields)
+            }
+            Fields::Unit => quote! {},
+        },
+        _ => quote! {},
+    }
+}
+
+fn impl_initialize_skipped_fields_body(fields: &[TokenStream]) -> TokenStream {
+    if fields.is_empty() {
+        return quote! {};
+    }
+
+    let fields = fields.iter();
+    quote! {
+        for i in 0..size {
+            let ptr = ptr.add(i);
+            #(
+                ::std::ptr::write_unaligned(
+                    ::std::ptr::addr_of_mut!((*ptr).#fields),
+                    ::core::default::Default::default(),
+                );
+            )*
+        }
     }
 }

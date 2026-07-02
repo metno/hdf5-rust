@@ -656,3 +656,87 @@ fn remove_attr() {
     ds.delete_attr("bar").unwrap();
     assert!(ds.attr("bar").is_err());
 }
+mod test_reading_and_written_skipped_structs {
+    use super::*;
+    #[derive(hdf5_derive::H5Type)]
+    #[repr(C)]
+    struct NamedSkippedStruct {
+        id: u32,
+        #[hdf5(skip)]
+        skipped: String,
+        value: u8,
+    }
+
+    #[derive(hdf5_derive::H5Type)]
+    #[repr(C)]
+    struct TupleSkippedStruct(u32, #[hdf5(skip)] Vec<u8>, u8);
+
+    #[test]
+    fn named_struct_defaults_skipped_field() {
+        let written = vec![
+            NamedSkippedStruct { id: 1, skipped: String::from("first"), value: 10 },
+            NamedSkippedStruct { id: 2, skipped: String::from("second"), value: 20 },
+        ];
+
+        let dataset = new_in_memory_file()
+            .unwrap()
+            .new_dataset::<NamedSkippedStruct>()
+            .shape((written.len(),))
+            .create("named")
+            .unwrap();
+
+        dataset.write_raw(&written).unwrap();
+
+        let read = dataset.read_raw::<NamedSkippedStruct>().unwrap();
+
+        assert_eq!(read.len(), 2);
+        assert_eq!(read[0].id, 1);
+        assert_eq!(read[0].value, 10);
+        assert_eq!(read[0].skipped, String::default());
+        assert_eq!(read[1].id, 2);
+        assert_eq!(read[1].value, 20);
+        assert_eq!(read[1].skipped, String::default());
+    }
+
+    #[test]
+    fn tuple_struct_defaults_skipped_field_in_array_roundtrip() {
+        let written = vec![
+            TupleSkippedStruct(11, vec![1, 2, 3], 9),
+            TupleSkippedStruct(21, vec![4, 5, 6], 19),
+        ];
+
+        let dataset = new_in_memory_file()
+            .unwrap()
+            .new_dataset::<TupleSkippedStruct>()
+            .shape((written.len(),))
+            .create("tuple")
+            .unwrap();
+
+        dataset.write_raw(&written).unwrap();
+
+        let read = dataset.read_raw::<TupleSkippedStruct>().unwrap();
+
+        assert_eq!(read.len(), 2);
+        assert_eq!(read[0].0, 11);
+        assert_eq!(read[0].2, 9);
+        assert_eq!(read[0].1, Vec::<u8>::default());
+        assert_eq!(read[1].0, 21);
+        assert_eq!(read[1].2, 19);
+        assert_eq!(read[1].1, Vec::<u8>::default());
+    }
+
+    #[test]
+    fn attribute_defaults_skipped_field() {
+        let written = NamedSkippedStruct { id: 99, skipped: String::from("meta"), value: 5 };
+
+        let file = new_in_memory_file().unwrap();
+        let attr = file.new_attr::<NamedSkippedStruct>().shape(()).create("my_attr").unwrap();
+
+        attr.write_scalar(&written).unwrap();
+        let read = attr.read_scalar::<NamedSkippedStruct>().unwrap();
+
+        assert_eq!(read.id, 99);
+        assert_eq!(read.value, 5);
+        assert_eq!(read.skipped, String::default());
+    }
+}

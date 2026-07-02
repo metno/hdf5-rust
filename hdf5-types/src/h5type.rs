@@ -302,6 +302,10 @@ impl TypeDescriptor {
 pub unsafe trait H5Type: 'static {
     /// Returns a descriptor for an equivalent HDF5 datatype.
     fn type_descriptor() -> TypeDescriptor;
+    /// Structs with `#[hdf5(skip)]` fields need to have them initialized because they are not present in the HDF5 file.
+    /// The derive macro implementation initializes skipped fields
+    /// using the Default trait.
+    unsafe fn initialize_skipped_fields(_ptr: *mut Self, _size: usize) {}
 }
 
 macro_rules! impl_h5type {
