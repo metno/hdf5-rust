@@ -502,13 +502,16 @@ mod test_reading_and_written_skipped_structs {
 
     #[test]
     fn skipped_and_plain_structs_deserialize_the_same() {
-        let written = vec![PlainStruct { id: 1, value: 10 }, PlainStruct { id: 2, value: 20 }];
+        let written = vec![
+            NamedSkippedStruct { id: 1, skipped: String::from("Test1"), value: 10 },
+            NamedSkippedStruct { id: 2, skipped: String::from("Test2"), value: 20 },
+        ];
 
         let dataset = new_in_memory_file()
             .unwrap()
-            .new_dataset::<PlainStruct>()
+            .new_dataset::<NamedSkippedStruct>()
             .shape((written.len(),))
-            .create("plain")
+            .create("named")
             .unwrap();
 
         dataset.write_raw(&written).unwrap();
