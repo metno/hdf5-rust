@@ -1,15 +1,16 @@
 # Changelog
 
 ## hdf5 unreleased
-- Added `GroupCreate` property list and `GroupBuilder` for configurable group creation
-- Added support for setting `obj_track_times` when creating groups
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
 
-## hdf5 unreleased
+## hdf5 0.13.0
+Release date: Jul 02, 2026
+- Added `GroupCreate` property list and `GroupBuilder` for configurable group creation
+- Added support for setting `obj_track_times` when creating groups
 - Restrict enum conversions (breaking change, it is now an error reading incompatible enums)
 
 ## hdf5 0.12.6
