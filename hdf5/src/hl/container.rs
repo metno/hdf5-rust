@@ -587,6 +587,11 @@ impl Container {
         self.as_reader().read_raw()
     }
 
+    /// Reads a dataset/attribute into a vector in memory order.
+    pub fn read_into_raw<T: H5Type>(&self, buffer: &mut [T]) -> Result<usize> {
+        self.as_reader().read_into_raw(buffer)
+    }
+
     /// Reads a dataset/attribute into a 1-dimensional array.
     ///
     /// The dataset/attribute must be 1-dimensional.
