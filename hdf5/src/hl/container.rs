@@ -139,6 +139,18 @@ impl<'a> Reader<'a> {
         })
     }
 
+    /// Reads a dataset/attribute into an existing buffer in memory order.
+    pub fn read_into_raw<T: H5Type>(&self, buff: &mut [T]) -> Result<usize> {
+        let obj_size = self.obj.space()?.size();
+
+        if buff.len() < obj_size {
+            fail!("Buffer size does not match with dataset");
+        }
+
+        self.read_into_buf(buff.as_mut_ptr(), None, None)?;
+        Ok(obj_size)
+    }
+
     /// Reads a dataset/attribute into a 1-dimensional array.
     ///
     /// The dataset/attribute must be 1-dimensional.
