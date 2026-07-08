@@ -150,9 +150,9 @@ where
     Ok(())
 }
 
-fn test_read_into<T>(ds: &hdf5::Dataset, arr: &ArrayD<T>,v0:T) -> hdf5::Result<()>
+fn test_read_into<T>(ds: &hdf5::Dataset, arr: &ArrayD<T>, v0: T) -> hdf5::Result<()>
 where
-    T: hdf5::H5Type + fmt::Debug + PartialEq + Copy ,
+    T: hdf5::H5Type + fmt::Debug + PartialEq + Copy,
 {
     ds.write(arr)?;
 
@@ -284,8 +284,6 @@ fn test_byte_read_seek_impl(ds: &hdf5::Dataset, arr: &ArrayD<u8>, ndim: usize) -
     Ok(())
 }
 
-
-
 fn test_read_write<T>() -> hdf5::Result<()>
 where
     T: hdf5::H5Type + fmt::Debug + PartialEq + Gen + Clone,
@@ -333,9 +331,8 @@ where
 
 fn test_read_into_write<T>() -> hdf5::Result<()>
 where
-    T: hdf5::H5Type + fmt::Debug + PartialEq + Gen + Copy ,
+    T: hdf5::H5Type + fmt::Debug + PartialEq + Gen + Copy,
 {
-
     let td = T::type_descriptor();
     let mut packed = vec![false];
     if let TypeDescriptor::Compound(_) = td {
@@ -348,7 +345,6 @@ where
     for packed in &packed {
         for ndim in 0..=4 {
             for _ in 0..=20 {
-
                 let arr: ArrayD<T> = gen_arr(&mut rng, ndim);
 
                 let ds: hdf5::Dataset =
@@ -359,9 +355,9 @@ where
                 });
 
                 let v0 = T::random(&mut rng);
-                //v0 stands for default value needed to allocated buffer 
+                //v0 stands for default value needed to allocated buffer
                 //This value avoid restrincting Default to T
-                test_read_into(&ds, &arr,v0)?;
+                test_read_into(&ds, &arr, v0)?;
             }
         }
     }
@@ -383,7 +379,6 @@ fn test_read_write_primitive() -> hdf5::Result<()> {
     test_read_write::<f32>()?;
     test_read_write::<f64>()?;
 
-    
     test_read_into_write::<i8>()?;
     test_read_into_write::<i16>()?;
     test_read_into_write::<i32>()?;
@@ -604,7 +599,6 @@ fn test_read_write_tuple_struct() -> hdf5::Result<()> {
     test_read_write::<TupleStruct>()?;
 
     test_read_into_write::<TupleStruct>()
-   
 }
 
 #[test]
