@@ -1,5 +1,5 @@
 use std::fmt::{self, Display};
-use std::mem;
+use std::mem::{self, MaybeUninit};
 use std::os::raw::c_void;
 
 use crate::array::VarLenArray;
@@ -302,6 +302,17 @@ impl TypeDescriptor {
 pub unsafe trait H5Type: 'static {
     /// Returns a descriptor for an equivalent HDF5 datatype.
     fn type_descriptor() -> TypeDescriptor;
+    /**
+    Structs with `#[hdf5(skip)]` fields need to have them initialized because they are not present in the HDF5 file.
+    The derive macro implementation initializes skipped fields
+    using the Default trait. This function is called for each element of a read buffer before reading the data from the HDF5 file, it partially initialize the struct by only initializing the skipped fields.
+    */
+    #[allow(unused_variables)]
+    unsafe fn init_skipped_fields(element: &mut MaybeUninit<Self>)
+    where
+        Self: Sized,
+    {
+    }
 }
 
 macro_rules! impl_h5type {

@@ -250,3 +250,89 @@ fn test_phantom_data() {
     assert_eq!(G3::<String>::type_descriptor(), C3::type_descriptor());
     assert_eq!(G4::<String>::type_descriptor(), C4::type_descriptor());
 }
+
+#[cfg(test)]
+mod test_hdf5_skip_attribute {
+    use super::*;
+    macro_rules! check_fields {
+        ($ty:ty, $($field_name:expr => $field:tt),+ $(,)?) => {{
+            let desc = <$ty as hdf5::types::H5Type>::type_descriptor();
+            assert_eq!(desc.size(), std::mem::size_of::<$ty>(), "Total size mismatch");
+
+            let hdf5::types::TypeDescriptor::Compound(compound) = desc else {
+                panic!("Expected TypeDescriptor::Compound");
+            };
+
+            let s = std::mem::MaybeUninit::<$ty>::uninit();
+            let s_ptr = s.as_ptr();
+            let mut expected_field_count = 0;
+
+            $(
+                expected_field_count += 1;
+                let found = compound.fields.iter().find(|f| f.name == $field_name)
+                    .unwrap_or_else(|| panic!("Field '{}' not found in HDF5 descriptor", $field_name));
+
+                let expected_offset = unsafe {
+                    std::ptr::addr_of!((*s_ptr).$field) as usize - s_ptr as usize
+                };
+
+                assert_eq!(
+                    found.offset, expected_offset,
+                    "Offset mismatch for field '{}': HDF5 says {}, memory says {}",
+                    $field_name, found.offset, expected_offset
+                );
+            )+
+
+            assert_eq!(
+                compound.fields.len(), expected_field_count,
+                "Expected exactly {} unskipped fields", expected_field_count
+            );
+        }};
+    }
+    #[test]
+    fn test_skip_repr_c() {
+        #[derive(H5Type)]
+        #[repr(C)]
+        struct ReprCStruct {
+            a: u8,
+            #[hdf5(skip)]
+            _skipped_1: u32,
+            b: u64,
+            #[hdf5(skip)]
+            _skipped_2: Vec<u8>,
+            c: u16,
+        }
+        check_fields!(ReprCStruct, "a" => a, "b" => b, "c" => c);
+    }
+    #[test]
+    fn test_skip_repr_packed() {
+        #[derive(H5Type)]
+        #[repr(packed)]
+        struct PackedStruct {
+            a: u8,
+            #[hdf5(skip)]
+            _skipped: u64,
+            b: u32,
+        }
+        check_fields!(PackedStruct, "a" => a, "b" => b);
+    }
+    #[test]
+    fn test_skip_tuple_struct() {
+        #[derive(H5Type)]
+        #[repr(C)]
+        struct TupleStruct(u16, #[hdf5(skip)] String, u64);
+        check_fields!(TupleStruct, "0" => 0, "1" => 2);
+    }
+    #[test]
+    fn test_skip_generics() {
+        #[derive(H5Type)]
+        #[repr(C)]
+        struct GenericStruct<T: hdf5::types::H5Type, U: hdf5::types::H5Type> {
+            x: T,
+            #[hdf5(skip)]
+            _skipped: Vec<String>,
+            y: U,
+        }
+        check_fields!(GenericStruct<u32, f64>, "x" => x, "y" => y);
+    }
+}

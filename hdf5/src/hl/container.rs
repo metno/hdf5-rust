@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use std::fmt::{self, Debug};
 use std::io;
-use std::mem;
+use std::mem::{self, MaybeUninit};
 use std::ops::Deref;
 
 use ndarray::{Array, Array1, Array2, ArrayD, ArrayView, ArrayView1};
@@ -46,7 +46,17 @@ impl<'a> Reader<'a> {
         let mem_dtype = Datatype::from_type::<T>()?;
         file_dtype.ensure_convertible(&mem_dtype, self.conv)?;
         let (obj_id, tp_id) = (self.obj.id(), mem_dtype.id());
-
+        let n_elements = match mspace {
+            Some(space) => space.size(),
+            None => self.obj.space()?.size(),
+        };
+        let uninit_buf = buf.cast::<::std::mem::MaybeUninit<T>>();
+        for i in 0..n_elements {
+            unsafe {
+                let uninit_ref: &mut MaybeUninit<T> = &mut *(uninit_buf.add(i));
+                T::init_skipped_fields(uninit_ref);
+            }
+        }
         if self.obj.is_attr() {
             h5try!(H5Aread(obj_id, tp_id, buf.cast()));
         } else {
