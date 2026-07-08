@@ -150,6 +150,38 @@ where
     Ok(())
 }
 
+fn test_read_into<T>(ds: &hdf5::Dataset, arr: &ArrayD<T>,v0:T) -> hdf5::Result<()>
+where
+    T: hdf5::H5Type + fmt::Debug + PartialEq + Copy ,
+{
+    ds.write(arr)?;
+
+    let arr_size = arr.len();
+
+    //Allocates exactly what is needed
+    let mut buffer: Vec<T> = vec![v0; arr_size];
+
+    let read_size = ds.read_into_raw(&mut buffer)?;
+    assert_eq!(read_size, arr_size);
+    assert_eq!(buffer.as_slice(), arr.as_slice().unwrap());
+
+    //Allocates more bytes than needed
+    let mut buffer: Vec<T> = vec![v0; 2 * arr_size];
+    let read_size = ds.read_into_raw(&mut buffer)?;
+    assert_eq!(read_size, arr_size);
+    assert_eq!(&buffer[..arr_size], arr.as_slice().unwrap());
+
+    //Allocates less bytes than needed
+    if arr_size != 0 {
+        let mut buffer: Vec<T> = vec![v0; arr_size - 1];
+        eprintln!("{}", arr_size);
+        let read_size = ds.read_into_raw(&mut buffer);
+        assert!(read_size.is_err());
+    }
+
+    Ok(())
+}
+
 fn test_write<T>(ds: &hdf5::Dataset, arr: &ArrayD<T>, ndim: usize) -> hdf5::Result<()>
 where
     T: hdf5::H5Type + fmt::Debug + PartialEq + Gen,
@@ -252,6 +284,8 @@ fn test_byte_read_seek_impl(ds: &hdf5::Dataset, arr: &ArrayD<u8>, ndim: usize) -
     Ok(())
 }
 
+
+
 fn test_read_write<T>() -> hdf5::Result<()>
 where
     T: hdf5::H5Type + fmt::Debug + PartialEq + Gen + Clone,
@@ -262,13 +296,14 @@ where
         packed.push(true);
     }
 
-    let mut rng = SmallRng::seed_from_u64(42);
     let file = new_in_memory_file()?;
-
+    let mut rng = SmallRng::seed_from_u64(42);
     for packed in &packed {
         for ndim in 0..=4 {
             for _ in 0..=20 {
                 for mode in 0..4 {
+                    // let (ds, arr) = make_test_dataset::<T>(&mut rng, &file, *packed, ndim)?;
+
                     let arr: ArrayD<T> = gen_arr(&mut rng, ndim);
 
                     let ds: hdf5::Dataset =
@@ -296,6 +331,44 @@ where
     Ok(())
 }
 
+fn test_read_into_write<T>() -> hdf5::Result<()>
+where
+    T: hdf5::H5Type + fmt::Debug + PartialEq + Gen + Copy ,
+{
+
+    let td = T::type_descriptor();
+    let mut packed = vec![false];
+    if let TypeDescriptor::Compound(_) = td {
+        packed.push(true);
+    }
+
+    let mut rng = SmallRng::seed_from_u64(42);
+    let file = new_in_memory_file()?;
+
+    for packed in &packed {
+        for ndim in 0..=4 {
+            for _ in 0..=20 {
+
+                let arr: ArrayD<T> = gen_arr(&mut rng, ndim);
+
+                let ds: hdf5::Dataset =
+                    file.new_dataset::<T>().packed(*packed).shape(arr.shape()).create("x")?;
+                let ds = scopeguard::guard(ds, |ds| {
+                    drop(ds);
+                    drop(file.unlink("x"));
+                });
+
+                let v0 = T::random(&mut rng);
+                //v0 stands for default value needed to allocated buffer 
+                //This value avoid restrincting Default to T
+                test_read_into(&ds, &arr,v0)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[test]
 fn test_read_write_primitive() -> hdf5::Result<()> {
     test_read_write::<i8>()?;
@@ -309,6 +382,20 @@ fn test_read_write_primitive() -> hdf5::Result<()> {
     test_read_write::<bool>()?;
     test_read_write::<f32>()?;
     test_read_write::<f64>()?;
+
+    
+    test_read_into_write::<i8>()?;
+    test_read_into_write::<i16>()?;
+    test_read_into_write::<i32>()?;
+    test_read_into_write::<i64>()?;
+    test_read_into_write::<u8>()?;
+    test_read_into_write::<u16>()?;
+    test_read_into_write::<u32>()?;
+    test_read_into_write::<u64>()?;
+    test_read_into_write::<bool>()?;
+    test_read_into_write::<f32>()?;
+    test_read_into_write::<f64>()?;
+
     Ok(())
 }
 
@@ -316,6 +403,7 @@ fn test_read_write_primitive() -> hdf5::Result<()> {
 #[test]
 fn test_read_write_f16() -> hdf5::Result<()> {
     test_read_write::<::half::f16>()?;
+    test_read_into_write::<::half::f16>()?;
     Ok(())
 }
 
@@ -324,12 +412,15 @@ fn test_read_write_f16() -> hdf5::Result<()> {
 fn test_read_write_complex() -> hdf5::Result<()> {
     test_read_write::<::num_complex::Complex32>()?;
     test_read_write::<::num_complex::Complex64>()?;
+    test_read_into_write::<::num_complex::Complex32>()?;
+    test_read_into_write::<::num_complex::Complex64>()?;
     Ok(())
 }
 
 #[test]
 fn test_read_write_enum() -> hdf5::Result<()> {
-    test_read_write::<Enum>()
+    test_read_write::<Enum>()?;
+    test_read_into_write::<Enum>()
 }
 
 #[derive(hdf5::H5Type, Clone, Copy, Debug, PartialEq)]
@@ -510,7 +601,10 @@ fn test_read_attribute_enum_rejects_missing_destination_variants() -> hdf5::Resu
 
 #[test]
 fn test_read_write_tuple_struct() -> hdf5::Result<()> {
-    test_read_write::<TupleStruct>()
+    test_read_write::<TupleStruct>()?;
+
+    test_read_into_write::<TupleStruct>()
+   
 }
 
 #[test]
