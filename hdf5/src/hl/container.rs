@@ -140,7 +140,10 @@ impl<'a> Reader<'a> {
     }
 
     /// Reads a dataset/attribute into an existing buffer in memory order.
-    pub fn read_into_raw<T: H5Type>(&self, buff: &mut [T]) -> Result<usize> {
+    pub fn read_into_raw<T>(&self, buff: &mut [T]) -> Result<usize>
+    where
+        T: H5Type + Copy,
+    {
         let obj_size = self.obj.space()?.size();
 
         if buff.len() < obj_size {
@@ -588,7 +591,7 @@ impl Container {
     }
 
     /// Reads a dataset/attribute into a vector in memory order.
-    pub fn read_into_raw<T: H5Type>(&self, buffer: &mut [T]) -> Result<usize> {
+    pub fn read_into_raw<T: H5Type + Copy>(&self, buffer: &mut [T]) -> Result<usize> {
         self.as_reader().read_into_raw(buffer)
     }
 
