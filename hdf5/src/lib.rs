@@ -56,6 +56,7 @@ mod export {
         class::from_id,
         dim::{Dimension, Ix},
         error::{Error, ErrorFrame, ErrorStack, ExpandedErrorStack, Result, silence_errors},
+        error_codes::{MajorErrorCode, MinorErrorCode},
         hl::extents::{Extent, Extents, SimpleExtents},
         hl::selection::{Hyperslab, Selection, SliceOrIndex},
         hl::{
@@ -157,6 +158,7 @@ mod class;
 
 mod dim;
 mod error;
+mod error_codes;
 #[doc(hidden)]
 pub mod globals;
 mod handle;

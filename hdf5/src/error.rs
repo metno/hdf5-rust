@@ -8,6 +8,8 @@ use std::ptr::{self, addr_of_mut};
 
 use ndarray::ShapeError;
 
+use crate::error_codes::{MajorErrorCode, MinorErrorCode};
+
 #[cfg(not(feature = "1.10.0"))]
 use hdf5_sys::h5::hssize_t;
 use hdf5_sys::h5e::{
@@ -81,7 +83,9 @@ impl ErrorStack {
                     let (desc, func) = (string_from_cstr(e.desc), string_from_cstr(e.func_name));
                     let major = get_h5_str(|m, s| H5Eget_msg(e.maj_num, ptr::null_mut(), m, s))?;
                     let minor = get_h5_str(|m, s| H5Eget_msg(e.min_num, ptr::null_mut(), m, s))?;
-                    Ok(ErrorFrame::new(&desc, &func, &major, &minor))
+                    let major_code = MajorErrorCode::from_id(e.maj_num);
+                    let minor_code = MinorErrorCode::from_id(e.min_num);
+                    Ok(ErrorFrame::new(&desc, &func, &major, &minor, major_code, minor_code))
                 };
                 match closure(*err_desc) {
                     Ok(frame) => {
@@ -116,22 +120,39 @@ pub struct ErrorFrame {
     major: String,
     minor: String,
     description: String,
+    major_code: MajorErrorCode,
+    minor_code: MinorErrorCode,
 }
 
 impl ErrorFrame {
-    pub(crate) fn new(desc: &str, func: &str, major: &str, minor: &str) -> Self {
+    pub(crate) fn new(
+        desc: &str, func: &str, major: &str, minor: &str, major_code: MajorErrorCode,
+        minor_code: MinorErrorCode,
+    ) -> Self {
         Self {
             desc: desc.into(),
             func: func.into(),
             major: major.into(),
             minor: minor.into(),
             description: format!("{func}(): {desc}"),
+            major_code,
+            minor_code,
         }
     }
 
     /// Returns the error description.
     pub fn desc(&self) -> &str {
         self.desc.as_ref()
+    }
+
+    /// Returns the major code: which part of the library failed.
+    pub fn major_code(&self) -> MajorErrorCode {
+        self.major_code
+    }
+
+    /// Returns the minor code: how the operation failed.
+    pub fn minor_code(&self) -> MinorErrorCode {
+        self.minor_code
     }
 
     /// Returns a message with the error description and the relevant function name.
@@ -190,6 +211,29 @@ impl ExpandedErrorStack {
         self.first()
     }
 
+    /// Returns the major code of every frame, outermost first.
+    pub fn major_codes(&self) -> impl Iterator<Item = MajorErrorCode> + '_ {
+        self.frames.iter().map(ErrorFrame::major_code)
+    }
+
+    /// Returns the minor code of every frame, outermost first.
+    pub fn minor_codes(&self) -> impl Iterator<Item = MinorErrorCode> + '_ {
+        self.frames.iter().map(ErrorFrame::minor_code)
+    }
+
+    /// Returns whether any frame in the stack carries the given major code.
+    pub fn contains_major(&self, code: MajorErrorCode) -> bool {
+        self.major_codes().any(|c| c == code)
+    }
+
+    /// Returns whether any frame in the stack carries the given minor code.
+    ///
+    /// The cause is usually on an inner frame, so prefer this over [`top`](Self::top): opening
+    /// a corrupt file reports `CantOpenFile` on the outermost frame and `NotHdf5` further down.
+    pub fn contains_minor(&self, code: MinorErrorCode) -> bool {
+        self.minor_codes().any(|c| c == code)
+    }
+
     /// Returns the description of the error on top of the stack.
     pub fn description(&self) -> &str {
         match self.description {
@@ -226,6 +270,37 @@ impl Error {
         } else {
             Err(Self::Internal("Could not get errorstack".to_owned()))
         }
+    }
+
+    /// Returns the expanded error stack, or `None` if there is none to expand.
+    pub fn stack(&self) -> Option<ExpandedErrorStack> {
+        match *self {
+            Self::Internal(_) => None,
+            Self::HDF5(ref stack) => stack.clone().expand().ok(),
+        }
+    }
+
+    /// Returns whether any frame carries the given major code, `false` for
+    /// [`Internal`](Self::Internal) errors.
+    pub fn contains_major(&self, code: MajorErrorCode) -> bool {
+        self.stack().is_some_and(|s| s.contains_major(code))
+    }
+
+    /// Returns whether any frame carries the given minor code, `false` for
+    /// [`Internal`](Self::Internal) errors.
+    ///
+    /// ```no_run
+    /// use hdf5_metno as hdf5;
+    /// use hdf5::MinorErrorCode;
+    ///
+    /// # let dir = tempfile::tempdir().unwrap();
+    /// # let path = dir.path().join("corrupt.h5");
+    /// # std::fs::write(&path, b"not an HDF5 file").unwrap();
+    /// let err = hdf5::File::open(&path).unwrap_err();
+    /// assert!(err.contains_minor(MinorErrorCode::NotHdf5));
+    /// ```
+    pub fn contains_minor(&self, code: MinorErrorCode) -> bool {
+        self.stack().is_some_and(|s| s.contains_minor(code))
     }
 }
 
@@ -338,10 +413,193 @@ impl H5ErrorCode for libc::ssize_t {
 pub mod tests {
     use hdf5_sys::h5p::{H5Pclose, H5Pcreate};
 
-    use crate::globals::H5P_ROOT;
+    use crate::error_codes::{MAJOR_CODES, MINOR_CODES};
+    use crate::globals::{H5E_CANTOPENFILE, H5E_FILE, H5P_ROOT};
     use crate::internal_prelude::*;
+    use crate::test::with_tmp_path;
+    use crate::{MajorErrorCode, MinorErrorCode};
+    use hdf5_sys::h5e::H5Eget_msg;
+    use std::fs;
+    use std::ptr;
 
     use super::ExpandedErrorStack;
+
+    /// Checks every code this crate declares against the linked HDF5 itself: the description
+    /// must be byte-identical to what `H5Eget_msg` returns for that id. This is what validates
+    /// the transcribed table, and it fails if a variant is wired to the wrong global, if a
+    /// description literal is wrong, or if a renamed code's `meta` gates overlap so that the
+    /// wrong arm is selected.
+    #[test]
+    pub fn test_descriptions_match_the_linked_library() {
+        assert!(!MAJOR_CODES.is_empty() && !MINOR_CODES.is_empty());
+        for (&id, &code) in MAJOR_CODES.iter() {
+            assert_eq!(scrub(code.description().unwrap()), scrub(&msg_of(id)), "{code:?}");
+        }
+        for (&id, &code) in MINOR_CODES.iter() {
+            // H5E_LOGFAIL is upstream's binary-compatibility alias for H5E_LOGGING and carries
+            // its own message. Both ids resolve to Logging, so only the canonical one can
+            // match, therefor we pin the alias's message (instead of skipping it).
+            #[cfg(all(feature = "1.10.5", not(feature = "1.12.0")))]
+            if id == *crate::globals::H5E_LOGFAIL {
+                assert_eq!(code, MinorErrorCode::Logging);
+                assert_eq!(msg_of(id), "old H5E_LOGGING_g (maintained for binary compatibility)");
+                continue;
+            }
+            assert_eq!(scrub(code.description().unwrap()), scrub(&msg_of(id)), "{code:?}");
+        }
+    }
+
+    fn msg_of(id: hid_t) -> String {
+        h5lock!(get_h5_str(|m, s| H5Eget_msg(id, ptr::null_mut(), m, s))).unwrap()
+    }
+
+    /// Replace typos and the "atom" -> "ID" rename so that the string comparisons are stable across versions
+    fn scrub(s: &str) -> String {
+        s.replace("atom", "ID")
+            .replace("accessability", "accessibility")
+            .replace("accessibilty", "accessibility")
+    }
+
+    /// Checks the codes captured for a real frame vs. that frame's own text.
+    /// The test above checks the id -> description mapping, this one validates that `expand`
+    /// converts the right id to the right enum.
+    #[test]
+    pub fn test_frame_codes_agree_with_frame_text() {
+        with_tmp_path(|path| {
+            fs::write(&path, b"garbage data").unwrap();
+            let err = File::open(&path).unwrap_err();
+            let stack = err.stack().unwrap();
+            assert!(stack.len() >= 3, "expected a multi-frame stack, got {}", stack.len());
+
+            for frame in stack.iter() {
+                // detail() renders "Error in f(): desc [<major msg>: <minor msg>]" from the strings H5Eget_msg returned.
+                let major_code_desc = frame.major_code().description().unwrap();
+                let minor_code_desc = frame.minor_code().description().unwrap();
+                let maj_min_desc = format!("[{major_code_desc}: {minor_code_desc}]");
+                let detail = frame.detail().unwrap();
+                assert!(
+                    scrub(&detail).ends_with(&scrub(&maj_min_desc)),
+                    "{detail:?} does not end with {maj_min_desc:?}"
+                );
+            }
+            assert_eq!(stack.major_codes().count(), stack.len());
+            assert_eq!(stack.minor_codes().count(), stack.len());
+        });
+    }
+
+    /// Every id the linked HDF5 registers must map to exactly one variant, and no two variants
+    /// may share an id. The reverse is not asserted: a variant whose symbol this HDF5 lacks is
+    /// deliberately unreachable.
+    #[test]
+    pub fn test_symbol_mapping_is_unambiguous() {
+        for (&id, &code) in MAJOR_CODES.iter() {
+            assert!(MajorErrorCode::all().contains(&code), "{code:?} is not a declared variant");
+            assert_ne!(id, H5I_INVALID_HID);
+        }
+        for (&id, &code) in MINOR_CODES.iter() {
+            assert!(MinorErrorCode::all().contains(&code), "{code:?} is not a declared variant");
+            assert_ne!(id, H5I_INVALID_HID);
+        }
+        // the map is populated: these two exist in every supported HDF5
+        assert_eq!(MajorErrorCode::from_id(*H5E_FILE), MajorErrorCode::File);
+        assert_eq!(MinorErrorCode::from_id(*H5E_CANTOPENFILE), MinorErrorCode::CantOpenFile);
+    }
+
+    #[test]
+    pub fn test_unknown_error_code_is_preserved() {
+        // H5I_INVALID_HID is never a registered message id
+        let minor = MinorErrorCode::from_id(H5I_INVALID_HID);
+        assert_eq!(minor, MinorErrorCode::Other(H5I_INVALID_HID));
+        assert_eq!(minor.name(), None);
+        assert_eq!(minor.description(), None);
+        assert_eq!(minor.to_string(), format!("unknown error code ({H5I_INVALID_HID})"));
+
+        let major = MajorErrorCode::from_id(H5I_INVALID_HID);
+        assert_eq!(major, MajorErrorCode::Other(H5I_INVALID_HID));
+        assert_eq!(major.name(), None);
+        assert_eq!(major.description(), None);
+        assert_eq!(major.to_string(), format!("unknown error code ({H5I_INVALID_HID})"));
+
+        // a major id must not resolve as a minor code, or vice versa
+        assert_eq!(MinorErrorCode::from_id(*H5E_FILE), MinorErrorCode::Other(*H5E_FILE));
+        assert_eq!(
+            MajorErrorCode::from_id(*H5E_CANTOPENFILE),
+            MajorErrorCode::Other(*H5E_CANTOPENFILE)
+        );
+    }
+
+    #[test]
+    pub fn test_error_codes_on_stack() {
+        let err = h5lock!({
+            let plist_id = H5Pcreate(*H5P_ROOT);
+            H5Pclose(plist_id);
+            H5Pclose(plist_id);
+            Error::query()
+        })
+        .unwrap();
+        let stack = err.stack().unwrap();
+        let top = stack.top().unwrap();
+        assert_eq!(top.major_code(), MajorErrorCode::PropertyList);
+        assert_eq!(top.major_code().name(), Some("H5E_PLIST"));
+        assert_eq!(top.minor_code(), MinorErrorCode::CantFree);
+        assert!(err.contains_major(MajorErrorCode::PropertyList));
+        assert!(!err.contains_major(MajorErrorCode::File));
+        // codes are resolved for every frame, not just the top one
+        assert!(stack.major_codes().all(|c| !matches!(c, MajorErrorCode::Other(_))));
+        assert!(stack.minor_codes().all(|c| !matches!(c, MinorErrorCode::Other(_))));
+    }
+
+    /// The three file-open failure modes must be distinguishable by code, not by message text.
+    #[test]
+    pub fn test_file_error_codes_are_distinguishable() {
+        // a corrupt file is reported as NotHdf5 by an inner frame
+        with_tmp_path(|path| {
+            fs::write(&path, b"garbage data").unwrap();
+            let err = File::open_rw(&path).unwrap_err();
+            assert!(err.contains_minor(MinorErrorCode::NotHdf5), "{err:?}");
+            assert!(err.contains_major(MajorErrorCode::File));
+            // the VOL frames in a file-open stack must resolve to a named code (not Other)
+            #[cfg(feature = "1.12.0")]
+            assert!(err.contains_major(MajorErrorCode::VirtualObjectLayer), "{err:?}");
+            let stack = err.stack().unwrap();
+            assert!(stack.major_codes().all(|c| !matches!(c, MajorErrorCode::Other(_))), "{err:?}");
+            assert!(stack.minor_codes().all(|c| !matches!(c, MinorErrorCode::Other(_))), "{err:?}");
+        });
+
+        // a missing file reports CantOpenFile
+        with_tmp_path(|path| {
+            let err = File::open_rw(&path).unwrap_err();
+            assert!(err.contains_minor(MinorErrorCode::CantOpenFile), "{err:?}");
+            assert!(!err.contains_minor(MinorErrorCode::NotHdf5), "{err:?}");
+        });
+
+        // The specific minor code for creating over an existing file varies by HDF5 version and
+        // build (CantCreate, FileExists and CantOpenFile have all been seen), and the EEXIST is
+        // only visible as errno text in the innermost frame. So assert on what's stable: it is a
+        // File error and not a corrupt-superblock read
+        with_tmp_path(|path| {
+            File::create(&path).unwrap();
+            let err = File::create_excl(&path).unwrap_err();
+            let minors: Vec<_> = err.stack().unwrap().minor_codes().collect();
+            assert!(err.contains_major(MajorErrorCode::File), "minors={minors:?}: {err}");
+            assert!(!err.contains_minor(MinorErrorCode::NotHdf5), "minors={minors:?}: {err}");
+        });
+    }
+
+    /// Internal errors carry no HDF5 stack.
+    #[test]
+    pub fn test_internal_error_has_no_codes() {
+        let err = Error::Internal("nope".into());
+        assert!(err.stack().is_none());
+        assert!(!err.contains_minor(MinorErrorCode::NotHdf5));
+        assert!(!err.contains_major(MajorErrorCode::File));
+    }
+
+    #[test]
+    pub fn test_error_code_display() {
+        assert_eq!(MinorErrorCode::NotHdf5.to_string(), "Not an HDF5 file");
+        assert_eq!(MajorErrorCode::File.to_string(), "File accessibility");
+    }
 
     #[test]
     pub fn test_error_stack() {
