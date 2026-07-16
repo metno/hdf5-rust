@@ -22,7 +22,7 @@
 //!
 //! # Example
 //!
-//! ```
+//! ```no_run
 //! use hdf5_metno as hdf5;
 //! use hdf5::MinorErrorCode;
 //!

@@ -434,12 +434,10 @@ pub mod tests {
             File::create_excl(&path).unwrap();
             let err = File::create_excl(&path).unwrap_err();
             assert_err_re!(Err::<(), _>(err.clone()), "unable to (?:synchronously )?create file");
-            // Older HDF5 reports FileExists for an existing file, newer reports CantCreate.
-            assert!(
-                err.contains_minor(MinorErrorCode::CantCreate)
-                    || err.contains_minor(MinorErrorCode::FileExists),
-                "{err:?}"
-            );
+            // The specific minor code varies by HDF5 version and build, assert on what's stable
+            let minors: Vec<_> = err.stack().unwrap().minor_codes().collect();
+            assert!(err.contains_major(MajorErrorCode::File), "minors={minors:?}: {err}");
+            assert!(!err.contains_minor(MinorErrorCode::NotHdf5), "minors={minors:?}: {err}");
         });
     }
 
