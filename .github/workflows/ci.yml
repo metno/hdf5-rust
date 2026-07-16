@@ -137,6 +137,8 @@ jobs:
           export HDF5_DIR="$CONDA_PREFIX"
           [ "${{matrix.mpi}}" != "" ] && FEATURES=mpio
           [ "${{runner.os}}" != "Windows" ] && export RUSTFLAGS="-C link-args=-Wl,-rpath,$CONDA_PREFIX/lib"
+          # doctests are linked separately by rustdoc and need the rpath too
+          [ "${{runner.os}}" != "Windows" ] && export RUSTDOCFLAGS="-C link-args=-Wl,-rpath,$CONDA_PREFIX/lib"
           [ "${{matrix.mpi}}" == "mpich" ] && [ "${{runner.os}}" == "Linux" ] && export MPICH_CC=$(which gcc)
           [ "${{matrix.mpi}}" == "openmpi" ] && [ "${{runner.os}}" == "Linux" ] && export OMPI_CC=$(which gcc)
           cargo test -vv --features="$FEATURES"
