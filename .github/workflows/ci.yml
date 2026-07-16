@@ -332,4 +332,7 @@ jobs:
       - name: Run test with sanitizer
         env:
           RUSTFLAGS: "-Z sanitizer=address"
+          # Doctests are linked by rustdoc separately, so without this they miss the sanitizer
+          # runtime and fail to link against the instrumented library
+          RUSTDOCFLAGS: "-Z sanitizer=address"
         run: cargo test --features hdf5-sys/static --target x86_64-unknown-linux-gnu --workspace --exclude hdf5-metno-derive

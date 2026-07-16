@@ -431,13 +431,9 @@ pub mod tests {
     /// wrong arm is selected.
     #[test]
     pub fn test_descriptions_match_the_linked_library() {
-        fn msg_of(id: hid_t) -> String {
-            h5lock!(get_h5_str(|m, s| H5Eget_msg(id, ptr::null_mut(), m, s))).unwrap()
-        }
-
         assert!(!MAJOR_CODES.is_empty() && !MINOR_CODES.is_empty());
         for (&id, &code) in MAJOR_CODES.iter() {
-            assert_eq!(code.description().unwrap(), msg_of(id), "{code:?}");
+            assert_eq!(scrub(code.description().unwrap()), scrub(&msg_of(id)), "{code:?}");
         }
         for (&id, &code) in MINOR_CODES.iter() {
             // H5E_LOGFAIL is upstream's binary-compatibility alias for H5E_LOGGING and carries
@@ -449,8 +445,19 @@ pub mod tests {
                 assert_eq!(msg_of(id), "old H5E_LOGGING_g (maintained for binary compatibility)");
                 continue;
             }
-            assert_eq!(code.description().unwrap(), msg_of(id), "{code:?}");
+            assert_eq!(scrub(code.description().unwrap()), scrub(&msg_of(id)), "{code:?}");
         }
+    }
+
+    fn msg_of(id: hid_t) -> String {
+        h5lock!(get_h5_str(|m, s| H5Eget_msg(id, ptr::null_mut(), m, s))).unwrap()
+    }
+
+    /// Replace typos and the "atom" -> "ID" rename so that the string comparisons are stable across versions
+    fn scrub(s: &str) -> String {
+        s.replace("atom", "ID")
+            .replace("accessability", "accessibility")
+            .replace("accessibilty", "accessibility")
     }
 
     /// Checks the codes captured for a real frame vs. that frame's own text.
@@ -471,7 +478,7 @@ pub mod tests {
                 let maj_min_desc = format!("[{major_code_desc}: {minor_code_desc}]");
                 let detail = frame.detail().unwrap();
                 assert!(
-                    detail.ends_with(&maj_min_desc),
+                    scrub(&detail).ends_with(&scrub(&maj_min_desc)),
                     "{detail:?} does not end with {maj_min_desc:?}"
                 );
             }
@@ -572,7 +579,14 @@ pub mod tests {
         with_tmp_path(|path| {
             File::create(&path).unwrap();
             let err = File::create_excl(&path).unwrap_err();
-            assert!(err.contains_minor(MinorErrorCode::CantCreate), "{err:?}");
+            // Older HDF5 reports FileExists here, newer reports CantCreate; both are a File
+            // error and neither is a corrupt-superblock read.
+            assert!(err.contains_major(MajorErrorCode::File), "{err:?}");
+            assert!(
+                err.contains_minor(MinorErrorCode::CantCreate)
+                    || err.contains_minor(MinorErrorCode::FileExists),
+                "{err:?}"
+            );
             assert!(!err.contains_minor(MinorErrorCode::NotHdf5), "{err:?}");
         });
     }
