@@ -379,7 +379,14 @@ fn test_read_enum_rejects_missing_destination_variants() -> hdf5::Result<()> {
             values.as_slice().unwrap(),
             actual.as_slice().unwrap(),
         ),
-        Err(_) => Ok(()),
+        // Naming the members keeps this from passing on an unrelated failure.
+        Err(err) => {
+            assert_eq!(
+                err.to_string(),
+                "Cannot convert enum at datatype: destination is missing source members: D, E"
+            );
+            Ok(())
+        }
     }
 }
 
@@ -655,4 +662,32 @@ fn remove_attr() {
     assert!(ds.attr("bar").is_ok());
     ds.delete_attr("bar").unwrap();
     assert!(ds.attr("bar").is_err());
+}
+
+#[test]
+fn test_resize_non_resizable_dataset() {
+    let file = new_in_memory_file().unwrap();
+    // A dataset with contiguous storage has no maxshape and cannot be resized
+    let ds = file.new_dataset::<i32>().shape([4]).create("fixed").unwrap();
+    let err = ds.resize([8]).unwrap_err();
+    // The message text changed across HDF5 versions ("(?:synchronously)?"), codes did not
+    assert!(err.contains_major(hdf5::MajorErrorCode::Dataset), "{err:?}");
+    assert!(err.contains_minor(hdf5::MinorErrorCode::CantSet), "{err:?}");
+
+    // A chunked dataset with an unlimited axis resizes without error.
+    let ds = file.new_dataset::<i32>().shape((1.., 3)).chunk((4, 3)).create("resizable").unwrap();
+    ds.resize([5, 3]).unwrap();
+    assert_eq!(ds.shape(), [5, 3]);
+}
+
+#[test]
+fn test_chunk_rank_must_match_dataset_rank() {
+    let file = new_in_memory_file().unwrap();
+    // A 1-D chunk on a 2-D dataset is rejected in Rust before reaching FFI
+    let err = file.new_dataset::<i32>().shape([4, 3]).chunk([2]).create("d").unwrap_err();
+    assert_eq!(err.to_string(), "Expected chunk ndim 2, got 1");
+    assert!(err.stack().is_none(), "expected a Rust-side error, got a stack: {err:?}");
+
+    // matching rank
+    file.new_dataset::<i32>().shape([4, 3]).chunk([2, 3]).create("ok").unwrap();
 }

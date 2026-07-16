@@ -160,6 +160,7 @@ mod globals {
     extern_static!(H5E_FILE, H5E_FILE_g);
     extern_static!(H5E_SOHM, H5E_SOHM_g);
     extern_static!(H5E_SYM, H5E_SYM_g);
+    #[cfg(feature = "1.8.11")]
     extern_static!(H5E_PLUGIN, H5E_PLUGIN_g);
     extern_static!(H5E_VFL, H5E_VFL_g);
     extern_static!(H5E_INTERNAL, H5E_INTERNAL_g);
@@ -214,6 +215,7 @@ mod globals {
     extern_static!(H5E_CANTGET, H5E_CANTGET_g);
     extern_static!(H5E_CANTSET, H5E_CANTSET_g);
     extern_static!(H5E_DUPCLASS, H5E_DUPCLASS_g);
+    #[cfg(feature = "1.8.9")]
     extern_static!(H5E_SETDISALLOWED, H5E_SETDISALLOWED_g);
     extern_static!(H5E_CANTMERGE, H5E_CANTMERGE_g);
     extern_static!(H5E_CANTREVIVE, H5E_CANTREVIVE_g);
@@ -239,6 +241,7 @@ mod globals {
     extern_static!(H5E_COMPLEN, H5E_COMPLEN_g);
     extern_static!(H5E_PATH, H5E_PATH_g);
     extern_static!(H5E_NONE_MINOR, H5E_NONE_MINOR_g);
+    #[cfg(feature = "1.8.11")]
     extern_static!(H5E_OPENERROR, H5E_OPENERROR_g);
     extern_static!(H5E_FILEEXISTS, H5E_FILEEXISTS_g);
     extern_static!(H5E_FILEOPEN, H5E_FILEOPEN_g);
@@ -303,9 +306,9 @@ mod globals {
     extern_static!(H5E_CANTREMOVE, H5E_CANTREMOVE_g);
     extern_static!(H5E_CANTCONVERT, H5E_CANTCONVERT_g);
     extern_static!(H5E_BADSIZE, H5E_BADSIZE_g);
-    #[cfg(feature = "1.12.1")]
+    #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
     extern_static!(H5E_CANTLOCKFILE, H5E_CANTLOCKFILE_g);
-    #[cfg(feature = "1.12.1")]
+    #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
     extern_static!(H5E_CANTUNLOCKFILE, H5E_CANTUNLOCKFILE_g);
     #[cfg(feature = "1.12.1")]
     extern_static!(H5E_LIB, H5E_LIB_g);
@@ -329,6 +332,54 @@ mod globals {
     extern_static!(H5E_RTREE, H5E_RTREE_g);
     #[cfg(feature = "2.0.0")]
     extern_static!(H5E_THREADSAFE, H5E_THREADSAFE_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_EARRAY, H5E_EARRAY_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_FARRAY, H5E_FARRAY_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_PAGEBUF, H5E_PAGEBUF_g);
+    #[cfg(feature = "1.10.3")]
+    extern_static!(H5E_CONTEXT, H5E_CONTEXT_g);
+    #[cfg(feature = "1.12.0")]
+    extern_static!(H5E_MAP, H5E_MAP_g);
+    #[cfg(feature = "1.12.0")]
+    extern_static!(H5E_VOL, H5E_VOL_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTAPPEND, H5E_CANTAPPEND_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTCORK, H5E_CANTCORK_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTDEPEND, H5E_CANTDEPEND_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTNOTIFY, H5E_CANTNOTIFY_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTTAG, H5E_CANTTAG_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTUNCORK, H5E_CANTUNCORK_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTUNDEPEND, H5E_CANTUNDEPEND_g);
+    #[cfg(all(feature = "1.10.0", not(feature = "1.12.0")))]
+    extern_static!(H5E_LOGFAIL, H5E_LOGFAIL_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTCLEAN, H5E_CANTCLEAN_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTMARKCLEAN, H5E_CANTMARKCLEAN_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTMARKSERIALIZED, H5E_CANTMARKSERIALIZED_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTMARKUNSERIALIZED, H5E_CANTMARKUNSERIALIZED_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTUNSERIALIZE, H5E_CANTUNSERIALIZE_g);
+    #[cfg(feature = "1.12.0")]
+    extern_static!(H5E_CANTDELETEFILE, H5E_CANTDELETEFILE_g);
+    #[cfg(feature = "1.10.2")]
+    extern_static!(H5E_CANTGATHER, H5E_CANTGATHER_g);
+    #[cfg(feature = "1.10.7")]
+    extern_static!(H5E_INCONSISTENTSTATE, H5E_INCONSISTENTSTATE_g);
+    #[cfg(feature = "1.10.5")]
+    extern_static!(H5E_LOGGING, H5E_LOGGING_g);
+    #[cfg(feature = "1.10.2")]
+    extern_static!(H5E_NO_INDEPENDENT, H5E_NO_INDEPENDENT_g);
 }
 
 #[cfg(all(target_env = "msvc", not(feature = "static")))]
@@ -346,6 +397,7 @@ mod globals {
     extern_static!(H5E_FILE, __imp_H5E_FILE_g);
     extern_static!(H5E_SOHM, __imp_H5E_SOHM_g);
     extern_static!(H5E_SYM, __imp_H5E_SYM_g);
+    #[cfg(feature = "1.8.11")]
     extern_static!(H5E_PLUGIN, __imp_H5E_PLUGIN_g);
     extern_static!(H5E_VFL, __imp_H5E_VFL_g);
     extern_static!(H5E_INTERNAL, __imp_H5E_INTERNAL_g);
@@ -400,6 +452,7 @@ mod globals {
     extern_static!(H5E_CANTGET, __imp_H5E_CANTGET_g);
     extern_static!(H5E_CANTSET, __imp_H5E_CANTSET_g);
     extern_static!(H5E_DUPCLASS, __imp_H5E_DUPCLASS_g);
+    #[cfg(feature = "1.8.9")]
     extern_static!(H5E_SETDISALLOWED, __imp_H5E_SETDISALLOWED_g);
     extern_static!(H5E_CANTMERGE, __imp_H5E_CANTMERGE_g);
     extern_static!(H5E_CANTREVIVE, __imp_H5E_CANTREVIVE_g);
@@ -425,6 +478,7 @@ mod globals {
     extern_static!(H5E_COMPLEN, __imp_H5E_COMPLEN_g);
     extern_static!(H5E_PATH, __imp_H5E_PATH_g);
     extern_static!(H5E_NONE_MINOR, __imp_H5E_NONE_MINOR_g);
+    #[cfg(feature = "1.8.11")]
     extern_static!(H5E_OPENERROR, __imp_H5E_OPENERROR_g);
     extern_static!(H5E_FILEEXISTS, __imp_H5E_FILEEXISTS_g);
     extern_static!(H5E_FILEOPEN, __imp_H5E_FILEOPEN_g);
@@ -489,9 +543,9 @@ mod globals {
     extern_static!(H5E_CANTREMOVE, __imp_H5E_CANTREMOVE_g);
     extern_static!(H5E_CANTCONVERT, __imp_H5E_CANTCONVERT_g);
     extern_static!(H5E_BADSIZE, __imp_H5E_BADSIZE_g);
-    #[cfg(feature = "1.12.1")]
+    #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
     extern_static!(H5E_CANTLOCKFILE, __imp_H5E_CANTLOCKFILE_g);
-    #[cfg(feature = "1.12.1")]
+    #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
     extern_static!(H5E_CANTUNLOCKFILE, __imp_H5E_CANTUNLOCKFILE_g);
     #[cfg(feature = "1.12.1")]
     extern_static!(H5E_LIB, __imp_H5E_LIB_g);
@@ -515,4 +569,52 @@ mod globals {
     extern_static!(H5E_RTREE, __imp_H5E_RTREE_g);
     #[cfg(feature = "2.0.0")]
     extern_static!(H5E_THREADSAFE, __imp_H5E_THREADSAFE_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_EARRAY, __imp_H5E_EARRAY_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_FARRAY, __imp_H5E_FARRAY_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_PAGEBUF, __imp_H5E_PAGEBUF_g);
+    #[cfg(feature = "1.10.3")]
+    extern_static!(H5E_CONTEXT, __imp_H5E_CONTEXT_g);
+    #[cfg(feature = "1.12.0")]
+    extern_static!(H5E_MAP, __imp_H5E_MAP_g);
+    #[cfg(feature = "1.12.0")]
+    extern_static!(H5E_VOL, __imp_H5E_VOL_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTAPPEND, __imp_H5E_CANTAPPEND_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTCORK, __imp_H5E_CANTCORK_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTDEPEND, __imp_H5E_CANTDEPEND_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTNOTIFY, __imp_H5E_CANTNOTIFY_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTTAG, __imp_H5E_CANTTAG_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTUNCORK, __imp_H5E_CANTUNCORK_g);
+    #[cfg(feature = "1.10.0")]
+    extern_static!(H5E_CANTUNDEPEND, __imp_H5E_CANTUNDEPEND_g);
+    #[cfg(all(feature = "1.10.0", not(feature = "1.12.0")))]
+    extern_static!(H5E_LOGFAIL, __imp_H5E_LOGFAIL_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTCLEAN, __imp_H5E_CANTCLEAN_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTMARKCLEAN, __imp_H5E_CANTMARKCLEAN_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTMARKSERIALIZED, __imp_H5E_CANTMARKSERIALIZED_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTMARKUNSERIALIZED, __imp_H5E_CANTMARKUNSERIALIZED_g);
+    #[cfg(feature = "1.10.1")]
+    extern_static!(H5E_CANTUNSERIALIZE, __imp_H5E_CANTUNSERIALIZE_g);
+    #[cfg(feature = "1.12.0")]
+    extern_static!(H5E_CANTDELETEFILE, __imp_H5E_CANTDELETEFILE_g);
+    #[cfg(feature = "1.10.2")]
+    extern_static!(H5E_CANTGATHER, __imp_H5E_CANTGATHER_g);
+    #[cfg(feature = "1.10.7")]
+    extern_static!(H5E_INCONSISTENTSTATE, __imp_H5E_INCONSISTENTSTATE_g);
+    #[cfg(feature = "1.10.5")]
+    extern_static!(H5E_LOGGING, __imp_H5E_LOGGING_g);
+    #[cfg(feature = "1.10.2")]
+    extern_static!(H5E_NO_INDEPENDENT, __imp_H5E_NO_INDEPENDENT_g);
 }
