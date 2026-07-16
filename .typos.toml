@@ -8,3 +8,8 @@ extend-exclude = [
 extend-ignore-identifiers-re = [
   "Dout",
 ]
+# Intentional historical HDF5 misspellings, normalized in error.rs scrub()
+extend-ignore-re = [
+  "accessability",
+  "accessibilty",
+]
