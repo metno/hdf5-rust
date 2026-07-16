@@ -139,6 +139,10 @@ jobs:
           [ "${{runner.os}}" != "Windows" ] && export RUSTFLAGS="-C link-args=-Wl,-rpath,$CONDA_PREFIX/lib"
           # doctests are linked separately by rustdoc and need the rpath too
           [ "${{runner.os}}" != "Windows" ] && export RUSTDOCFLAGS="-C link-args=-Wl,-rpath,$CONDA_PREFIX/lib"
+          # conda's MPICH uses UCX, which tries to open an RDMA transport on the runner's NIC
+          # and aborts MPI_Init when it is unsupported. Restrict UCX to TCP and shared memory,
+          # which is all a single-process test needs.
+          [ "${{matrix.mpi}}" == "mpich" ] && export UCX_TLS=tcp,self,sm
           [ "${{matrix.mpi}}" == "mpich" ] && [ "${{runner.os}}" == "Linux" ] && export MPICH_CC=$(which gcc)
           [ "${{matrix.mpi}}" == "openmpi" ] && [ "${{runner.os}}" == "Linux" ] && export OMPI_CC=$(which gcc)
           cargo test -vv --features="$FEATURES"
