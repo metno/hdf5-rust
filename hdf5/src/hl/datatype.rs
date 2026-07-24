@@ -514,7 +514,7 @@ impl Datatype {
                     #[cfg(feature = "f16")]
                     FloatSize::U2 => f16_type()?,
                     FloatSize::U4 => be_le!(H5T_IEEE_F32BE, H5T_IEEE_F32LE),
-                    FloatSize::U8 => be_le!(H5T_IEEE_I16BE, H5T_IEEE_F64LE),
+                    FloatSize::U8 => be_le!(H5T_IEEE_F64BE, H5T_IEEE_F64LE),
                 }),
                 TD::Boolean => {
                     let bool_id = h5try!(H5Tenum_create(*H5T_NATIVE_INT8));

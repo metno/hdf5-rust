@@ -120,7 +120,7 @@ fn impl_enum(names: &[String], values: &[Expr], repr: &Ident) -> TokenStream {
 
 fn is_phantom_data(ty: &Type) -> bool {
     match *ty {
-        Type::Path(TypePath { qself: None, ref path }) => {
+        Type::Path(TypePath { qself: None, ref path, attrs: _ }) => {
             path.segments.iter().next_back().is_some_and(|x| x.ident == "PhantomData")
         }
         _ => false,
