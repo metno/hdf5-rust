@@ -11,6 +11,7 @@
 - Added `ErrorFrame::major_code` and `ErrorFrame::minor_code`
 - Added `ExpandedErrorStack::major_codes`, `minor_codes`, `contains_major` and `contains_minor`
 - Renamed error codes map to a single variant, `H5E_BADATOM` and `H5E_BADID` both give `BadId`
+- Fixed `append` masking the underlying error with `EEXIST` when the file exists but cannot be opened
 
 ## hdf5-sys unreleased
 - Added missing H5E error code globals, including `H5E_VOL`, `H5E_CONTEXT` and `H5E_LOGGING`
