@@ -188,6 +188,7 @@ link_hid!(H5E_STORAGE, h5e::H5E_STORAGE);
 link_hid!(H5E_FILE, h5e::H5E_FILE);
 link_hid!(H5E_SOHM, h5e::H5E_SOHM);
 link_hid!(H5E_SYM, h5e::H5E_SYM);
+#[cfg(feature = "1.8.11")]
 link_hid!(H5E_PLUGIN, h5e::H5E_PLUGIN);
 link_hid!(H5E_VFL, h5e::H5E_VFL);
 link_hid!(H5E_INTERNAL, h5e::H5E_INTERNAL);
@@ -242,6 +243,7 @@ link_hid!(H5E_CANTRELEASE, h5e::H5E_CANTRELEASE);
 link_hid!(H5E_CANTGET, h5e::H5E_CANTGET);
 link_hid!(H5E_CANTSET, h5e::H5E_CANTSET);
 link_hid!(H5E_DUPCLASS, h5e::H5E_DUPCLASS);
+#[cfg(feature = "1.8.9")]
 link_hid!(H5E_SETDISALLOWED, h5e::H5E_SETDISALLOWED);
 link_hid!(H5E_CANTMERGE, h5e::H5E_CANTMERGE);
 link_hid!(H5E_CANTREVIVE, h5e::H5E_CANTREVIVE);
@@ -267,6 +269,7 @@ link_hid!(H5E_CANTCLOSEOBJ, h5e::H5E_CANTCLOSEOBJ);
 link_hid!(H5E_COMPLEN, h5e::H5E_COMPLEN);
 link_hid!(H5E_PATH, h5e::H5E_PATH);
 link_hid!(H5E_NONE_MINOR, h5e::H5E_NONE_MINOR);
+#[cfg(feature = "1.8.11")]
 link_hid!(H5E_OPENERROR, h5e::H5E_OPENERROR);
 link_hid!(H5E_FILEEXISTS, h5e::H5E_FILEEXISTS);
 link_hid!(H5E_FILEOPEN, h5e::H5E_FILEOPEN);
@@ -331,6 +334,80 @@ link_hid!(H5E_CANTMODIFY, h5e::H5E_CANTMODIFY);
 link_hid!(H5E_CANTREMOVE, h5e::H5E_CANTREMOVE);
 link_hid!(H5E_CANTCONVERT, h5e::H5E_CANTCONVERT);
 link_hid!(H5E_BADSIZE, h5e::H5E_BADSIZE);
+#[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+link_hid!(H5E_CANTLOCKFILE, h5e::H5E_CANTLOCKFILE);
+#[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
+link_hid!(H5E_CANTUNLOCKFILE, h5e::H5E_CANTUNLOCKFILE);
+#[cfg(feature = "1.12.1")]
+link_hid!(H5E_LIB, h5e::H5E_LIB);
+#[cfg(feature = "1.14.0")]
+link_hid!(H5E_BADID, h5e::H5E_BADID);
+#[cfg(feature = "1.14.0")]
+link_hid!(H5E_CANTCANCEL, h5e::H5E_CANTCANCEL);
+#[cfg(feature = "1.14.0")]
+link_hid!(H5E_CANTFIND, h5e::H5E_CANTFIND);
+#[cfg(feature = "1.14.0")]
+link_hid!(H5E_CANTPUT, h5e::H5E_CANTPUT);
+#[cfg(feature = "1.14.0")]
+link_hid!(H5E_CANTWAIT, h5e::H5E_CANTWAIT);
+#[cfg(feature = "1.14.0")]
+link_hid!(H5E_EVENTSET, h5e::H5E_EVENTSET);
+#[cfg(feature = "1.14.0")]
+link_hid!(H5E_ID, h5e::H5E_ID);
+#[cfg(feature = "1.14.0")]
+link_hid!(H5E_UNMOUNT, h5e::H5E_UNMOUNT);
+#[cfg(feature = "2.0.0")]
+link_hid!(H5E_RTREE, h5e::H5E_RTREE);
+#[cfg(feature = "2.0.0")]
+link_hid!(H5E_THREADSAFE, h5e::H5E_THREADSAFE);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_EARRAY, h5e::H5E_EARRAY);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_FARRAY, h5e::H5E_FARRAY);
+#[cfg(feature = "1.10.1")]
+link_hid!(H5E_PAGEBUF, h5e::H5E_PAGEBUF);
+#[cfg(feature = "1.10.3")]
+link_hid!(H5E_CONTEXT, h5e::H5E_CONTEXT);
+#[cfg(feature = "1.12.0")]
+link_hid!(H5E_MAP, h5e::H5E_MAP);
+#[cfg(feature = "1.12.0")]
+link_hid!(H5E_VOL, h5e::H5E_VOL);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_CANTAPPEND, h5e::H5E_CANTAPPEND);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_CANTCORK, h5e::H5E_CANTCORK);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_CANTDEPEND, h5e::H5E_CANTDEPEND);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_CANTNOTIFY, h5e::H5E_CANTNOTIFY);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_CANTTAG, h5e::H5E_CANTTAG);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_CANTUNCORK, h5e::H5E_CANTUNCORK);
+#[cfg(feature = "1.10.0")]
+link_hid!(H5E_CANTUNDEPEND, h5e::H5E_CANTUNDEPEND);
+#[cfg(all(feature = "1.10.0", not(feature = "1.12.0")))]
+link_hid!(H5E_LOGFAIL, h5e::H5E_LOGFAIL);
+#[cfg(feature = "1.10.1")]
+link_hid!(H5E_CANTCLEAN, h5e::H5E_CANTCLEAN);
+#[cfg(feature = "1.10.1")]
+link_hid!(H5E_CANTMARKCLEAN, h5e::H5E_CANTMARKCLEAN);
+#[cfg(feature = "1.10.1")]
+link_hid!(H5E_CANTMARKSERIALIZED, h5e::H5E_CANTMARKSERIALIZED);
+#[cfg(feature = "1.10.1")]
+link_hid!(H5E_CANTMARKUNSERIALIZED, h5e::H5E_CANTMARKUNSERIALIZED);
+#[cfg(feature = "1.10.1")]
+link_hid!(H5E_CANTUNSERIALIZE, h5e::H5E_CANTUNSERIALIZE);
+#[cfg(feature = "1.12.0")]
+link_hid!(H5E_CANTDELETEFILE, h5e::H5E_CANTDELETEFILE);
+#[cfg(feature = "1.10.2")]
+link_hid!(H5E_CANTGATHER, h5e::H5E_CANTGATHER);
+#[cfg(feature = "1.10.7")]
+link_hid!(H5E_INCONSISTENTSTATE, h5e::H5E_INCONSISTENTSTATE);
+#[cfg(feature = "1.10.5")]
+link_hid!(H5E_LOGGING, h5e::H5E_LOGGING);
+#[cfg(feature = "1.10.2")]
+link_hid!(H5E_NO_INDEPENDENT, h5e::H5E_NO_INDEPENDENT);
 
 // H5R constants
 pub static H5R_OBJ_REF_BUF_SIZE: LazyLock<usize> = LazyLock::new(|| mem::size_of::<haddr_t>());

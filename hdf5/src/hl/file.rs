@@ -380,16 +380,40 @@ pub mod tests {
     #[test]
     pub fn test_unable_to_open() {
         with_tmp_dir(|dir| {
-            assert_err_re!(File::open(&dir), "unable to (?:synchronously )?open file");
-            assert_err_re!(File::open_rw(&dir), "unable to (?:synchronously )?open file");
-            assert_err_re!(File::create_excl(&dir), "unable to (?:synchronously )?create file");
-            assert_err_re!(File::create(&dir), "unable to (?:synchronously )?create file");
-            assert_err_re!(File::append(&dir), "unable to (?:synchronously )?create file");
+            // Opening a directory fails, but how it fails is not portable: read-only succeeds
+            // at the OS level on unix, so HDF5 gets as far as the superblock and reports
+            // NotHdf5, while read-write fails with EISDIR first. Only the shared codes are
+            // asserted here. The message text gained "synchronously" in HDF5 1.14, the codes
+            // did not move.
+            for err in [File::open(&dir).unwrap_err(), File::open_rw(&dir).unwrap_err()] {
+                assert_err_re!(Err::<(), _>(err.clone()), "unable to (?:synchronously )?open file");
+                assert!(err.contains_major(MajorErrorCode::File), "{err:?}");
+                assert!(err.contains_minor(MinorErrorCode::CantOpenFile), "{err:?}");
+            }
+            // Creating over a directory cannot report the underlying EISDIR/EEXIST as a code;
+            // HDF5 only ever says CantCreate here, with errno buried in the message text.
+            for err in [
+                File::create_excl(&dir).unwrap_err(),
+                File::create(&dir).unwrap_err(),
+                File::append(&dir).unwrap_err(),
+            ] {
+                assert_err_re!(
+                    Err::<(), _>(err.clone()),
+                    "unable to (?:synchronously )?create file"
+                );
+                // The minor code varies by HDF5 version (CantCreate vs FileExists)
+                // The stable part is that it's a File error and not a corrupt-superblock read.
+                assert!(err.contains_major(MajorErrorCode::File), "{err:?}");
+                assert!(!err.contains_minor(MinorErrorCode::NotHdf5), "{err:?}");
+            }
         });
         with_tmp_path(|path| {
             fs::File::create(&path).unwrap().write_all(b"foo").unwrap();
             assert!(fs::metadata(&path).is_ok());
-            assert_err_re!(File::open(&path), "unable to (?:synchronously )?open file");
+            let err = File::open(&path).unwrap_err();
+            assert_err_re!(Err::<(), _>(err.clone()), "unable to (?:synchronously )?open file");
+            // The file exists but has no valid superblock
+            assert!(err.contains_minor(MinorErrorCode::NotHdf5), "{err:?}");
         })
     }
 
@@ -408,7 +432,12 @@ pub mod tests {
     pub fn test_file_create_excl() {
         with_tmp_path(|path| {
             File::create_excl(&path).unwrap();
-            assert_err_re!(File::create_excl(&path), "unable to (?:synchronously )?create file");
+            let err = File::create_excl(&path).unwrap_err();
+            assert_err_re!(Err::<(), _>(err.clone()), "unable to (?:synchronously )?create file");
+            // The specific minor code varies by HDF5 version and build, assert on what's stable
+            let minors: Vec<_> = err.stack().unwrap().minor_codes().collect();
+            assert!(err.contains_major(MajorErrorCode::File), "minors={minors:?}: {err}");
+            assert!(!err.contains_minor(MinorErrorCode::NotHdf5), "minors={minors:?}: {err}");
         });
     }
 

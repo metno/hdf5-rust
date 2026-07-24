@@ -882,6 +882,22 @@ pub mod tests {
     }
 
     #[test]
+    pub fn test_missing_group_error_codes() {
+        with_tmp_file(|file| {
+            file.create_group("a").unwrap();
+            // Both a missing intermediate and a missing leaf report the same codes, so callers
+            // can detect "no such object" without matching on the message text.
+            for path in ["/foo/baz", "/a/baz"] {
+                let err = file.group(path).unwrap_err();
+                assert!(err.contains_major(MajorErrorCode::SymbolTable), "{path}: {err:?}");
+                assert!(err.contains_minor(MinorErrorCode::NotFound), "{path}: {err:?}");
+                assert!(!err.contains_minor(MinorErrorCode::NotHdf5), "{path}: {err:?}");
+            }
+            file.group("a").unwrap();
+        })
+    }
+
+    #[test]
     pub fn test_unlink() {
         with_tmp_file(|file| {
             file.create_group("/foo/bar").unwrap();

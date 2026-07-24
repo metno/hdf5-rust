@@ -967,3 +967,27 @@ fn test_fapl_file_locking() -> hdf5::Result<()> {
     test_pl!(FA, file_locking: false);
     Ok(())
 }
+
+#[test]
+fn test_dcpl_filter_requires_chunking() -> hdf5::Result<()> {
+    let mut b = DatasetCreate::build();
+    b.deflate(4);
+    let err = b.finish().unwrap_err();
+    assert_eq!(err.to_string(), "Filter requires dataset to be chunked");
+    assert!(err.stack().is_none(), "expected a Rust-side error, got a stack: {err:?}");
+
+    // Adding a chunk makes it valid
+    b.chunk([4]);
+    b.finish()?;
+    Ok(())
+}
+
+#[test]
+fn test_property_list_class_from_str() {
+    assert_eq!(
+        PropertyListClass::from_str("dataset create").unwrap(),
+        PropertyListClass::DatasetCreate
+    );
+    let err = PropertyListClass::from_str("not a class").unwrap_err();
+    assert_eq!(err.to_string(), "invalid property list class: not a class");
+}

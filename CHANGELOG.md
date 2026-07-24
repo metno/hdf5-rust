@@ -1,13 +1,21 @@
 # Changelog
 
-## hdf5-types unreleased
-## hdf5-sys unreleased
 ## hdf5-src unreleased
-
+## hdf5-types unreleased
 
 ## hdf5 unreleased
 - Fixed wrong f64 -> h5 datatype for big endian platforms
 - Added `read_raw_into` to read directly into a pre-allocated buffer
+- Added `MajorErrorCode` and `MinorErrorCode` for matching on HDF5 error codes
+- Added `Error::stack`, `Error::contains_major` and `Error::contains_minor`
+- Added `ErrorFrame::major_code` and `ErrorFrame::minor_code`
+- Added `ExpandedErrorStack::major_codes`, `minor_codes`, `contains_major` and `contains_minor`
+- Renamed error codes map to a single variant, `H5E_BADATOM` and `H5E_BADID` both give `BadId`
+
+## hdf5-sys unreleased
+- Added missing H5E error code globals, including `H5E_VOL`, `H5E_CONTEXT` and `H5E_LOGGING`
+- Fixed version gates on `H5E_PLUGIN`, `H5E_OPENERROR` and `H5E_SETDISALLOWED`
+- Added `H5E_CANTLOCKFILE` and `H5E_CANTUNLOCKFILE` on hdf5 1.10.7 and later
 
 ## hdf5-derive unreleased
 - Updated syn to version 3
