@@ -760,24 +760,24 @@ fn get_build_and_emit() {
 
     if feature_enabled("ZLIB") {
         let zlib_lib = env::var("DEP_HDF5SRC_ZLIB").unwrap();
-        println!("cargo::metadata=zlib={}", &zlib_lib);
+        println!("cargo::metadata=zlib={}", zlib_lib);
     }
 
     if feature_enabled("HL") {
         let hdf5_hl_lib = env::var("DEP_HDF5SRC_HL_LIBRARY").unwrap();
-        println!("cargo::rustc-link-lib=static={}", &hdf5_hl_lib);
-        println!("cargo::metadata=hl_library={}", &hdf5_hl_lib);
+        println!("cargo::rustc-link-lib=static={}", hdf5_hl_lib);
+        println!("cargo::metadata=hl_library={}", hdf5_hl_lib);
     }
 
     let hdf5_root = env::var("DEP_HDF5SRC_ROOT").unwrap();
-    println!("cargo::metadata=root={}", &hdf5_root);
+    println!("cargo::metadata=root={}", hdf5_root);
     let hdf5_incdir = env::var("DEP_HDF5SRC_INCLUDE").unwrap();
-    println!("cargo::metadata=include={}", &hdf5_incdir);
+    println!("cargo::metadata=include={}", hdf5_incdir);
     let hdf5_lib = env::var("DEP_HDF5SRC_LIBRARY").unwrap();
-    println!("cargo::metadata=library={}", &hdf5_lib);
+    println!("cargo::metadata=library={}", hdf5_lib);
 
-    println!("cargo::rustc-link-search=native={}/lib", &hdf5_root);
-    println!("cargo::rustc-link-lib=static={}", &hdf5_lib);
+    println!("cargo::rustc-link-search=native={}/lib", hdf5_root);
+    println!("cargo::rustc-link-lib=static={}", hdf5_lib);
 
     let header = Header::parse(&hdf5_incdir);
     let config = Config { header, inc_dir: "".into(), link_paths: Vec::new() };
