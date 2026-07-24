@@ -1,11 +1,12 @@
 # Changelog
 
-## hdf5 unreleased
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+## hdf5 unreleased
+- Fixed wrong f64 -> h5 datatype for big endian platforms
 
 ## hdf5 0.13.0
 Release date: Jul 02, 2026
