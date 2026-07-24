@@ -212,12 +212,12 @@ impl ExpandedErrorStack {
     }
 
     /// Returns the major code of every frame, outermost first.
-    pub fn major_codes(&self) -> impl Iterator<Item = MajorErrorCode> + '_ {
+    pub fn major_codes(&self) -> impl DoubleEndedIterator<Item = MajorErrorCode> + '_ {
         self.frames.iter().map(ErrorFrame::major_code)
     }
 
     /// Returns the minor code of every frame, outermost first.
-    pub fn minor_codes(&self) -> impl Iterator<Item = MinorErrorCode> + '_ {
+    pub fn minor_codes(&self) -> impl DoubleEndedIterator<Item = MinorErrorCode> + '_ {
         self.frames.iter().map(ErrorFrame::minor_code)
     }
 
