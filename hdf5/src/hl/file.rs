@@ -236,8 +236,15 @@ impl FileBuilder {
     pub fn open_as<P: AsRef<Path>>(&self, filename: P, mode: OpenMode) -> Result<File> {
         let filename = filename.as_ref();
         if mode == OpenMode::Append {
-            if let Ok(file) = self.open_as(filename, OpenMode::ReadWrite) {
-                return Ok(file);
+            match self.open_as(filename, OpenMode::ReadWrite) {
+                Ok(file) => return Ok(file),
+                Err(err) => {
+                    // If the file exists it is unreadable (corrupt, locked, no permission), so
+                    // report that instead of falling through to create, which would give a misleading EEXIST error.
+                    if err.contains_minor(MinorErrorCode::NotHdf5) || filename.exists() {
+                        return Err(err);
+                    }
+                }
             }
         }
         let filename = to_cstring(
@@ -385,18 +392,18 @@ pub mod tests {
             // NotHdf5, while read-write fails with EISDIR first. Only the shared codes are
             // asserted here. The message text gained "synchronously" in HDF5 1.14, the codes
             // did not move.
-            for err in [File::open(&dir).unwrap_err(), File::open_rw(&dir).unwrap_err()] {
+            for err in [
+                File::open(&dir).unwrap_err(),
+                File::open_rw(&dir).unwrap_err(),
+                File::append(&dir).unwrap_err(),
+            ] {
                 assert_err_re!(Err::<(), _>(err.clone()), "unable to (?:synchronously )?open file");
                 assert!(err.contains_major(MajorErrorCode::File), "{err:?}");
                 assert!(err.contains_minor(MinorErrorCode::CantOpenFile), "{err:?}");
             }
             // Creating over a directory cannot report the underlying EISDIR/EEXIST as a code;
             // HDF5 only ever says CantCreate here, with errno buried in the message text.
-            for err in [
-                File::create_excl(&dir).unwrap_err(),
-                File::create(&dir).unwrap_err(),
-                File::append(&dir).unwrap_err(),
-            ] {
+            for err in [File::create_excl(&dir).unwrap_err(), File::create(&dir).unwrap_err()] {
                 assert_err_re!(
                     Err::<(), _>(err.clone()),
                     "unable to (?:synchronously )?create file"
@@ -446,6 +453,18 @@ pub mod tests {
         with_tmp_path(|path| {
             File::append(&path).unwrap().create_group("foo").unwrap();
             File::append(&path).unwrap().group("foo").unwrap();
+        });
+    }
+
+    #[test]
+    pub fn test_append_to_corrupt_file() {
+        with_tmp_path(|path| {
+            fs::File::create(&path).unwrap().write_all(b"garbage data").unwrap();
+            // The file exists but is not HDF5, so append must report the read failure rather
+            // than a misleading "file exists" from falling through to create
+            let err = File::append(&path).unwrap_err();
+            assert!(err.contains_minor(MinorErrorCode::NotHdf5), "{err:?}");
+            assert_err_re!(Err::<(), _>(err), "unable to (?:synchronously )?open file");
         });
     }
 
