@@ -1,9 +1,13 @@
 # Changelog
 
-## hdf5-src unreleased
-## hdf5-types unreleased
-
 ## hdf5 unreleased
+## hdf5-derive unreleased
+## hdf5-types unreleased
+## hdf5-sys unreleased
+## hdf5-src unreleased
+
+## hdf5 0.14.0
+Release date: Jul 25, 2026
 - Fixed wrong f64 -> h5 datatype for big endian platforms
 - Added `read_raw_into` to read directly into a pre-allocated buffer
 - Added `MajorErrorCode` and `MinorErrorCode` for matching on HDF5 error codes
@@ -13,13 +17,15 @@
 - Renamed error codes map to a single variant, `H5E_BADATOM` and `H5E_BADID` both give `BadId`
 - Fixed `append` masking the underlying error with `EEXIST` when the file exists but cannot be opened
 
-## hdf5-sys unreleased
+## hdf5-derive 0.10.2
+Release date: Jul 25, 2026
+- Updated syn to version 3
+
+## hdf5-sys 0.12.1
+Release date: Jul 25, 2026
 - Added missing H5E error code globals, including `H5E_VOL`, `H5E_CONTEXT` and `H5E_LOGGING`
 - Fixed version gates on `H5E_PLUGIN`, `H5E_OPENERROR` and `H5E_SETDISALLOWED`
 - Added `H5E_CANTLOCKFILE` and `H5E_CANTUNLOCKFILE` on hdf5 1.10.7 and later
-
-## hdf5-derive unreleased
-- Updated syn to version 3
 
 ## hdf5 0.13.0
 Release date: Jul 02, 2026
