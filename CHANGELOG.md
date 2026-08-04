@@ -3,8 +3,9 @@
 ## hdf5 unreleased
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
-## hdf5-src unreleased
 
+## hdf5-src unreleased
+- Bundling hdf5 2.2.0
 
 ## hdf5-sys unreleased
 - Add support for hdf5 2.2.0
