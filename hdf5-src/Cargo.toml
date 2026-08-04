@@ -45,6 +45,8 @@ include = [
     "!ext/hdf5/hl/examples/**",
     "!ext/hdf5/HDF5Examples/**",
     "!ext/hdf5/doxygen/**",
+    "!ext/hdf5/docs/**",
+    "!ext/hdf5/docs",
 ]
 version = "0.10.2"  # !V
 rust-version.workspace = true
