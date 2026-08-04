@@ -30,13 +30,21 @@ impl Version {
     }
 
     pub fn parse(s: &str) -> Option<Self> {
-        let re =
-            Regex::new(r"^(1|2)\.(0|1|8|10|12|14)\.(\d\d?)(_|.\d+)?((-|.)(patch)?\d+)?$").ok()?;
-        let captures = re.captures(s)?;
+        let re_v2 = Regex::new(r"^2\.(\d+)\.(\d+)(?:.+)?$").expect("Invalid regex");
+        if let Some(captures) = re_v2.captures(s) {
+            return Some(Self {
+                major: 2,
+                minor: captures.get(1).and_then(|c| c.as_str().parse::<u8>().ok())?,
+                micro: captures.get(2).and_then(|c| c.as_str().parse::<u8>().ok())?,
+            });
+        };
+        let re_v1 = Regex::new(r"^1\.(8|10|12|14)\.(\d\d?)(_|.\d+)?((-|.)(patch)?\d+)?$")
+            .expect("Invalid regex");
+        let captures = re_v1.captures(s)?;
         Some(Self {
-            major: captures.get(1).and_then(|c| c.as_str().parse::<u8>().ok())?,
-            minor: captures.get(2).and_then(|c| c.as_str().parse::<u8>().ok())?,
-            micro: captures.get(3).and_then(|c| c.as_str().parse::<u8>().ok())?,
+            major: 1,
+            minor: captures.get(1).and_then(|c| c.as_str().parse::<u8>().ok())?,
+            micro: captures.get(2).and_then(|c| c.as_str().parse::<u8>().ok())?,
         })
     }
 
@@ -54,7 +62,9 @@ impl Debug for Version {
 fn known_hdf5_versions() -> Vec<Version> {
     // Keep up to date with known_hdf5_versions in hdf5
     let mut vs = Vec::new();
-    vs.extend((0..=1).map(|v| Version::new(2, v, 0)));
+    vs.extend((0..=0).map(|v| Version::new(2, 2, v))); // 2.2.[0]
+    vs.extend((0..=1).map(|v| Version::new(2, 1, v))); // 2.1.[0-1]
+    vs.extend((0..=0).map(|v| Version::new(2, 0, v))); // 2.0.[0]
     vs.extend((5..=21).map(|v| Version::new(1, 8, v))); // 1.8.[5-23]
     vs.extend((0..=8).map(|v| Version::new(1, 10, v))); // 1.10.[0-10]
     vs.extend((0..=2).map(|v| Version::new(1, 12, v))); // 1.12.[0-2]

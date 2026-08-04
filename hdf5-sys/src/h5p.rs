@@ -859,3 +859,14 @@ unsafe extern "C" {
     pub unsafe fn H5Pget_virtual_spatial_tree(dcpl_id: hid_t, use_tree: *mut hbool_t) -> herr_t;
     pub unsafe fn H5Pset_virtual_spatial_tree(dapl_id: hid_t, use_tree: hbool_t) -> herr_t;
 }
+
+#[cfg(feature = "2.2.0")]
+unsafe extern "C" {
+    pub unsafe fn H5Pget_fapl_ros3_block_caching(
+        fapl_id: hid_t, block_size: *mut size_t, bloc_cache_size: *mut size_t,
+        lock_superblock: *mut hbool_t,
+    ) -> herr_t;
+    pub unsafe fn H5Pset_fapl_ros3_block_caching(
+        fapl_id: hid_t, block_size: size_t, bloc_cache_size: size_t, lock_superblock: hbool_t,
+    ) -> herr_t;
+}
