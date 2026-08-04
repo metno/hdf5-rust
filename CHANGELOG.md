@@ -3,8 +3,12 @@
 ## hdf5 unreleased
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
-## hdf5-sys unreleased
 ## hdf5-src unreleased
+
+
+## hdf5-sys unreleased
+- Add support for hdf5 2.2.0
+- Add symbols introduced in hdf5 2.2.0
 
 ## hdf5 0.14.0
 Release date: Jul 25, 2026

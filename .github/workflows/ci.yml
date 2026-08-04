@@ -69,7 +69,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {version: hdf5@1.10}
           - {version: hdf5@2.1}
           - {version: hdf5}
           - {version: hdf5-mpi, mpi: true}
