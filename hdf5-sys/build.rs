@@ -30,13 +30,21 @@ impl Version {
     }
 
     pub fn parse(s: &str) -> Option<Self> {
-        let re =
-            Regex::new(r"^(1|2)\.(0|1|8|10|12|14)\.(\d\d?)(_|.\d+)?((-|.)(patch)?\d+)?$").ok()?;
-        let captures = re.captures(s)?;
+        let re_v2 = Regex::new(r"^2\.(\d+)\.(\d+)(?:.+)?$").expect("Invalid regex");
+        if let Some(captures) = re_v2.captures(s) {
+            return Some(Self {
+                major: 2,
+                minor: captures.get(1).and_then(|c| c.as_str().parse::<u8>().ok())?,
+                micro: captures.get(2).and_then(|c| c.as_str().parse::<u8>().ok())?,
+            });
+        };
+        let re_v1 = Regex::new(r"^1\.(8|10|12|14)\.(\d\d?)(_|.\d+)?((-|.)(patch)?\d+)?$")
+            .expect("Invalid regex");
+        let captures = re_v1.captures(s)?;
         Some(Self {
-            major: captures.get(1).and_then(|c| c.as_str().parse::<u8>().ok())?,
-            minor: captures.get(2).and_then(|c| c.as_str().parse::<u8>().ok())?,
-            micro: captures.get(3).and_then(|c| c.as_str().parse::<u8>().ok())?,
+            major: 1,
+            minor: captures.get(1).and_then(|c| c.as_str().parse::<u8>().ok())?,
+            micro: captures.get(2).and_then(|c| c.as_str().parse::<u8>().ok())?,
         })
     }
 
