@@ -6,6 +6,11 @@
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+
+## hdf5-sys 0.11.4
+Release date: Aug 10, 2026
+- Backport support for hdf5 2.X series
+
 ## hdf5-sys 0.12.2
 Release date: Aug 04, 2026
 - Add support for hdf5 2.2.0
