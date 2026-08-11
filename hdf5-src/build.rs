@@ -40,6 +40,8 @@ fn main() {
         }
     }
 
+    cfg.define("CMAKE_INSTALL_LIBDIR", "lib");
+
     // only build the static c library, disable everything else
     cfg.define("HDF5_NO_PACKAGES", "ON");
     for option in &[
