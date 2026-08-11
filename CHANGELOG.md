@@ -4,8 +4,10 @@
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
-## hdf5-src unreleased
 
+
+## hdf5-src unreleased
+- Build library at a consistent path on all platforms
 
 ## hdf5-sys 0.11.4
 Release date: Aug 10, 2026
