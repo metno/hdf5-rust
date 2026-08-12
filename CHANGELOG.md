@@ -1,11 +1,12 @@
 # Changelog
 
-## hdf5 unreleased
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
+## hdf5 unreleased
+- Line and file_name added to ErrorFrame
 
 ## hdf5-src 0.10.4
 Release date: Aug 11, 2026
