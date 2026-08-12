@@ -85,7 +85,11 @@ impl ErrorStack {
                     let minor = get_h5_str(|m, s| H5Eget_msg(e.min_num, ptr::null_mut(), m, s))?;
                     let major_code = MajorErrorCode::from_id(e.maj_num);
                     let minor_code = MinorErrorCode::from_id(e.min_num);
-                    Ok(ErrorFrame::new(&desc, &func, &major, &minor, major_code, minor_code))
+                    let line = e.line.try_into().unwrap();
+                    let file_name = string_from_cstr(e.file_name);
+                    Ok(ErrorFrame::new(
+                        &desc, &func, &major, &minor, major_code, minor_code, line, file_name,
+                    ))
                 };
                 match closure(*err_desc) {
                     Ok(frame) => {
@@ -122,12 +126,14 @@ pub struct ErrorFrame {
     description: String,
     major_code: MajorErrorCode,
     minor_code: MinorErrorCode,
+    line: usize,
+    file_name: String,
 }
 
 impl ErrorFrame {
     pub(crate) fn new(
         desc: &str, func: &str, major: &str, minor: &str, major_code: MajorErrorCode,
-        minor_code: MinorErrorCode,
+        minor_code: MinorErrorCode, line: usize, file_name: String,
     ) -> Self {
         Self {
             desc: desc.into(),
@@ -137,12 +143,19 @@ impl ErrorFrame {
             description: format!("{func}(): {desc}"),
             major_code,
             minor_code,
+            line,
+            file_name: file_name.into(),
         }
     }
 
     /// Returns the error description.
     pub fn desc(&self) -> &str {
         self.desc.as_ref()
+    }
+
+    /// Returns the function name.
+    pub fn func(&self) -> &str {
+        self.func.as_ref()
     }
 
     /// Returns the major code: which part of the library failed.
@@ -160,8 +173,17 @@ impl ErrorFrame {
         self.description.as_ref()
     }
 
-    /// Returns a message with the error description and the relevant function name, file name,
-    /// and line number.
+    /// Returns the line in the source which triggered the error.
+    pub fn line(&self) -> usize {
+        self.line
+    }
+
+    /// Returns the file name in the source which triggered the error.
+    pub fn file_name(&self) -> &str {
+        self.file_name.as_ref()
+    }
+
+    /// Returns a message with the error description and the relevant function name.
     pub fn detail(&self) -> Option<String> {
         Some(format!("Error in {}(): {} [{}: {}]", self.func, self.desc, self.major, self.minor))
     }
@@ -195,14 +217,11 @@ impl ExpandedErrorStack {
 
     pub(crate) fn push(&mut self, frame: ErrorFrame) {
         self.frames.push(frame);
-        if !self.is_empty() {
-            let top_desc = self.frames[0].description().to_owned();
-            if self.len() == 1 {
-                self.description = Some(top_desc);
-            } else {
-                self.description =
-                    Some(format!("{}: {}", top_desc, self.frames[self.len() - 1].desc()));
-            }
+
+        self.description = match self.frames[..] {
+            [] => unreachable!(),
+            [ref first] => Some(first.description().to_owned()),
+            [ref first, .., ref last] => Some(format!("{}: {}", first.description(), last.desc())),
         }
     }
 
@@ -648,18 +667,18 @@ pub mod tests {
 
         #[cfg(not(feature = "1.14.0"))]
         {
-            assert_eq!(stack[stack.len() - 1].description(), "H5I_dec_ref(): can't locate ID");
+            assert_eq!(stack.last().unwrap().description(), "H5I_dec_ref(): can't locate ID");
             assert_eq!(
-                &stack[stack.len() - 1].detail().unwrap(),
+                &stack.last().unwrap().detail().unwrap(),
                 "Error in H5I_dec_ref(): can't locate ID \
              [Object atom: Unable to find atom information (already closed?)]"
             );
         }
         #[cfg(feature = "1.14.0")]
         {
-            assert_eq!(stack[stack.len() - 1].description(), "H5I__dec_ref(): can't locate ID");
+            assert_eq!(stack.last().unwrap().description(), "H5I__dec_ref(): can't locate ID");
             assert_eq!(
-                &stack[stack.len() - 1].detail().unwrap(),
+                &stack.last().unwrap().detail().unwrap(),
                 "Error in H5I__dec_ref(): can't locate ID \
              [Object ID: Unable to find ID information (already closed?)]"
             );
