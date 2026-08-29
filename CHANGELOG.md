@@ -1,11 +1,13 @@
 # Changelog
 
+## hdf5 unreleased
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
 
-## hdf5 unreleased
+## hdf5-sys 0.12.3
+Release date: Aug 29, 2026
 - Add fallback detection for brew install of hdf5
 
 ## hdf5 0.14.1
