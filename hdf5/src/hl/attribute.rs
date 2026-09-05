@@ -3,7 +3,8 @@ use std::ops::Deref;
 use std::ptr::addr_of_mut;
 
 use hdf5_sys::h5a::H5Aget_name;
-use hdf5_sys::h5p::H5Pcreate;
+use hdf5_sys::h5p::{H5Pcreate, H5Pset_char_encoding};
+use hdf5_sys::h5t::H5T_cset_t::{H5T_CSET_ASCII, H5T_CSET_UTF8};
 use hdf5_sys::{
     h5::{H5_index_t, H5_iter_order_t},
     h5a::{H5A_info_t, H5A_operator2_t, H5Acreate2, H5Adelete, H5Aiterate2},
@@ -12,6 +13,7 @@ use hdf5_types::TypeDescriptor;
 use ndarray::ArrayView;
 
 use crate::globals::H5P_ATTRIBUTE_CREATE;
+use crate::hl::plist::link_create::CharEncoding;
 use crate::internal_prelude::*;
 
 /// Represents the HDF5 attribute object.
@@ -145,6 +147,18 @@ impl AttributeBuilder {
         self.builder.packed(packed);
         self
     }
+
+    /// Sets the character encoding of the attribute name.
+    ///
+    /// Defaults to [`CharEncoding::Utf8`]. With [`CharEncoding::Ascii`] and the
+    /// earliest library bounds, the library stores a version 1 attribute message,
+    /// which readers older than HDF5 1.8 require.
+    #[inline]
+    #[must_use]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.builder.char_encoding(encoding);
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -175,6 +189,18 @@ impl AttributeBuilderEmpty {
         self.builder.packed(packed);
         self
     }
+
+    /// Sets the character encoding of the attribute name.
+    ///
+    /// Defaults to [`CharEncoding::Utf8`]. With [`CharEncoding::Ascii`] and the
+    /// earliest library bounds, the library stores a version 1 attribute message,
+    /// which readers older than HDF5 1.8 require.
+    #[inline]
+    #[must_use]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.builder.char_encoding(encoding);
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -195,6 +221,18 @@ impl AttributeBuilderEmptyShape {
     #[must_use]
     pub fn packed(mut self, packed: bool) -> Self {
         self.builder.packed(packed);
+        self
+    }
+
+    /// Sets the character encoding of the attribute name.
+    ///
+    /// Defaults to [`CharEncoding::Utf8`]. With [`CharEncoding::Ascii`] and the
+    /// earliest library bounds, the library stores a version 1 attribute message,
+    /// which readers older than HDF5 1.8 require.
+    #[inline]
+    #[must_use]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.builder.char_encoding(encoding);
         self
     }
 }
@@ -254,6 +292,18 @@ where
         self.builder.packed(packed);
         self
     }
+
+    /// Sets the character encoding of the attribute name.
+    ///
+    /// Defaults to [`CharEncoding::Utf8`]. With [`CharEncoding::Ascii`] and the
+    /// earliest library bounds, the library stores a version 1 attribute message,
+    /// which readers older than HDF5 1.8 require.
+    #[inline]
+    #[must_use]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.builder.char_encoding(encoding);
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -261,11 +311,16 @@ where
 struct AttributeBuilderInner {
     parent: Result<Handle>,
     packed: bool,
+    char_encoding: CharEncoding,
 }
 
 impl AttributeBuilderInner {
     pub fn new(parent: &Location) -> Self {
-        Self { parent: parent.try_borrow(), packed: false }
+        Self { parent: parent.try_borrow(), packed: false, char_encoding: CharEncoding::Utf8 }
+    }
+
+    pub fn char_encoding(&mut self, encoding: CharEncoding) {
+        self.char_encoding = encoding;
     }
 
     pub fn packed(&mut self, packed: bool) {
@@ -284,11 +339,11 @@ impl AttributeBuilderInner {
         let dataspace = Dataspace::try_new(extents)?;
 
         let acpl = PropertyList::from_id(h5call!(H5Pcreate(*H5P_ATTRIBUTE_CREATE))?)?;
-        // Set UTF-8 encoding for the attribute name, as Rust strings are UTF-8.
-        h5call!(hdf5_sys::h5p::H5Pset_char_encoding(
-            acpl.id(),
-            hdf5_sys::h5t::H5T_cset_t::H5T_CSET_UTF8
-        ))?;
+        let encoding = match self.char_encoding {
+            CharEncoding::Ascii => H5T_CSET_ASCII,
+            CharEncoding::Utf8 => H5T_CSET_UTF8,
+        };
+        h5call!(H5Pset_char_encoding(acpl.id(), encoding))?;
 
         let name = to_cstring(name)?;
         Attribute::from_id(h5try!(H5Acreate2(
@@ -313,7 +368,13 @@ impl AttributeBuilderInner {
 
 #[cfg(test)]
 pub mod attribute_tests {
+    use crate::hl::plist::link_create::CharEncoding;
     use crate::internal_prelude::*;
+    use hdf5_sys::{
+        h5a::H5Aget_create_plist,
+        h5p::{H5Pclose, H5Pget_char_encoding},
+        h5t::H5T_cset_t,
+    };
     use ndarray::{Array2, arr2};
     use std::str::FromStr;
     use types::VarLenUnicode;
@@ -396,6 +457,42 @@ pub mod attribute_tests {
             assert_eq!(attr.shape(), vec![1, 2]);
             assert_eq!(attr.name(), "foo");
             assert_eq!(file.attr("foo").unwrap().shape(), vec![1, 2]);
+        })
+    }
+
+    /// The encoding stored in the attribute's creation property list.
+    fn name_encoding(attr: &Attribute) -> H5T_cset_t {
+        h5lock!({
+            let acpl = H5Aget_create_plist(attr.id());
+            assert!(acpl > 0);
+            let mut encoding = H5T_cset_t::H5T_CSET_ERROR;
+            assert_eq!(H5Pget_char_encoding(acpl, &mut encoding), 0);
+            H5Pclose(acpl);
+            encoding
+        })
+    }
+
+    #[test]
+    pub fn test_char_encoding() {
+        with_tmp_file(|file| {
+            let default = file.new_attr::<u32>().shape(()).create("default").unwrap();
+            assert_eq!(name_encoding(&default), H5T_cset_t::H5T_CSET_UTF8);
+
+            let ascii = file
+                .new_attr::<u32>()
+                .char_encoding(CharEncoding::Ascii)
+                .shape(())
+                .create("ascii")
+                .unwrap();
+            assert_eq!(name_encoding(&ascii), H5T_cset_t::H5T_CSET_ASCII);
+
+            let utf8 = file
+                .new_attr_builder()
+                .with_data(&arr2(&[[1, 2]]))
+                .char_encoding(CharEncoding::Utf8)
+                .create("utf8")
+                .unwrap();
+            assert_eq!(name_encoding(&utf8), H5T_cset_t::H5T_CSET_UTF8);
         })
     }
 
