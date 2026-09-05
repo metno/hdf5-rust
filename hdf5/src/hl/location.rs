@@ -342,7 +342,7 @@ fn info_fields(full: bool) -> c_uint {
 }
 
 #[allow(non_snake_case, unused_variables)]
-fn H5O_get_info(loc_id: hid_t, full: bool) -> Result<LocationInfo> {
+pub(crate) fn H5O_get_info(loc_id: hid_t, full: bool) -> Result<LocationInfo> {
     let mut info_buf = MaybeUninit::uninit();
     let info_ptr = info_buf.as_mut_ptr();
     #[cfg(feature = "1.12.0")]

@@ -681,7 +681,9 @@ fn test_empty_as_datatype_reuses_dataset_type() -> hdf5::Result<()> {
     Ok(())
 }
 
+// A committed datatype from another file is stored as a copy from 1.8.18 and 1.10.1 on.
 #[test]
+#[cfg(any(all(feature = "1.8.18", not(feature = "1.10.0")), feature = "1.10.1"))]
 fn test_empty_as_datatype_from_other_file_stores_copy() -> hdf5::Result<()> {
     let origin = new_in_memory_file()?;
     let dtype = hdf5::Datatype::from_type::<Point>()?;
@@ -692,6 +694,23 @@ fn test_empty_as_datatype_from_other_file_stores_copy() -> hdf5::Result<()> {
     assert!(!ds.dtype()?.is_committed());
     assert_eq!(ds.dtype()?.to_descriptor()?, dtype.to_descriptor()?);
     assert!(file.committed_datatypes()?.is_empty());
+    Ok(())
+}
+
+// Older libraries would write a reference into the other file, so the crate rejects it.
+#[test]
+#[cfg(not(any(all(feature = "1.8.18", not(feature = "1.10.0")), feature = "1.10.1")))]
+fn test_empty_as_datatype_from_other_file_is_rejected() -> hdf5::Result<()> {
+    let origin = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    origin.commit_datatype("point", &dtype)?;
+
+    let file = new_in_memory_file()?;
+    let err = file.new_dataset_builder().empty_as(&dtype).create("copy");
+    assert!(matches!(err, Err(hdf5::Error::Internal(_))));
+    assert!(file.dataset("copy").is_err());
+    let same_file = origin.new_dataset_builder().empty_as(&dtype).create("ok")?;
+    assert!(same_file.dtype()?.is_committed());
     Ok(())
 }
 
