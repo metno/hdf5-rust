@@ -641,6 +641,7 @@ impl Group {
 #[cfg(test)]
 pub mod tests {
     use crate::internal_prelude::*;
+    use hdf5_types::{TypeDescriptor, VarLenUnicode};
 
     #[test]
     pub fn test_debug() {
@@ -723,6 +724,49 @@ pub mod tests {
             assert!(named.is_committed());
             assert_eq!(named.to_descriptor().unwrap(), dtype.to_descriptor().unwrap());
             assert_eq!(file.committed_datatypes().unwrap().len(), 1);
+
+            // names are relative to the group the method is called on
+            let g = File::open_rw(&path).unwrap().create_group("g").unwrap();
+            g.commit_datatype("t", &Datatype::from_type::<f64>().unwrap()).unwrap();
+            assert!(g.committed_datatype("t").is_ok());
+            assert!(g.committed_datatype("mytype").is_err());
+            assert!(g.committed_datatype("/mytype").is_ok());
+            assert!(g.file().unwrap().committed_datatype("g/t").is_ok());
+        })
+    }
+
+    #[test]
+    pub fn test_commit_datatype_missing_parent() {
+        with_tmp_file(|file| {
+            let dtype = Datatype::from_type::<i32>().unwrap();
+            let err = file.commit_datatype("nogroup/t", &dtype).unwrap_err();
+            assert!(err.contains_major(MajorErrorCode::SymbolTable), "{err:?}");
+            assert!(err.contains_minor(MinorErrorCode::NotFound), "{err:?}");
+            assert!(!dtype.is_committed());
+            assert!(file.committed_datatypes().unwrap().is_empty());
+        })
+    }
+
+    #[test]
+    pub fn test_committed_datatypes_match_committed_datatype() {
+        with_tmp_file(|file| {
+            file.commit_datatype("ints", &Datatype::from_type::<i32>().unwrap()).unwrap();
+            file.commit_datatype("strings", &Datatype::from_type::<VarLenUnicode>().unwrap())
+                .unwrap();
+
+            let mut listed: Vec<TypeDescriptor> = file
+                .committed_datatypes()
+                .unwrap()
+                .iter()
+                .map(|dt| dt.to_descriptor().unwrap())
+                .collect();
+            let mut opened: Vec<TypeDescriptor> = ["ints", "strings"]
+                .iter()
+                .map(|name| file.committed_datatype(name).unwrap().to_descriptor().unwrap())
+                .collect();
+            listed.sort_by_key(|d| format!("{d:?}"));
+            opened.sort_by_key(|d| format!("{d:?}"));
+            assert_eq!(listed, opened);
         })
     }
 

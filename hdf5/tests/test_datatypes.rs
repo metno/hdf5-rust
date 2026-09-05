@@ -7,6 +7,8 @@ use hdf5_metno as hdf5;
 use hdf5_sys::h5i::H5I_INVALID_HID;
 use pretty_assertions::{assert_eq, assert_str_eq};
 
+use self::common::util::new_in_memory_file;
+
 macro_rules! check_roundtrip {
     ($ty:ty, $desc:expr) => {{
         let desc = <$ty as H5Type>::type_descriptor();
@@ -139,6 +141,34 @@ pub fn test_datatype_roundtrip() {
 #[test]
 pub fn test_invalid_datatype() {
     assert_err!(from_id::<Datatype>(H5I_INVALID_HID), "Invalid handle id");
+}
+
+#[test]
+pub fn test_committed_datatype_roundtrip() -> hdf5::Result<()> {
+    let compound = TD::Compound(CompoundType {
+        fields: vec![
+            CompoundField::typed::<i32>("a", 0, 0),
+            CompoundField::typed::<f64>("b", 8, 1),
+        ],
+        size: 16,
+    });
+    let enumeration = TD::Enum(EnumType {
+        size: IntSize::U1,
+        signed: false,
+        members: vec![
+            EnumMember { name: "red".to_owned(), value: 1 },
+            EnumMember { name: "green".to_owned(), value: 2 },
+        ],
+    });
+    let file = new_in_memory_file()?;
+    for (i, desc) in [compound, enumeration, TD::VarLenUnicode].iter().enumerate() {
+        let name = format!("t{i}");
+        file.commit_datatype(&name, &Datatype::from_descriptor(desc)?)?;
+        let named = file.committed_datatype(&name)?;
+        assert!(named.is_committed());
+        assert_eq!(named.to_descriptor()?, *desc);
+    }
+    Ok(())
 }
 
 #[test]
