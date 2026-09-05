@@ -24,6 +24,7 @@ pub use self::{
     container::{ByteReader, Container, Reader, Writer},
     dataset::{
         Dataset, DatasetBuilder, DatasetBuilderData, DatasetBuilderEmpty, DatasetBuilderEmptyShape,
+        DatasetType,
     },
     dataspace::Dataspace,
     datatype::{Conversion, Datatype},

@@ -63,9 +63,9 @@ mod export {
             Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
             AttributeBuilderEmptyShape, ByteReader, CommittedDatatype, Container, Conversion,
             Dataset, DatasetBuilder, DatasetBuilderData, DatasetBuilderEmpty,
-            DatasetBuilderEmptyShape, Dataspace, Datatype, File, FileBuilder, Group, GroupBuilder,
-            LinkInfo, LinkType, Location, LocationInfo, LocationToken, LocationType, Object,
-            OpenMode, PropertyList, Reader, Writer,
+            DatasetBuilderEmptyShape, DatasetType, Dataspace, Datatype, File, FileBuilder, Group,
+            GroupBuilder, LinkInfo, LinkType, Location, LocationInfo, LocationToken, LocationType,
+            Object, OpenMode, PropertyList, Reader, Writer,
             references::{ObjectReference, ObjectReference1, ReferencedObject},
         },
     };
