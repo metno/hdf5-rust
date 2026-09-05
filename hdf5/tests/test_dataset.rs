@@ -6,7 +6,9 @@ use ndarray::{Array1, Array2, ArrayD, IxDyn, SliceInfo, s};
 use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 
 use hdf5_metno as hdf5;
-use hdf5_types::TypeDescriptor;
+use hdf5_metno::H5Type;
+use hdf5_types::{TypeDescriptor, VarLenUnicode};
+use tempfile::tempdir;
 
 mod common;
 
@@ -626,6 +628,189 @@ fn test_create_on_databuilder() {
     let _ds = file.new_dataset_builder().with_data(&[1_i32, 2, 3]).create("ds2").unwrap();
     let _ds = file.new_dataset::<i32>().create("ds3").unwrap();
     let _ds = file.new_dataset::<i32>().shape(2).create("ds4").unwrap();
+}
+
+#[derive(H5Type, Clone, Debug, PartialEq)]
+#[repr(C)]
+struct Point {
+    x: f64,
+    tag: i32,
+}
+
+#[test]
+fn test_create_with_committed_datatype() -> hdf5::Result<()> {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("committed.h5");
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    {
+        let file = hdf5::File::create(&path)?;
+        file.commit_datatype("point", &dtype)?;
+        file.new_dataset_builder().empty_as(&dtype).shape(2).create("pair")?;
+        file.new_dataset_builder().empty_as(&dtype).create("single")?;
+    }
+
+    let file = hdf5::File::open_rw(&path)?;
+    let expected = file.committed_datatype("point")?.as_datatype().to_descriptor()?;
+    let pair = file.dataset("pair")?;
+    let single = file.dataset("single")?;
+    for ds in [&pair, &single] {
+        let stored = ds.dtype()?;
+        assert!(stored.is_committed());
+        assert_eq!(stored.to_descriptor()?, expected);
+    }
+
+    let values = [Point { x: 1.5, tag: 1 }, Point { x: -2.0, tag: 2 }];
+    pair.write(&values)?;
+    assert_eq!(pair.read_1d::<Point>()?.as_slice().unwrap(), &values);
+    single.write_scalar(&values[0])?;
+    assert_eq!(single.read_scalar::<Point>()?, values[0]);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_reuses_dataset_type() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    file.commit_datatype("point", &dtype)?;
+    let first = file.new_dataset_builder().empty_as(&dtype).create("first")?;
+
+    let second = file.new_dataset_builder().empty_as(&first.dtype()?).create("second")?;
+    assert!(second.dtype()?.is_committed());
+    assert_eq!(second.dtype()?.to_descriptor()?, dtype.to_descriptor()?);
+    assert_eq!(file.committed_datatypes()?.len(), 1);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_from_other_file_stores_copy() -> hdf5::Result<()> {
+    let origin = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    origin.commit_datatype("point", &dtype)?;
+
+    let file = new_in_memory_file()?;
+    let ds = file.new_dataset_builder().empty_as(&dtype).create("copy")?;
+    assert!(!ds.dtype()?.is_committed());
+    assert_eq!(ds.dtype()?.to_descriptor()?, dtype.to_descriptor()?);
+    assert!(file.committed_datatypes()?.is_empty());
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_outlives_unlinked_type() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    file.commit_datatype("point", &dtype)?;
+    let ds = file.new_dataset_builder().empty_as(&dtype).create("ds")?;
+
+    file.unlink("point")?;
+    assert!(file.committed_datatypes()?.is_empty());
+    assert!(ds.dtype()?.is_committed());
+    let value = Point { x: 0.5, tag: 7 };
+    ds.write_scalar(&value)?;
+    assert_eq!(ds.read_scalar::<Point>()?, value);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_leaves_transient_type_reusable() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    let first = file.new_dataset_builder().empty_as(&dtype).create("first")?;
+    assert!(!first.dtype()?.is_committed());
+
+    assert!(!dtype.is_committed());
+    let second = file.new_dataset_builder().empty_as(&dtype).create("second")?;
+    assert_eq!(second.dtype()?.to_descriptor()?, dtype.to_descriptor()?);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_anonymous_dataset() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    file.commit_datatype("point", &dtype)?;
+
+    let ds = file.new_dataset_builder().empty_as(&dtype).create(None)?;
+    assert!(ds.dtype()?.is_committed());
+    assert!(file.member_names()?.iter().all(|name| name == "point"));
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_chunked_and_filtered() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    file.commit_datatype("point", &dtype)?;
+
+    let ds = file
+        .new_dataset_builder()
+        .empty_as(&dtype)
+        .chunk(2)
+        .shuffle()
+        .fletcher32()
+        .shape(4)
+        .create("ds")?;
+    assert!(ds.dtype()?.is_committed());
+    assert_eq!(ds.chunk(), Some(vec![2]));
+    let values: Vec<Point> = (0..4).map(|i| Point { x: f64::from(i), tag: i }).collect();
+    ds.write(&values)?;
+    assert_eq!(ds.read_1d::<Point>()?.to_vec(), values);
+    Ok(())
+}
+
+#[test]
+fn test_with_data_as_committed_datatype() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<Point>()?;
+    file.commit_datatype("point", &dtype)?;
+    let committed = file.committed_datatype("point")?;
+
+    let values = [Point { x: 1.5, tag: 1 }, Point { x: -2.0, tag: 2 }];
+    let ds = file.new_dataset_builder().with_data_as(&values, &committed).create("ds")?;
+    assert!(ds.dtype()?.is_committed());
+    assert_eq!(ds.read_1d::<Point>()?.as_slice().unwrap(), &values);
+    Ok(())
+}
+
+#[test]
+fn test_with_data_as_datatype_checks_conversion() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<i64>()?;
+    file.commit_datatype("wide", &dtype)?;
+
+    let soft = file.new_dataset_builder().with_data_as(&[1_i32, 2], &dtype).create("soft")?;
+    assert_eq!(soft.read_1d::<i64>()?.to_vec(), vec![1, 2]);
+    let strict =
+        file.new_dataset_builder().with_data_as(&[1_i32, 2], &dtype).no_convert().create("strict");
+    assert!(matches!(strict, Err(hdf5::Error::Internal(_))));
+    assert!(file.dataset("strict").is_err());
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_converts_on_write() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<i64>()?;
+    file.commit_datatype("wide", &dtype)?;
+
+    let ds = file.new_dataset_builder().empty_as(&dtype).shape(3).create("ds")?;
+    ds.write(&[1_i32, -2, 3])?;
+    assert_eq!(ds.read_1d::<i64>()?.to_vec(), vec![1, -2, 3]);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_varlen_string() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let dtype = hdf5::Datatype::from_type::<VarLenUnicode>()?;
+    file.commit_datatype("text", &dtype)?;
+
+    let ds = file.new_dataset_builder().empty_as(&dtype).shape(2).create("ds")?;
+    let values: Vec<VarLenUnicode> = ["héllo", ""].iter().map(|s| s.parse().unwrap()).collect();
+    ds.write(&values)?;
+    assert!(ds.dtype()?.is_committed());
+    assert_eq!(ds.read_1d::<VarLenUnicode>()?.to_vec(), values);
+    Ok(())
 }
 
 #[test]
