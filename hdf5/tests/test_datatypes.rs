@@ -164,9 +164,9 @@ pub fn test_committed_datatype_roundtrip() -> hdf5::Result<()> {
     for (i, desc) in [compound, enumeration, TD::VarLenUnicode].iter().enumerate() {
         let name = format!("t{i}");
         file.commit_datatype(&name, &Datatype::from_descriptor(desc)?)?;
-        let named = file.committed_datatype(&name)?;
-        assert!(named.is_committed());
-        assert_eq!(named.to_descriptor()?, *desc);
+        let committed = file.committed_datatype(&name)?;
+        assert!(committed.as_datatype().is_committed());
+        assert_eq!(committed.as_datatype().to_descriptor()?, *desc);
     }
     Ok(())
 }

@@ -607,7 +607,12 @@ mod tests {
             let committed = Datatype::from_type::<i32>().unwrap();
             file.commit_datatype("committed", &committed).unwrap();
             assert!(committed.is_committed());
-            assert!(file.committed_datatypes().unwrap().iter().all(Datatype::is_committed));
+            assert!(
+                file.committed_datatypes()
+                    .unwrap()
+                    .iter()
+                    .all(|ct| ct.as_datatype().is_committed())
+            );
         });
     }
 
