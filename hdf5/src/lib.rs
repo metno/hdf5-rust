@@ -108,6 +108,9 @@ mod export {
 
     /// Property list objects.
     pub mod plist {
+        pub use crate::hl::plist::attribute_create::{
+            AttributeCreate, AttributeCreateBuilder, CharEncoding,
+        };
         pub use crate::hl::plist::dataset_access::{DatasetAccess, DatasetAccessBuilder};
         pub use crate::hl::plist::dataset_create::{DatasetCreate, DatasetCreateBuilder};
         pub use crate::hl::plist::file_access::{FileAccess, FileAccessBuilder};
@@ -117,6 +120,10 @@ mod export {
         pub use crate::hl::plist::object_copy::{ObjectCopy, ObjectCopyBuilder};
         pub use crate::hl::plist::{PropertyList, PropertyListClass};
 
+        /// Attribute creation property lists.
+        pub mod attribute_create {
+            pub use crate::hl::plist::attribute_create::*;
+        }
         /// Dataset access property lists.
         pub mod dataset_access {
             pub use crate::hl::plist::dataset_access::*;

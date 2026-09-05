@@ -2,9 +2,7 @@ use std::fmt::{self, Debug};
 use std::ops::Deref;
 use std::ptr::addr_of_mut;
 
-use hdf5_sys::h5a::H5Aget_name;
-use hdf5_sys::h5p::{H5Pcreate, H5Pset_char_encoding};
-use hdf5_sys::h5t::H5T_cset_t::{H5T_CSET_ASCII, H5T_CSET_UTF8};
+use hdf5_sys::h5a::{H5Aget_create_plist, H5Aget_name};
 use hdf5_sys::{
     h5::{H5_index_t, H5_iter_order_t},
     h5a::{H5A_info_t, H5A_operator2_t, H5Acreate2, H5Adelete, H5Aiterate2},
@@ -12,8 +10,7 @@ use hdf5_sys::{
 use hdf5_types::TypeDescriptor;
 use ndarray::ArrayView;
 
-use crate::globals::H5P_ATTRIBUTE_CREATE;
-use crate::hl::plist::link_create::CharEncoding;
+use crate::hl::plist::attribute_create::{AttributeCreate, AttributeCreateBuilder, CharEncoding};
 use crate::internal_prelude::*;
 
 /// Represents the HDF5 attribute object.
@@ -51,6 +48,16 @@ impl Deref for Attribute {
 }
 
 impl Attribute {
+    /// Returns a copy of the attribute creation property list.
+    pub fn create_plist(&self) -> Result<AttributeCreate> {
+        h5lock!(AttributeCreate::from_id(h5try!(H5Aget_create_plist(self.id()))))
+    }
+
+    /// A short alias for `create_plist()`.
+    pub fn acpl(&self) -> Result<AttributeCreate> {
+        self.create_plist()
+    }
+
     /// Returns the name of the attribute.
     pub fn name(&self) -> String {
         // Note: We must use H5Aget_name() here. H5Iget_name() (called by
@@ -338,12 +345,7 @@ impl AttributeBuilderInner {
 
         let dataspace = Dataspace::try_new(extents)?;
 
-        let acpl = PropertyList::from_id(h5call!(H5Pcreate(*H5P_ATTRIBUTE_CREATE))?)?;
-        let encoding = match self.char_encoding {
-            CharEncoding::Ascii => H5T_CSET_ASCII,
-            CharEncoding::Utf8 => H5T_CSET_UTF8,
-        };
-        h5call!(H5Pset_char_encoding(acpl.id(), encoding))?;
+        let acpl = AttributeCreateBuilder::new().char_encoding(self.char_encoding).finish()?;
 
         let name = to_cstring(name)?;
         Attribute::from_id(h5try!(H5Acreate2(
@@ -368,13 +370,8 @@ impl AttributeBuilderInner {
 
 #[cfg(test)]
 pub mod attribute_tests {
-    use crate::hl::plist::link_create::CharEncoding;
+    use crate::hl::plist::attribute_create::CharEncoding;
     use crate::internal_prelude::*;
-    use hdf5_sys::{
-        h5a::H5Aget_create_plist,
-        h5p::{H5Pclose, H5Pget_char_encoding},
-        h5t::H5T_cset_t,
-    };
     use ndarray::{Array2, arr2};
     use std::str::FromStr;
     use types::VarLenUnicode;
@@ -460,23 +457,11 @@ pub mod attribute_tests {
         })
     }
 
-    /// The encoding stored in the attribute's creation property list.
-    fn name_encoding(attr: &Attribute) -> H5T_cset_t {
-        h5lock!({
-            let acpl = H5Aget_create_plist(attr.id());
-            assert!(acpl > 0);
-            let mut encoding = H5T_cset_t::H5T_CSET_ERROR;
-            assert_eq!(H5Pget_char_encoding(acpl, &mut encoding), 0);
-            H5Pclose(acpl);
-            encoding
-        })
-    }
-
     #[test]
     pub fn test_char_encoding() {
         with_tmp_file(|file| {
             let default = file.new_attr::<u32>().shape(()).create("default").unwrap();
-            assert_eq!(name_encoding(&default), H5T_cset_t::H5T_CSET_UTF8);
+            assert_eq!(default.acpl().unwrap().char_encoding(), CharEncoding::Utf8);
 
             let ascii = file
                 .new_attr::<u32>()
@@ -484,7 +469,7 @@ pub mod attribute_tests {
                 .shape(())
                 .create("ascii")
                 .unwrap();
-            assert_eq!(name_encoding(&ascii), H5T_cset_t::H5T_CSET_ASCII);
+            assert_eq!(ascii.acpl().unwrap().char_encoding(), CharEncoding::Ascii);
 
             let utf8 = file
                 .new_attr_builder()
@@ -492,7 +477,7 @@ pub mod attribute_tests {
                 .char_encoding(CharEncoding::Utf8)
                 .create("utf8")
                 .unwrap();
-            assert_eq!(name_encoding(&utf8), H5T_cset_t::H5T_CSET_UTF8);
+            assert_eq!(utf8.create_plist().unwrap().char_encoding(), CharEncoding::Utf8);
         })
     }
 
