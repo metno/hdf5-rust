@@ -81,10 +81,9 @@ fn test_fcpl_common() -> hdf5::Result<()> {
 
 #[test]
 fn test_fcpl_sizes() -> hdf5::Result<()> {
-    use hdf5_sys::h5::hsize_t;
     let fcpl = FileCreate::try_new()?;
-    assert_eq!(fcpl.sizes().sizeof_addr, mem::size_of::<hsize_t>());
-    assert_eq!(fcpl.sizes().sizeof_size, mem::size_of::<hsize_t>());
+    assert_eq!(fcpl.sizes().sizeof_addr, Sizeof::Bytes8);
+    assert_eq!(fcpl.sizes().sizeof_size, Sizeof::Bytes8);
     Ok(())
 }
 
@@ -92,6 +91,13 @@ fn test_fcpl_sizes() -> hdf5::Result<()> {
 fn test_fcpl_set_userblock() -> hdf5::Result<()> {
     test_pl!(FC, userblock: 0);
     test_pl!(FC, userblock: 4096);
+    Ok(())
+}
+
+#[test]
+fn test_fcpl_set_sizes() -> hdf5::Result<()> {
+    test_pl!(FC, sizes: SizeofInfo { sizeof_addr: Sizeof::Bytes2, sizeof_size: Sizeof::Bytes4 });
+    test_pl!(FC, sizes: SizeofInfo { sizeof_addr: Sizeof::Bytes8, sizeof_size: Sizeof::Bytes16 });
     Ok(())
 }
 
