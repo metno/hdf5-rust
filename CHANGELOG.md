@@ -1,6 +1,7 @@
 # Changelog
 
 ## hdf5 unreleased
+- Added `Datatype::is_committed`
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
