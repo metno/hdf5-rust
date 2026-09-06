@@ -8,7 +8,6 @@ use crate::internal_prelude::*;
 /// Represents a committed HDF5 datatype: a datatype stored in a file as an object of its own,
 /// which can carry attributes like a group or a dataset.
 #[repr(transparent)]
-#[derive(Clone)]
 pub struct CommittedDatatype(Handle);
 
 impl ObjectClass for CommittedDatatype {
@@ -39,6 +38,12 @@ impl ObjectClass for CommittedDatatype {
 impl Debug for CommittedDatatype {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.debug_fmt(f)
+    }
+}
+
+impl Clone for CommittedDatatype {
+    fn clone(&self) -> Self {
+        unsafe { self.deref().clone().cast_unchecked() }
     }
 }
 
