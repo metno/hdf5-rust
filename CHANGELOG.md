@@ -5,6 +5,7 @@
 - Added `AttributeCreate` and `AttributeCreateBuilder` property lists, and `Attribute::create_plist` / `Attribute::acpl`
 - Added `Datatype::is_committed`
 - Added `Group::commit_datatype`, `Group::committed_datatype` and `Group::committed_datatypes`
+- Deprecated `Group::named_datatypes`, use `Group::committed_datatypes` instead
 - Added `FileCreateBuilder::sizes` and `Sizeof` to set the offset and length sizes of a file (breaking change, `SizeofInfo` holds `Sizeof` instead of `usize`)
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
