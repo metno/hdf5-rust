@@ -137,12 +137,17 @@ pub mod tests {
         assert_eq!(obj.refcount(), 2);
         obj.decref();
         assert_eq!(obj.refcount(), 1);
-        obj.decref();
         h5lock!({
+            // Hold the lock while the refcount reaches zero. libhdf5 recycles freed
+            // identifiers, so without the lock another test thread could reuse this
+            // id before the second decref and the drop below, which would then close
+            // an unrelated object.
             obj.decref();
             assert_eq!(obj.refcount(), 0);
             assert!(!obj.is_valid());
             assert!(!obj.handle().is_valid_id());
+            // Decref and drop on an invalid handle are no-ops
+            obj.decref();
             drop(obj);
         });
     }
