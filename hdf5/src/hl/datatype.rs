@@ -6,11 +6,11 @@ use std::ptr::{addr_of, addr_of_mut};
 
 use hdf5_sys::h5t::{
     H5T_VARIABLE, H5T_cdata_t, H5T_class_t, H5T_cset_t, H5T_order_t, H5T_sign_t, H5T_str_t,
-    H5Tarray_create2, H5Tcompiler_conv, H5Tcopy, H5Tcreate, H5Tdetect_class, H5Tenum_create,
-    H5Tenum_insert, H5Tequal, H5Tfind, H5Tget_array_dims2, H5Tget_array_ndims, H5Tget_class,
-    H5Tget_cset, H5Tget_member_name, H5Tget_member_offset, H5Tget_member_type, H5Tget_member_value,
-    H5Tget_nmembers, H5Tget_order, H5Tget_sign, H5Tget_size, H5Tget_super, H5Tinsert,
-    H5Tis_variable_str, H5Tset_cset, H5Tset_size, H5Tset_strpad, H5Tvlen_create,
+    H5Tarray_create2, H5Tcommitted, H5Tcompiler_conv, H5Tcopy, H5Tcreate, H5Tdetect_class,
+    H5Tenum_create, H5Tenum_insert, H5Tequal, H5Tfind, H5Tget_array_dims2, H5Tget_array_ndims,
+    H5Tget_class, H5Tget_cset, H5Tget_member_name, H5Tget_member_offset, H5Tget_member_type,
+    H5Tget_member_value, H5Tget_nmembers, H5Tget_order, H5Tget_sign, H5Tget_size, H5Tget_super,
+    H5Tinsert, H5Tis_variable_str, H5Tset_cset, H5Tset_size, H5Tset_strpad, H5Tvlen_create,
 };
 use hdf5_types::{
     CompoundField, CompoundType, EnumMember, EnumType, FloatSize, H5Type, IntSize, TypeDescriptor,
@@ -237,6 +237,11 @@ impl Datatype {
     /// Get the byte order of the datatype.
     pub fn byte_order(&self) -> ByteOrder {
         h5lock!(H5Tget_order(self.id())).into()
+    }
+
+    /// Whether this datatype is a committed datatype stored in a file.
+    pub fn is_committed(&self) -> bool {
+        h5call!(H5Tcommitted(self.id())).unwrap_or(0) > 0
     }
 
     /// Returns the conversion function level from `self` to `dst`, if one exists.
@@ -590,8 +595,32 @@ impl Datatype {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hdf5_sys::h5t::H5Tcommit2;
     use hdf5_types::{FixedAscii, FixedUnicode};
     use pretty_assertions::assert_str_eq;
+
+    #[test]
+    fn test_is_committed() {
+        let transient = Datatype::from_type::<i32>().unwrap();
+        assert!(!transient.is_committed());
+
+        with_tmp_file(|file| {
+            let name = to_cstring("committed").unwrap();
+            let committed = Datatype::from_type::<i32>().unwrap();
+            h5lock!(unsafe {
+                H5Tcommit2(
+                    file.id(),
+                    name.as_ptr(),
+                    committed.id(),
+                    H5P_DEFAULT,
+                    H5P_DEFAULT,
+                    H5P_DEFAULT,
+                )
+            });
+            assert!(committed.is_committed());
+            assert!(file.named_datatypes().unwrap().iter().all(Datatype::is_committed));
+        });
+    }
 
     #[test]
     fn test_ensure_convertible_fail_err_msg() {
