@@ -1040,10 +1040,20 @@ mod libver {
     pub enum LibraryVersion {
         /// Use the earliest possible format.
         Earliest = 0,
-        /// Use the latest v18 format.
+        /// Use the v18 format.
         V18 = 1,
-        /// Use the latest v110 format.
+        /// Use the v110 format.
+        #[cfg(feature = "1.10.2")]
         V110 = 2,
+        /// Use the v112 format.
+        #[cfg(feature = "1.12.0")]
+        V112 = 3,
+        /// Use the v114 format.
+        #[cfg(feature = "1.14.0")]
+        V114 = 4,
+        /// Use the v200 format.
+        #[cfg(feature = "2.0.0")]
+        V200 = 5,
     }
 
     impl LibraryVersion {
@@ -1053,8 +1063,26 @@ mod libver {
         }
 
         /// Returns the latest library version.
+        #[allow(unreachable_code)]
         pub const fn latest() -> Self {
-            Self::V110
+            #[cfg(feature = "2.0.0")]
+            {
+                return Self::V200;
+            }
+            #[cfg(feature = "1.14.0")]
+            {
+                return Self::V114;
+            }
+            #[cfg(feature = "1.12.0")]
+            {
+                return Self::V112;
+            }
+            #[cfg(feature = "1.10.2")]
+            {
+                return Self::V110;
+            }
+
+            Self::V18
         }
     }
 
@@ -1062,7 +1090,14 @@ mod libver {
         fn from(v: LibraryVersion) -> Self {
             match v {
                 LibraryVersion::V18 => Self::H5F_LIBVER_V18,
+                #[cfg(feature = "1.10.2")]
                 LibraryVersion::V110 => Self::H5F_LIBVER_V110,
+                #[cfg(feature = "1.12.0")]
+                LibraryVersion::V112 => Self::H5F_LIBVER_V112,
+                #[cfg(feature = "1.14.0")]
+                LibraryVersion::V114 => Self::H5F_LIBVER_V114,
+                #[cfg(feature = "2.0.0")]
+                LibraryVersion::V200 => Self::H5F_LIBVER_V200,
                 LibraryVersion::Earliest => Self::H5F_LIBVER_EARLIEST,
             }
         }
@@ -1072,7 +1107,14 @@ mod libver {
         fn from(libver: H5F_libver_t) -> Self {
             match libver {
                 H5F_libver_t::H5F_LIBVER_V18 => Self::V18,
+                #[cfg(feature = "1.10.2")]
                 H5F_libver_t::H5F_LIBVER_V110 => Self::V110,
+                #[cfg(feature = "1.12.0")]
+                H5F_libver_t::H5F_LIBVER_V112 => Self::V112,
+                #[cfg(feature = "1.14.0")]
+                H5F_libver_t::H5F_LIBVER_V114 => Self::V114,
+                #[cfg(feature = "2.0.0")]
+                H5F_libver_t::H5F_LIBVER_V200 => Self::V200,
                 _ => Self::Earliest,
             }
         }

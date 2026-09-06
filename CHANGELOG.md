@@ -5,6 +5,7 @@
 - Added `AttributeCreate` and `AttributeCreateBuilder` property lists, and `Attribute::create_plist` / `Attribute::acpl`
 - Added `Datatype::is_committed`
 - Added `FileCreateBuilder::sizes` and `Sizeof` to set the offset and length sizes of a file (breaking change, `SizeofInfo` holds `Sizeof` instead of `usize`)
+- Added more variants to `LibraryVersion`. If you specified `Latest` before you may start generating files which are no longer compatible with earlier versions of `hdf5`
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
