@@ -364,6 +364,7 @@ impl FileBuilder {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::file::{FileCreate, Sizeof, SizeofInfo};
     use crate::internal_prelude::*;
     use std::fs;
     use std::io::{Read, Write};
@@ -509,6 +510,24 @@ pub mod tests {
             assert!(new_size > orig_size);
             assert_eq!(file.size(), new_size);
         })
+    }
+
+    #[test]
+    pub fn test_sizes() {
+        let sizes = SizeofInfo { sizeof_addr: Sizeof::Bytes4, sizeof_size: Sizeof::Bytes2 };
+        with_tmp_file(|file| {
+            assert_eq!(file.fcpl().unwrap().sizes(), SizeofInfo::default());
+        });
+        with_tmp_path(|path| {
+            FileBuilder::new().with_fcpl(|p| p.sizes(sizes)).create(&path).unwrap();
+            assert_eq!(File::open(&path).unwrap().fcpl().unwrap().sizes(), sizes);
+        });
+        // a property list handed to the builder keeps its sizes
+        with_tmp_path(|path| {
+            let fcpl = FileCreate::build().sizes(sizes).finish().unwrap();
+            FileBuilder::new().set_fcpl(&fcpl).unwrap().create(&path).unwrap();
+            assert_eq!(File::open(&path).unwrap().fcpl().unwrap().sizes(), sizes);
+        });
     }
 
     #[test]
