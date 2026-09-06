@@ -2,8 +2,7 @@ use std::fmt::{self, Debug};
 use std::ops::Deref;
 use std::ptr::addr_of_mut;
 
-use hdf5_sys::h5a::H5Aget_name;
-use hdf5_sys::h5p::H5Pcreate;
+use hdf5_sys::h5a::{H5Aget_create_plist, H5Aget_name};
 use hdf5_sys::{
     h5::{H5_index_t, H5_iter_order_t},
     h5a::{H5A_info_t, H5A_operator2_t, H5Acreate2, H5Adelete, H5Aiterate2},
@@ -11,7 +10,7 @@ use hdf5_sys::{
 use hdf5_types::TypeDescriptor;
 use ndarray::ArrayView;
 
-use crate::globals::H5P_ATTRIBUTE_CREATE;
+use crate::hl::plist::attribute_create::{AttributeCreate, AttributeCreateBuilder, CharEncoding};
 use crate::internal_prelude::*;
 
 /// Represents the HDF5 attribute object.
@@ -49,6 +48,16 @@ impl Deref for Attribute {
 }
 
 impl Attribute {
+    /// Returns a copy of the attribute creation property list.
+    pub fn create_plist(&self) -> Result<AttributeCreate> {
+        h5lock!(AttributeCreate::from_id(h5try!(H5Aget_create_plist(self.id()))))
+    }
+
+    /// A short alias for `create_plist()`.
+    pub fn acpl(&self) -> Result<AttributeCreate> {
+        self.create_plist()
+    }
+
     /// Returns the name of the attribute.
     pub fn name(&self) -> String {
         // Note: We must use H5Aget_name() here. H5Iget_name() (called by
@@ -145,6 +154,18 @@ impl AttributeBuilder {
         self.builder.packed(packed);
         self
     }
+
+    /// Sets the character encoding of the attribute name.
+    ///
+    /// Defaults to [`CharEncoding::Utf8`]. With [`CharEncoding::Ascii`] and the
+    /// earliest library bounds, the library stores a version 1 attribute message,
+    /// which readers older than HDF5 1.8 require.
+    #[inline]
+    #[must_use]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.builder.char_encoding(encoding);
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -175,6 +196,18 @@ impl AttributeBuilderEmpty {
         self.builder.packed(packed);
         self
     }
+
+    /// Sets the character encoding of the attribute name.
+    ///
+    /// Defaults to [`CharEncoding::Utf8`]. With [`CharEncoding::Ascii`] and the
+    /// earliest library bounds, the library stores a version 1 attribute message,
+    /// which readers older than HDF5 1.8 require.
+    #[inline]
+    #[must_use]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.builder.char_encoding(encoding);
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -195,6 +228,18 @@ impl AttributeBuilderEmptyShape {
     #[must_use]
     pub fn packed(mut self, packed: bool) -> Self {
         self.builder.packed(packed);
+        self
+    }
+
+    /// Sets the character encoding of the attribute name.
+    ///
+    /// Defaults to [`CharEncoding::Utf8`]. With [`CharEncoding::Ascii`] and the
+    /// earliest library bounds, the library stores a version 1 attribute message,
+    /// which readers older than HDF5 1.8 require.
+    #[inline]
+    #[must_use]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.builder.char_encoding(encoding);
         self
     }
 }
@@ -254,6 +299,18 @@ where
         self.builder.packed(packed);
         self
     }
+
+    /// Sets the character encoding of the attribute name.
+    ///
+    /// Defaults to [`CharEncoding::Utf8`]. With [`CharEncoding::Ascii`] and the
+    /// earliest library bounds, the library stores a version 1 attribute message,
+    /// which readers older than HDF5 1.8 require.
+    #[inline]
+    #[must_use]
+    pub fn char_encoding(mut self, encoding: CharEncoding) -> Self {
+        self.builder.char_encoding(encoding);
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -261,11 +318,16 @@ where
 struct AttributeBuilderInner {
     parent: Result<Handle>,
     packed: bool,
+    char_encoding: CharEncoding,
 }
 
 impl AttributeBuilderInner {
     pub fn new(parent: &Location) -> Self {
-        Self { parent: parent.try_borrow(), packed: false }
+        Self { parent: parent.try_borrow(), packed: false, char_encoding: CharEncoding::Utf8 }
+    }
+
+    pub fn char_encoding(&mut self, encoding: CharEncoding) {
+        self.char_encoding = encoding;
     }
 
     pub fn packed(&mut self, packed: bool) {
@@ -283,12 +345,7 @@ impl AttributeBuilderInner {
 
         let dataspace = Dataspace::try_new(extents)?;
 
-        let acpl = PropertyList::from_id(h5call!(H5Pcreate(*H5P_ATTRIBUTE_CREATE))?)?;
-        // Set UTF-8 encoding for the attribute name, as Rust strings are UTF-8.
-        h5call!(hdf5_sys::h5p::H5Pset_char_encoding(
-            acpl.id(),
-            hdf5_sys::h5t::H5T_cset_t::H5T_CSET_UTF8
-        ))?;
+        let acpl = AttributeCreateBuilder::new().char_encoding(self.char_encoding).finish()?;
 
         let name = to_cstring(name)?;
         Attribute::from_id(h5try!(H5Acreate2(
@@ -313,6 +370,7 @@ impl AttributeBuilderInner {
 
 #[cfg(test)]
 pub mod attribute_tests {
+    use crate::hl::plist::attribute_create::CharEncoding;
     use crate::internal_prelude::*;
     use ndarray::{Array2, arr2};
     use std::str::FromStr;
@@ -396,6 +454,30 @@ pub mod attribute_tests {
             assert_eq!(attr.shape(), vec![1, 2]);
             assert_eq!(attr.name(), "foo");
             assert_eq!(file.attr("foo").unwrap().shape(), vec![1, 2]);
+        })
+    }
+
+    #[test]
+    pub fn test_char_encoding() {
+        with_tmp_file(|file| {
+            let default = file.new_attr::<u32>().shape(()).create("default").unwrap();
+            assert_eq!(default.acpl().unwrap().char_encoding(), CharEncoding::Utf8);
+
+            let ascii = file
+                .new_attr::<u32>()
+                .char_encoding(CharEncoding::Ascii)
+                .shape(())
+                .create("ascii")
+                .unwrap();
+            assert_eq!(ascii.acpl().unwrap().char_encoding(), CharEncoding::Ascii);
+
+            let utf8 = file
+                .new_attr_builder()
+                .with_data(&arr2(&[[1, 2]]))
+                .char_encoding(CharEncoding::Utf8)
+                .create("utf8")
+                .unwrap();
+            assert_eq!(utf8.create_plist().unwrap().char_encoding(), CharEncoding::Utf8);
         })
     }
 

@@ -906,6 +906,33 @@ fn test_dcpl_attr_creation_order() -> hdf5::Result<()> {
     Ok(())
 }
 
+type AC = AttributeCreate;
+type ACB = AttributeCreateBuilder;
+
+#[test]
+fn test_acpl_common() -> hdf5::Result<()> {
+    test_pl_common!(AC, PropertyListClass::AttributeCreate, |b: &mut ACB| b
+        .char_encoding(CharEncoding::Utf8)
+        .finish());
+    Ok(())
+}
+
+#[test]
+fn test_acpl_char_encoding() -> hdf5::Result<()> {
+    assert_eq!(AC::try_new()?.get_char_encoding()?, CharEncoding::Ascii);
+    assert_eq!(
+        ACB::new().char_encoding(CharEncoding::Utf8).finish()?.get_char_encoding()?,
+        CharEncoding::Utf8
+    );
+    assert_eq!(
+        ACB::new().char_encoding(CharEncoding::Utf8).finish()?.char_encoding(),
+        CharEncoding::Utf8
+    );
+    let pl = ACB::new().char_encoding(CharEncoding::Utf8).finish()?;
+    assert_eq!(ACB::from_plist(&pl)?.finish()?.get_char_encoding()?, CharEncoding::Utf8);
+    Ok(())
+}
+
 type LC = LinkCreate;
 type LCB = LinkCreateBuilder;
 

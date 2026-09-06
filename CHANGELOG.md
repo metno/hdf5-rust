@@ -1,6 +1,8 @@
 # Changelog
 
 ## hdf5 unreleased
+- Added `AttributeBuilder::char_encoding` to set the character encoding of the attribute name
+- Added `AttributeCreate` and `AttributeCreateBuilder` property lists, and `Attribute::create_plist` / `Attribute::acpl`
 - Added `Datatype::is_committed`
 - Added `FileCreateBuilder::sizes` and `Sizeof` to set the offset and length sizes of a file (breaking change, `SizeofInfo` holds `Sizeof` instead of `usize`)
 ## hdf5-derive unreleased
