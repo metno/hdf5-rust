@@ -595,7 +595,6 @@ impl Datatype {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hdf5_sys::h5t::H5Tcommit2;
     use hdf5_types::{FixedAscii, FixedUnicode};
     use pretty_assertions::assert_str_eq;
 
@@ -605,20 +604,10 @@ mod tests {
         assert!(!transient.is_committed());
 
         with_tmp_file(|file| {
-            let name = to_cstring("committed").unwrap();
             let committed = Datatype::from_type::<i32>().unwrap();
-            h5lock!(unsafe {
-                H5Tcommit2(
-                    file.id(),
-                    name.as_ptr(),
-                    committed.id(),
-                    H5P_DEFAULT,
-                    H5P_DEFAULT,
-                    H5P_DEFAULT,
-                )
-            });
+            file.commit_datatype("committed", &committed).unwrap();
             assert!(committed.is_committed());
-            assert!(file.named_datatypes().unwrap().iter().all(Datatype::is_committed));
+            assert!(file.committed_datatypes().unwrap().iter().all(Datatype::is_committed));
         });
     }
 
