@@ -7,7 +7,7 @@
 - Added `Group::commit_datatype`, `Group::committed_datatype` and `Group::committed_datatypes`
 - Deprecated `Group::named_datatypes`, use `Group::committed_datatypes` instead
 - Added `CommittedDatatype` with attribute access, returned by `Group::committed_datatype`, `Group::committed_datatypes` and the deprecated `Group::named_datatypes` (breaking change)
-- `DatasetBuilder::empty_as` and `DatasetBuilder::with_data_as` accept an existing `Datatype` or `CommittedDatatype` as well as a `TypeDescriptor`, through the new `DatasetType`, so a dataset can be created with a committed datatype. A committed datatype from another file is rejected on HDF5 versions before 1.8.18 and on 1.10.0, which cannot store it
+- Changed `DatasetBuilder::empty_as` and `DatasetBuilder::with_data_as` to accept an existing `Datatype` or `CommittedDatatype` as well as a `TypeDescriptor`, through the new `DatasetType`, so a dataset can be created with a committed datatype.
 - Added `FileCreateBuilder::sizes` and `Sizeof` to set the offset and length sizes of a file (breaking change, `SizeofInfo` holds `Sizeof` instead of `usize`)
 - Added more variants to `LibraryVersion`. If you specified `Latest` before you may start generating files which are no longer compatible with earlier versions of `hdf5`
 ## hdf5-derive unreleased
