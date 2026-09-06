@@ -2,6 +2,7 @@
 
 ## hdf5 unreleased
 - Added `Datatype::is_committed`
+- Added `FileCreateBuilder::sizes` and `Sizeof` to set the offset and length sizes of a file (breaking change, `SizeofInfo` holds `Sizeof` instead of `usize`)
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
