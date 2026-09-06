@@ -61,10 +61,11 @@ mod export {
         hl::selection::{Hyperslab, Selection, SliceOrIndex},
         hl::{
             Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
-            AttributeBuilderEmptyShape, ByteReader, Container, Conversion, Dataset, DatasetBuilder,
-            DatasetBuilderData, DatasetBuilderEmpty, DatasetBuilderEmptyShape, Dataspace, Datatype,
-            File, FileBuilder, Group, GroupBuilder, LinkInfo, LinkType, Location, LocationInfo,
-            LocationToken, LocationType, Object, OpenMode, PropertyList, Reader, Writer,
+            AttributeBuilderEmptyShape, ByteReader, CommittedDatatype, Container, Conversion,
+            Dataset, DatasetBuilder, DatasetBuilderData, DatasetBuilderEmpty,
+            DatasetBuilderEmptyShape, Dataspace, Datatype, File, FileBuilder, Group, GroupBuilder,
+            LinkInfo, LinkType, Location, LocationInfo, LocationToken, LocationType, Object,
+            OpenMode, PropertyList, Reader, Writer,
             references::{ObjectReference, ObjectReference1, ReferencedObject},
         },
     };
@@ -96,6 +97,7 @@ mod export {
 
     /// Datatype objects for defining the layout of a data element.
     pub mod datatype {
+        pub use crate::hl::committed_datatype::CommittedDatatype;
         pub use crate::hl::datatype::{ByteOrder, Conversion, Datatype};
     }
 

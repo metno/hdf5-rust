@@ -1,5 +1,6 @@
 pub mod attribute;
 pub mod chunks;
+pub mod committed_datatype;
 pub mod container;
 pub mod dataset;
 pub mod dataspace;
@@ -19,6 +20,7 @@ pub use self::{
         Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
         AttributeBuilderEmptyShape,
     },
+    committed_datatype::CommittedDatatype,
     container::{ByteReader, Container, Reader, Writer},
     dataset::{
         Dataset, DatasetBuilder, DatasetBuilderData, DatasetBuilderEmpty, DatasetBuilderEmptyShape,

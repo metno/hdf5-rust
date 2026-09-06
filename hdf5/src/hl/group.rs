@@ -595,14 +595,14 @@ impl Group {
     }
 
     /// Returns all committed datatypes in the group, non-recursively.
-    pub fn committed_datatypes(&self) -> Result<Vec<Datatype>> {
+    pub fn committed_datatypes(&self) -> Result<Vec<CommittedDatatype>> {
         self.get_all_of_type(LocationType::NamedDatatype)
             .map(|vec| vec.into_iter().map(|obj| unsafe { obj.cast_unchecked() }).collect())
     }
 
     /// Returns all committed datatypes in the group, non-recursively.
     #[deprecated(note = "pre-1.12 HDF5 term for a committed datatype, use committed_datatypes()")]
-    pub fn named_datatypes(&self) -> Result<Vec<Datatype>> {
+    pub fn named_datatypes(&self) -> Result<Vec<CommittedDatatype>> {
         self.committed_datatypes()
     }
 
@@ -624,9 +624,9 @@ impl Group {
     }
 
     /// Opens the committed datatype at `name`, relative to this group.
-    pub fn committed_datatype(&self, name: &str) -> Result<Datatype> {
+    pub fn committed_datatype(&self, name: &str) -> Result<CommittedDatatype> {
         let name = to_cstring(name)?;
-        Datatype::from_id(h5try!(H5Topen2(self.id(), name.as_ptr(), H5P_DEFAULT)))
+        CommittedDatatype::from_id(h5try!(H5Topen2(self.id(), name.as_ptr(), H5P_DEFAULT)))
     }
 
     /// Returns the names of all objects in the group, non-recursively.
@@ -641,7 +641,7 @@ impl Group {
 #[cfg(test)]
 pub mod tests {
     use crate::internal_prelude::*;
-    use hdf5_types::{TypeDescriptor, VarLenUnicode};
+    use hdf5_types::{IntSize, TypeDescriptor, VarLenUnicode};
 
     #[test]
     pub fn test_debug() {
@@ -721,8 +721,12 @@ pub mod tests {
             }
             let file = File::open(&path).unwrap();
             let named = file.committed_datatype("mytype").unwrap();
-            assert!(named.is_committed());
-            assert_eq!(named.to_descriptor().unwrap(), dtype.to_descriptor().unwrap());
+            assert!(named.as_datatype().is_committed());
+            assert_eq!(
+                named.as_datatype().to_descriptor().unwrap(),
+                dtype.to_descriptor().unwrap()
+            );
+            assert_eq!(named.name(), "/mytype");
             assert_eq!(file.committed_datatypes().unwrap().len(), 1);
 
             // names are relative to the group the method is called on
@@ -732,6 +736,30 @@ pub mod tests {
             assert!(g.committed_datatype("mytype").is_err());
             assert!(g.committed_datatype("/mytype").is_ok());
             assert!(g.file().unwrap().committed_datatype("g/t").is_ok());
+        })
+    }
+
+    #[test]
+    pub fn test_committed_datatype_attributes() {
+        with_tmp_path(|path| {
+            {
+                let file = File::create(&path).unwrap();
+                file.commit_datatype("mytype", &Datatype::from_type::<i32>().unwrap()).unwrap();
+                let committed = file.committed_datatype("mytype").unwrap();
+                committed.new_attr::<i32>().create("note").unwrap().write_scalar(&42).unwrap();
+                committed.new_attr::<f64>().create("scale").unwrap().write_scalar(&0.5).unwrap();
+            }
+            let file = File::open(&path).unwrap();
+            let committed = file.committed_datatype("mytype").unwrap();
+            assert_eq!(committed.attr("note").unwrap().read_scalar::<i32>().unwrap(), 42);
+            assert_eq!(committed.attr("scale").unwrap().read_scalar::<f64>().unwrap(), 0.5);
+            let mut names = committed.attr_names().unwrap();
+            names.sort();
+            assert_eq!(names, ["note", "scale"]);
+            assert_eq!(
+                committed.as_datatype().to_descriptor().unwrap(),
+                TypeDescriptor::Integer(IntSize::U4)
+            );
         })
     }
 
@@ -758,11 +786,13 @@ pub mod tests {
                 .committed_datatypes()
                 .unwrap()
                 .iter()
-                .map(|dt| dt.to_descriptor().unwrap())
+                .map(|dt| dt.as_datatype().to_descriptor().unwrap())
                 .collect();
             let mut opened: Vec<TypeDescriptor> = ["ints", "strings"]
                 .iter()
-                .map(|name| file.committed_datatype(name).unwrap().to_descriptor().unwrap())
+                .map(|name| {
+                    file.committed_datatype(name).unwrap().as_datatype().to_descriptor().unwrap()
+                })
                 .collect();
             listed.sort_by_key(|d| format!("{d:?}"));
             opened.sort_by_key(|d| format!("{d:?}"));
