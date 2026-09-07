@@ -3,7 +3,10 @@ use std::ops::Deref;
 
 use hdf5_sys::{
     h5d::H5Dopen2,
-    h5g::{H5G_info_t, H5Gcreate_anon, H5Gcreate2, H5Gget_create_plist, H5Gget_info, H5Gopen2},
+    h5g::{
+        H5G_info_t, H5G_storage_type_t, H5Gcreate_anon, H5Gcreate2, H5Gget_create_plist,
+        H5Gget_info, H5Gopen2,
+    },
     h5l::{
         H5L_SAME_LOC, H5L_info_t, H5L_type_t, H5Lcreate_external, H5Lcreate_hard, H5Lcreate_soft,
         H5Ldelete, H5Lexists, H5Literate, H5Lmove,
@@ -82,6 +85,33 @@ impl Group {
     /// Returns true if the container has no linked objects (or if the container is invalid).
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Returns information about the group.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::plist::group_create::LinkCreationOrder;
+    /// use hdf5_metno::{File, GroupStorageType};
+    ///
+    /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("group_info.h5")?;
+    /// let group = file
+    ///     .create_group_builder()
+    ///     .with_gcpl(|gcpl| gcpl.link_creation_order(LinkCreationOrder::Tracked))
+    ///     .create("g")?;
+    /// group.create_group("a")?;
+    /// group.create_group("b")?;
+    /// group.unlink("a")?;
+    ///
+    /// let info = group.info()?;
+    /// assert_eq!(info.storage_type, GroupStorageType::Compact);
+    /// assert_eq!(info.nlinks, 1);
+    /// assert_eq!(info.max_corder, 2);
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn info(&self) -> Result<GroupInfo> {
+        group_info(self.id())?.try_into()
     }
 
     /// Create a new group in a file or group.
@@ -413,6 +443,55 @@ impl GroupBuilder {
             } else {
                 Group::from_id(h5try!(H5Gcreate_anon(parent.id(), gcpl.id(), H5P_DEFAULT)))
             }
+        })
+    }
+}
+
+/// How the links of a group are stored.
+///
+/// Corresponds to `H5G_storage_type_t`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GroupStorageType {
+    /// Links in a symbol table, the original group format.
+    SymbolTable,
+    /// Links as messages in the object header.
+    Compact,
+    /// Links in a fractal heap with B-tree indexes.
+    Dense,
+}
+
+/// Information about a group.
+///
+/// Corresponds to `H5G_info_t`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GroupInfo {
+    /// How the links are stored.
+    pub storage_type: GroupStorageType,
+    /// Number of links in the group.
+    pub nlinks: u64,
+    /// Creation order position the next link receives. Unlinking does not lower it, so
+    /// it counts every link ever created in a group that tracks link creation order.
+    /// Zero in a group that does not track it.
+    pub max_corder: i64,
+    /// Whether a file is mounted on the group.
+    pub mounted: bool,
+}
+
+impl TryFrom<H5G_info_t> for GroupInfo {
+    type Error = Error;
+
+    fn try_from(info: H5G_info_t) -> Result<Self> {
+        let storage_type = match info.storage_type {
+            H5G_storage_type_t::H5G_STORAGE_TYPE_SYMBOL_TABLE => GroupStorageType::SymbolTable,
+            H5G_storage_type_t::H5G_STORAGE_TYPE_COMPACT => GroupStorageType::Compact,
+            H5G_storage_type_t::H5G_STORAGE_TYPE_DENSE => GroupStorageType::Dense,
+            storage_type => fail!("Unknown group storage type: {:?}", storage_type),
+        };
+        Ok(Self {
+            storage_type,
+            nlinks: info.nlinks,
+            max_corder: info.max_corder,
+            mounted: info.mounted > 0,
         })
     }
 }
@@ -996,6 +1075,62 @@ pub mod tests {
             drop(a);
             assert_eq!(b.refcount(), 1);
             assert!(b.is_valid());
+        })
+    }
+
+    #[test]
+    pub fn test_group_info() {
+        with_tmp_file(|file| {
+            // A default group is a symbol table before 2.0 and a compact new-style group from 2.0
+            let default_storage = if cfg!(feature = "2.0.0") {
+                GroupStorageType::Compact
+            } else {
+                GroupStorageType::SymbolTable
+            };
+            let untracked = file.create_group("untracked").unwrap();
+            let expected = GroupInfo {
+                storage_type: default_storage,
+                nlinks: 0,
+                max_corder: 0,
+                mounted: false,
+            };
+            assert_eq!(untracked.info().unwrap(), expected);
+            untracked.create_group("a").unwrap();
+            assert_eq!(untracked.info().unwrap(), GroupInfo { nlinks: 1, ..expected });
+
+            let tracked = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| gcpl.link_creation_order(LinkCreationOrder::Tracked))
+                .create("tracked")
+                .unwrap();
+            for name in ["a", "b", "c"] {
+                tracked.create_group(name).unwrap();
+            }
+            let expected = GroupInfo {
+                storage_type: GroupStorageType::Compact,
+                nlinks: 3,
+                max_corder: 3,
+                mounted: false,
+            };
+            assert_eq!(tracked.info().unwrap(), expected);
+
+            // Unlinking leaves the creation order counter alone
+            tracked.unlink("b").unwrap();
+            assert_eq!(tracked.info().unwrap(), GroupInfo { nlinks: 2, ..expected });
+            tracked.create_group("d").unwrap();
+            assert_eq!(tracked.info().unwrap(), GroupInfo { nlinks: 3, max_corder: 4, ..expected });
+            let d = tracked.find_link(IndexType::Name, IterationOrder::Increasing, |name, info| {
+                if name == "d" { Ok(Some(info.creation_order)) } else { Ok(None) }
+            });
+            assert_eq!(d.unwrap(), Some(Some(3)));
+
+            // More links than the compact limit move the group to dense storage
+            for i in 0..8 {
+                tracked.create_group(&format!("dense{i}")).unwrap();
+            }
+            let info = tracked.info().unwrap();
+            assert_eq!(info.storage_type, GroupStorageType::Dense);
+            assert_eq!((info.nlinks, info.max_corder), (11, 12));
         })
     }
 
