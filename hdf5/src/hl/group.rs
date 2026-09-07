@@ -419,31 +419,44 @@ impl GroupBuilder {
     }
 }
 
+/// The index the links of a group are traversed along.
+///
+/// Corresponds to `H5_index_t`. Traversing by [`CreationOrder`](Self::CreationOrder)
+/// requires the group to track link creation order, see
+/// [`LinkCreationOrder`](crate::plist::group_create::LinkCreationOrder).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TraversalOrder {
+pub enum IndexType {
+    /// Index on link names.
     Name,
-    Creation,
+    /// Index on link creation order.
+    CreationOrder,
 }
 
-impl Default for TraversalOrder {
+impl Default for IndexType {
     fn default() -> Self {
         Self::Name
     }
 }
 
-impl From<TraversalOrder> for H5_index_t {
-    fn from(v: TraversalOrder) -> Self {
+impl From<IndexType> for H5_index_t {
+    fn from(v: IndexType) -> Self {
         match v {
-            TraversalOrder::Name => Self::H5_INDEX_NAME,
-            TraversalOrder::Creation => Self::H5_INDEX_CRT_ORDER,
+            IndexType::Name => Self::H5_INDEX_NAME,
+            IndexType::CreationOrder => Self::H5_INDEX_CRT_ORDER,
         }
     }
 }
 
+/// The order the links of a group are visited in along an [`IndexType`].
+///
+/// Corresponds to `H5_iter_order_t`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IterationOrder {
+    /// Increasing order.
     Increasing,
+    /// Decreasing order.
     Decreasing,
+    /// No particular order, whatever is fastest.
     Native,
 }
 
@@ -505,8 +518,7 @@ impl From<&H5L_info_t> for LinkInfo {
 impl Group {
     /// Visits all objects in the group
     pub fn iter_visit<F, G>(
-        &self, iteration_order: IterationOrder, traversal_order: TraversalOrder, mut val: G,
-        mut op: F,
+        &self, iteration_order: IterationOrder, index_type: IndexType, mut val: G, mut op: F,
     ) -> Result<G>
     where
         F: Fn(&Self, &str, LinkInfo, &mut G) -> bool,
@@ -549,7 +561,7 @@ impl Group {
 
         h5call!(H5Literate(
             self.id(),
-            traversal_order.into(),
+            index_type.into(),
             iteration_order.into(),
             iter_pos,
             callback_fn,
@@ -563,7 +575,7 @@ impl Group {
     where
         F: Fn(&Self, &str, LinkInfo, &mut G) -> bool,
     {
-        self.iter_visit(IterationOrder::default(), TraversalOrder::default(), val, op)
+        self.iter_visit(IterationOrder::default(), IndexType::default(), val, op)
     }
 
     fn get_all_of_type(&self, loc_type: LocationType) -> Result<Vec<Location>> {
@@ -641,6 +653,7 @@ impl Group {
 #[cfg(test)]
 pub mod tests {
     use crate::internal_prelude::*;
+    use crate::{IndexType, IterationOrder};
     use hdf5_types::{IntSize, TypeDescriptor, VarLenUnicode};
 
     #[test]
@@ -1128,6 +1141,28 @@ pub mod tests {
             for dataset in datasets {
                 assert!(matches!(dataset.name().as_ref(), "/a/foo" | "/a/123" | "/a/bar"));
             }
+        })
+    }
+
+    #[test]
+    pub fn test_iter_visit_order() {
+        with_tmp_file(|file| {
+            let group = file.create_group("a").unwrap();
+            for name in ["foo", "123", "bar"] {
+                group.new_dataset::<u32>().create(name).unwrap();
+            }
+
+            let visit = |iteration_order| {
+                group
+                    .iter_visit(iteration_order, IndexType::Name, vec![], |_, name, _, names| {
+                        names.push(name.to_owned());
+                        true
+                    })
+                    .unwrap()
+            };
+
+            assert_eq!(visit(IterationOrder::Increasing), ["123", "bar", "foo"]);
+            assert_eq!(visit(IterationOrder::Decreasing), ["foo", "bar", "123"]);
         })
     }
 }

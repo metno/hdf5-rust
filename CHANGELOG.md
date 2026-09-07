@@ -10,6 +10,7 @@
 - Changed `DatasetBuilder::empty_as` and `DatasetBuilder::with_data_as` to accept an existing `Datatype` or `CommittedDatatype` as well as a `TypeDescriptor`, through the new `DatasetType`, so a dataset can be created with a committed datatype.
 - Added `FileCreateBuilder::sizes` and `Sizeof` to set the offset and length sizes of a file (breaking change, `SizeofInfo` holds `Sizeof` instead of `usize`)
 - Added more variants to `LibraryVersion`. If you specified `Latest` before you may start generating files which are no longer compatible with earlier versions of `hdf5`
+- Exported `IterationOrder` and `IndexType`, the arguments of `Group::iter_visit`
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
