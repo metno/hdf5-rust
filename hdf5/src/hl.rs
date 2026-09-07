@@ -18,7 +18,7 @@ pub mod selection;
 
 pub use self::{
     attribute::{
-        Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
+        AttrInfo, Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
         AttributeBuilderEmptyShape,
     },
     committed_datatype::CommittedDatatype,

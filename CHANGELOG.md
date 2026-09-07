@@ -16,6 +16,7 @@
 - Added `FileCreateBuilder::link_creation_order`, `GroupCreateBuilder::link_creation_order`, the matching getters and `LinkCreationOrder`, so a group can track and index link creation order
 - Changed `AttrCreationOrder` from bitflags to an enum with `Untracked`, `Tracked` and `Indexed`, matching `LinkCreationOrder` (breaking change)
 - Added `GroupCreateBuilder::attr_creation_order` and `GroupCreateBuilder::attr_phase_change` with the matching `GroupCreate` getters
+- Added `Location::iter_attrs`, `Location::find_attr` and `Location::iter_attrs_from` with `AttrInfo`, and `Location::attr_names_by` and `Location::attrs`, to iterate attributes by name or creation order in either direction, sharing `IndexType`, `IterationOrder` and `IterationCursor` with link iteration
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased

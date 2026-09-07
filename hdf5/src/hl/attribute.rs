@@ -1,17 +1,31 @@
 use std::fmt::{self, Debug};
 use std::ops::Deref;
-use std::ptr::addr_of_mut;
 
-use hdf5_sys::h5a::{H5Aget_create_plist, H5Aget_name};
-use hdf5_sys::{
-    h5::{H5_index_t, H5_iter_order_t},
-    h5a::{H5A_info_t, H5A_operator2_t, H5Acreate2, H5Adelete, H5Aiterate2},
-};
+use hdf5_sys::h5a::{H5A_info_t, H5Acreate2, H5Adelete, H5Aget_create_plist, H5Aget_name};
 use hdf5_types::TypeDescriptor;
 use ndarray::ArrayView;
 
 use crate::hl::plist::attribute_create::{AttributeCreate, AttributeCreateBuilder, CharEncoding};
 use crate::internal_prelude::*;
+
+/// Information about an attribute of an object.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AttrInfo {
+    /// Position in the creation order of the object's attributes, if known.
+    pub creation_order: Option<u32>,
+    /// Encoding of the attribute name. HDF5 values other than UTF-8 are reported as ASCII.
+    pub char_encoding: CharEncoding,
+    /// Size of the attribute data in bytes.
+    pub data_size: u64,
+}
+
+impl From<&H5A_info_t> for AttrInfo {
+    fn from(info: &H5A_info_t) -> Self {
+        let creation_order = if info.corder_valid == 1 { Some(info.corder) } else { None };
+        let char_encoding = CharEncoding::try_from(info.cset).unwrap_or(CharEncoding::Ascii);
+        Self { creation_order, char_encoding, data_size: info.data_size }
+    }
+}
 
 /// Represents the HDF5 attribute object.
 #[repr(transparent)]
@@ -64,38 +78,6 @@ impl Attribute {
         // Location::name()) would return the name of the object this
         // attribute is attached to, not the attribute's own name.
         h5lock!(get_h5_str(|m, s| H5Aget_name(self.id(), s, m)).unwrap_or_else(|_| String::new()))
-    }
-
-    /// Returns names of all the members in the group, non-recursively.
-    pub fn attr_names(obj: &Location) -> Result<Vec<String>> {
-        unsafe extern "C" fn attributes_callback(
-            _id: hid_t, attr_name: *const c_char, _info: *const H5A_info_t, op_data: *mut c_void,
-        ) -> herr_t {
-            std::panic::catch_unwind(|| {
-                let other_data: &mut Vec<String> =
-                    unsafe { &mut *(op_data.cast::<std::vec::Vec<std::string::String>>()) };
-                // SAFETY: caller guarantees attr_name points to valid UTF-8 C string
-                other_data.push(unsafe { string_from_cstr(attr_name) });
-                0 // Continue iteration
-            })
-            .unwrap_or(-1)
-        }
-
-        let callback_fn: H5A_operator2_t = Some(attributes_callback);
-        let iteration_position: *mut hsize_t = &mut { 0_u64 };
-        let mut result: Vec<String> = Vec::new();
-        let other_data: *mut c_void = addr_of_mut!(result).cast();
-
-        h5call!(H5Aiterate2(
-            obj.handle().id(),
-            H5_index_t::H5_INDEX_NAME,
-            H5_iter_order_t::H5_ITER_INC,
-            iteration_position,
-            callback_fn,
-            other_data
-        ))?;
-
-        Ok(result)
     }
 }
 
