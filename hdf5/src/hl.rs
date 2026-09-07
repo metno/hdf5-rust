@@ -9,6 +9,7 @@ pub mod extents;
 pub mod file;
 pub mod filters;
 pub mod group;
+pub mod iteration;
 pub mod location;
 pub mod object;
 pub mod plist;
@@ -29,7 +30,8 @@ pub use self::{
     dataspace::Dataspace,
     datatype::{Conversion, Datatype},
     file::{File, FileBuilder, OpenMode},
-    group::{Group, GroupBuilder, IndexType, IterationOrder, LinkCursor, LinkInfo, LinkType},
+    group::{Group, GroupBuilder, LinkInfo, LinkType},
+    iteration::{IndexType, IterationCursor, IterationOrder},
     location::{Location, LocationInfo, LocationToken, LocationType},
     object::Object,
     plist::PropertyList,
