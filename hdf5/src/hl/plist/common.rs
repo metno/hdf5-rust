@@ -1,6 +1,6 @@
-use hdf5_sys::h5p::{H5P_CRT_ORDER_INDEXED, H5P_CRT_ORDER_TRACKED};
+use std::os::raw::c_uint;
 
-use bitflags::bitflags;
+use hdf5_sys::h5p::{H5P_CRT_ORDER_INDEXED, H5P_CRT_ORDER_TRACKED};
 
 /// Attribute storage phase change thresholds.
 ///
@@ -28,20 +28,107 @@ impl Default for AttrPhaseChange {
     }
 }
 
-bitflags! {
-    /// Flags for tracking and indexing attribute creation order of an object.
-    ///
-    /// Default behavior is that attribute creation order is neither tracked nor indexed.
-    ///
-    /// Note that if a creation order index is to be built, it must be specified in
-    /// the object creation property list. HDF5 currently provides no mechanism to turn
-    /// on attribute creation order tracking at object creation time and to build the
-    /// index later.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-    pub struct AttrCreationOrder: u32 {
-        /// Attribute creation order is tracked but not necessarily indexed.
-        const TRACKED = H5P_CRT_ORDER_TRACKED as _;
-        /// Attribute creation order is indexed (requires to be tracked).
-        const INDEXED = H5P_CRT_ORDER_INDEXED as _;
+/// Tracking of attribute creation order on an object.
+///
+/// By default attribute creation order is not recorded. `Tracked` records the order
+/// in which attributes are created. `Indexed` also maintains an index for iterating
+/// attributes by creation order.
+///
+/// The setting is fixed in the creation property list. HDF5 provides no way to
+/// turn on tracking or build the index after the object exists.
+///
+/// # Examples
+///
+/// ```
+/// use hdf5_metno::plist::FileCreateBuilder;
+/// use hdf5_metno::plist::file_create::AttrCreationOrder;
+///
+/// let fcpl = FileCreateBuilder::new().attr_creation_order(AttrCreationOrder::Indexed).finish()?;
+/// assert_eq!(fcpl.attr_creation_order(), AttrCreationOrder::Indexed);
+/// # Ok::<(), hdf5_metno::Error>(())
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum AttrCreationOrder {
+    /// Attribute creation order is not recorded.
+    #[default]
+    Untracked,
+    /// Attribute creation order is recorded.
+    Tracked,
+    /// Attribute creation order is recorded and indexed.
+    Indexed,
+}
+
+impl AttrCreationOrder {
+    pub(crate) fn from_flags(flags: c_uint) -> Self {
+        if flags & H5P_CRT_ORDER_INDEXED != 0 {
+            Self::Indexed
+        } else if flags & H5P_CRT_ORDER_TRACKED != 0 {
+            Self::Tracked
+        } else {
+            Self::Untracked
+        }
+    }
+}
+
+impl From<AttrCreationOrder> for c_uint {
+    fn from(v: AttrCreationOrder) -> Self {
+        match v {
+            AttrCreationOrder::Untracked => 0,
+            AttrCreationOrder::Tracked => H5P_CRT_ORDER_TRACKED,
+            AttrCreationOrder::Indexed => H5P_CRT_ORDER_TRACKED | H5P_CRT_ORDER_INDEXED,
+        }
+    }
+}
+
+/// Tracking of link creation order in a group.
+///
+/// By default link creation order is not recorded. `Tracked` records the order in
+/// which links are created and allows the group to be traversed by
+/// [`IndexType::CreationOrder`](crate::IndexType::CreationOrder). `Indexed` also
+/// maintains an index for that traversal.
+///
+/// The setting is fixed in the creation property list. HDF5 provides no way to
+/// turn on tracking or build the index after the group exists.
+///
+/// # Examples
+///
+/// ```
+/// use hdf5_metno::plist::GroupCreateBuilder;
+/// use hdf5_metno::plist::group_create::LinkCreationOrder;
+///
+/// let gcpl = GroupCreateBuilder::new().link_creation_order(LinkCreationOrder::Indexed).finish()?;
+/// assert_eq!(gcpl.link_creation_order(), LinkCreationOrder::Indexed);
+/// # Ok::<(), hdf5_metno::Error>(())
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum LinkCreationOrder {
+    /// Link creation order is not recorded.
+    #[default]
+    Untracked,
+    /// Link creation order is recorded.
+    Tracked,
+    /// Link creation order is recorded and indexed.
+    Indexed,
+}
+
+impl LinkCreationOrder {
+    pub(crate) fn from_flags(flags: c_uint) -> Self {
+        if flags & H5P_CRT_ORDER_INDEXED != 0 {
+            Self::Indexed
+        } else if flags & H5P_CRT_ORDER_TRACKED != 0 {
+            Self::Tracked
+        } else {
+            Self::Untracked
+        }
+    }
+}
+
+impl From<LinkCreationOrder> for c_uint {
+    fn from(v: LinkCreationOrder) -> Self {
+        match v {
+            LinkCreationOrder::Untracked => 0,
+            LinkCreationOrder::Tracked => H5P_CRT_ORDER_TRACKED,
+            LinkCreationOrder::Indexed => H5P_CRT_ORDER_TRACKED | H5P_CRT_ORDER_INDEXED,
+        }
     }
 }

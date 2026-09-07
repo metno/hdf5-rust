@@ -4,6 +4,7 @@ use std::str::FromStr;
 use hdf5::dataset::*;
 use hdf5::file::*;
 use hdf5::plist::*;
+use hdf5::{MajorErrorCode, MinorErrorCode};
 use hdf5_metno as hdf5;
 
 macro_rules! test_pl {
@@ -158,11 +159,19 @@ fn test_fcpl_attr_phase_change() -> hdf5::Result<()> {
 
 #[test]
 fn test_fcpl_attr_creation_order() -> hdf5::Result<()> {
-    assert_eq!(FC::try_new()?.get_attr_creation_order()?.bits(), 0);
-    assert_eq!(FC::try_new()?.attr_creation_order().bits(), 0);
-    test_pl!(FC, attr_creation_order: AttrCreationOrder::TRACKED);
-    test_pl!(FC, attr_creation_order: AttrCreationOrder::TRACKED | AttrCreationOrder::INDEXED);
-    assert!(FCB::new().attr_creation_order(AttrCreationOrder::INDEXED).finish().is_err());
+    assert_eq!(FC::try_new()?.get_attr_creation_order()?, AttrCreationOrder::Untracked);
+    assert_eq!(FC::try_new()?.attr_creation_order(), AttrCreationOrder::Untracked);
+    test_pl!(FC, attr_creation_order: AttrCreationOrder::Tracked);
+    test_pl!(FC, attr_creation_order: AttrCreationOrder::Indexed);
+    Ok(())
+}
+
+#[test]
+fn test_fcpl_link_creation_order() -> hdf5::Result<()> {
+    assert_eq!(FC::try_new()?.get_link_creation_order()?, LinkCreationOrder::Untracked);
+    assert_eq!(FC::try_new()?.link_creation_order(), LinkCreationOrder::Untracked);
+    test_pl!(FC, link_creation_order: LinkCreationOrder::Tracked);
+    test_pl!(FC, link_creation_order: LinkCreationOrder::Indexed);
     Ok(())
 }
 
@@ -655,6 +664,51 @@ fn test_gcpl_obj_track_times() -> hdf5::Result<()> {
     Ok(())
 }
 
+#[test]
+fn test_gcpl_attr_phase_change() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_attr_phase_change()?, AttrPhaseChange::default());
+    assert_eq!(GC::try_new()?.attr_phase_change(), AttrPhaseChange::default());
+    let pl = GCB::new().attr_phase_change(34, 21).finish()?;
+    let expected = AttrPhaseChange { max_compact: 34, min_dense: 21 };
+    assert_eq!(pl.get_attr_phase_change()?, expected);
+    assert_eq!(pl.attr_phase_change(), expected);
+    assert_eq!(GCB::from_plist(&pl)?.finish()?.get_attr_phase_change()?, expected);
+    let err = GCB::new().attr_phase_change(12, 34).finish().unwrap_err();
+    assert!(err.contains_major(MajorErrorCode::Args), "{err:?}");
+    assert!(err.contains_minor(MinorErrorCode::BadRange), "{err:?}");
+    Ok(())
+}
+
+#[test]
+fn test_gcpl_attr_creation_order() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_attr_creation_order()?, AttrCreationOrder::Untracked);
+    assert_eq!(GC::try_new()?.attr_creation_order(), AttrCreationOrder::Untracked);
+    test_pl!(GC, attr_creation_order: AttrCreationOrder::Tracked);
+    test_pl!(GC, attr_creation_order: AttrCreationOrder::Indexed);
+    assert_eq!(
+        GCB::from_plist(&GCB::new().attr_creation_order(AttrCreationOrder::Indexed).finish()?)?
+            .finish()?
+            .attr_creation_order(),
+        AttrCreationOrder::Indexed
+    );
+    Ok(())
+}
+
+#[test]
+fn test_gcpl_link_creation_order() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_link_creation_order()?, LinkCreationOrder::Untracked);
+    assert_eq!(GC::try_new()?.link_creation_order(), LinkCreationOrder::Untracked);
+    test_pl!(GC, link_creation_order: LinkCreationOrder::Tracked);
+    test_pl!(GC, link_creation_order: LinkCreationOrder::Indexed);
+    assert_eq!(
+        GCB::from_plist(&GCB::new().link_creation_order(LinkCreationOrder::Indexed).finish()?)?
+            .finish()?
+            .link_creation_order(),
+        LinkCreationOrder::Indexed
+    );
+    Ok(())
+}
+
 type DC = DatasetCreate;
 type DCB = DatasetCreateBuilder;
 
@@ -898,11 +952,10 @@ fn test_dcpl_attr_phase_change() -> hdf5::Result<()> {
 
 #[test]
 fn test_dcpl_attr_creation_order() -> hdf5::Result<()> {
-    assert_eq!(DC::try_new()?.get_attr_creation_order()?.bits(), 0);
-    assert_eq!(DC::try_new()?.attr_creation_order().bits(), 0);
-    test_pl!(DC, attr_creation_order: AttrCreationOrder::TRACKED);
-    test_pl!(DC, attr_creation_order: AttrCreationOrder::TRACKED | AttrCreationOrder::INDEXED);
-    assert!(DCB::new().attr_creation_order(AttrCreationOrder::INDEXED).finish().is_err());
+    assert_eq!(DC::try_new()?.get_attr_creation_order()?, AttrCreationOrder::Untracked);
+    assert_eq!(DC::try_new()?.attr_creation_order(), AttrCreationOrder::Untracked);
+    test_pl!(DC, attr_creation_order: AttrCreationOrder::Tracked);
+    test_pl!(DC, attr_creation_order: AttrCreationOrder::Indexed);
     Ok(())
 }
 

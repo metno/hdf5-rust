@@ -135,11 +135,7 @@ impl AttributeCreate {
 
     #[doc(hidden)]
     pub fn get_char_encoding(&self) -> Result<CharEncoding> {
-        Ok(match h5get!(H5Pget_char_encoding(self.id()): H5T_cset_t)? {
-            H5T_CSET_ASCII => CharEncoding::Ascii,
-            H5T_CSET_UTF8 => CharEncoding::Utf8,
-            encoding => fail!("Unknown char encoding: {:?}", encoding),
-        })
+        h5get!(H5Pget_char_encoding(self.id()): H5T_cset_t)?.try_into()
     }
 
     /// Returns the character encoding of the attribute name.
