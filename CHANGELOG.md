@@ -13,6 +13,7 @@
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
+- Rerun the build script when `HDF5_DIR` or `HDF5_VERSION` changes after a bundled build
 ## hdf5-src unreleased
 
 ## hdf5-sys 0.12.3
