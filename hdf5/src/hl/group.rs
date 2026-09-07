@@ -652,6 +652,7 @@ impl Group {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::hl::plist::common::LinkCreationOrder;
     use crate::internal_prelude::*;
     use crate::{IndexType, IterationOrder};
     use hdf5_types::{IntSize, TypeDescriptor, VarLenUnicode};
@@ -1163,6 +1164,53 @@ pub mod tests {
 
             assert_eq!(visit(IterationOrder::Increasing), ["123", "bar", "foo"]);
             assert_eq!(visit(IterationOrder::Decreasing), ["foo", "bar", "123"]);
+        })
+    }
+
+    #[test]
+    pub fn test_iter_visit_creation_order() {
+        with_tmp_file(|file| {
+            let group = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| gcpl.link_creation_order(LinkCreationOrder::Tracked))
+                .create("a")
+                .unwrap();
+            for name in ["foo", "123", "bar"] {
+                group.new_dataset::<u32>().create(name).unwrap();
+            }
+
+            let visit = |iteration_order| {
+                group
+                    .iter_visit(
+                        iteration_order,
+                        IndexType::CreationOrder,
+                        vec![],
+                        |_, name, info, names| {
+                            names.push((name.to_owned(), info.creation_order));
+                            true
+                        },
+                    )
+                    .unwrap()
+            };
+
+            let foo = ("foo".to_owned(), Some(0));
+            let num = ("123".to_owned(), Some(1));
+            let bar = ("bar".to_owned(), Some(2));
+            assert_eq!(visit(IterationOrder::Increasing), [foo.clone(), num.clone(), bar.clone()]);
+            assert_eq!(visit(IterationOrder::Decreasing), [bar, num, foo]);
+
+            let untracked = file.create_group("b").unwrap();
+            untracked.new_dataset::<u32>().create("foo").unwrap();
+            assert!(
+                untracked
+                    .iter_visit(
+                        IterationOrder::Native,
+                        IndexType::CreationOrder,
+                        (),
+                        |_, _, _, _| true
+                    )
+                    .is_err()
+            );
         })
     }
 }

@@ -167,6 +167,15 @@ fn test_fcpl_attr_creation_order() -> hdf5::Result<()> {
 }
 
 #[test]
+fn test_fcpl_link_creation_order() -> hdf5::Result<()> {
+    assert_eq!(FC::try_new()?.get_link_creation_order()?, LinkCreationOrder::Untracked);
+    assert_eq!(FC::try_new()?.link_creation_order(), LinkCreationOrder::Untracked);
+    test_pl!(FC, link_creation_order: LinkCreationOrder::Tracked);
+    test_pl!(FC, link_creation_order: LinkCreationOrder::Indexed);
+    Ok(())
+}
+
+#[test]
 #[cfg(feature = "1.10.1")]
 fn test_fcpl_set_file_space_page_size() -> hdf5::Result<()> {
     test_pl!(FC, file_space_page_size: 512);
@@ -651,6 +660,21 @@ fn test_gcpl_obj_track_times() -> hdf5::Result<()> {
     assert_eq!(
         GCB::from_plist(&GCB::new().obj_track_times(false).finish()?)?.finish()?.obj_track_times(),
         false
+    );
+    Ok(())
+}
+
+#[test]
+fn test_gcpl_link_creation_order() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_link_creation_order()?, LinkCreationOrder::Untracked);
+    assert_eq!(GC::try_new()?.link_creation_order(), LinkCreationOrder::Untracked);
+    test_pl!(GC, link_creation_order: LinkCreationOrder::Tracked);
+    test_pl!(GC, link_creation_order: LinkCreationOrder::Indexed);
+    assert_eq!(
+        GCB::from_plist(&GCB::new().link_creation_order(LinkCreationOrder::Indexed).finish()?)?
+            .finish()?
+            .link_creation_order(),
+        LinkCreationOrder::Indexed
     );
     Ok(())
 }
