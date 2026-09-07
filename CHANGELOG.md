@@ -14,6 +14,7 @@
 - Changed `Group::iter_visit` and `Group::iter_visit_default` to take an `FnMut(&str, LinkInfo) -> Result<()>` closure instead of an accumulator and a `bool` closure, and `LinkInfo::is_utf8` to `LinkInfo::char_encoding` (breaking change). An error returned by the closure is propagated, and `Group::groups`, `Group::datasets`, `Group::committed_datatypes` and `Group::member_names` now fail instead of returning a truncated list when a link cannot be resolved
 - Added `Group::member_names_by` and `Group::links` to list the links along an index type in an order, `Group::find_link` to stop a link iteration with a value, and `Group::iter_visit_from` with `LinkCursor` to skip links and resume a stopped iteration
 - Added `FileCreateBuilder::link_creation_order`, `GroupCreateBuilder::link_creation_order`, the matching getters and `LinkCreationOrder`, so a group can track and index link creation order
+- Changed `AttrCreationOrder` from bitflags to an enum with `Untracked`, `Tracked` and `Indexed`, matching `LinkCreationOrder` (breaking change)
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased

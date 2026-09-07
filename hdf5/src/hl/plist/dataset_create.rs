@@ -664,7 +664,9 @@ impl DatasetCreateBuilder {
         self
     }
 
-    /// Sets whether to track and/or index the dataset's attribute creation order.
+    /// Sets whether the dataset's attribute creation order is tracked and indexed.
+    ///
+    /// See [`AttrCreationOrder`] for the available settings.
     pub fn attr_creation_order(&mut self, attr_creation_order: AttrCreationOrder) -> &mut Self {
         self.attr_creation_order = Some(attr_creation_order);
         self
@@ -726,7 +728,7 @@ impl DatasetCreateBuilder {
             h5try!(H5Pset_attr_phase_change(id, v.max_compact as _, v.min_dense as _));
         }
         if let Some(v) = self.attr_creation_order {
-            h5try!(H5Pset_attr_creation_order(id, v.bits() as _));
+            h5try!(H5Pset_attr_creation_order(id, v.into()));
         }
         Ok(())
     }
@@ -1003,11 +1005,12 @@ impl DatasetCreate {
 
     #[doc(hidden)]
     pub fn get_attr_creation_order(&self) -> Result<AttrCreationOrder> {
-        h5get!(H5Pget_attr_creation_order(self.id()): c_uint)
-            .map(AttrCreationOrder::from_bits_truncate)
+        h5get!(H5Pget_attr_creation_order(self.id()): c_uint).map(AttrCreationOrder::from_flags)
     }
 
-    /// Returns flags for whether attribute creation order will be tracked/indexed.
+    /// Returns whether the dataset's attribute creation order is tracked and indexed.
+    ///
+    /// Returns [`AttrCreationOrder::Untracked`] if the property cannot be read.
     pub fn attr_creation_order(&self) -> AttrCreationOrder {
         self.get_attr_creation_order().unwrap_or_default()
     }
