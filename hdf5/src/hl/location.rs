@@ -19,7 +19,7 @@ use hdf5_sys::h5o::{H5Oget_info_by_name2, H5Oget_info2};
 #[cfg(not(feature = "1.12.0"))]
 use hdf5_sys::{h5::haddr_t, h5o::H5O_info1_t, h5o::H5Oopen_by_addr};
 use hdf5_sys::{
-    h5a::{H5Adelete, H5Aopen},
+    h5a::{H5A_info_t, H5Adelete, H5Aget_info_by_name, H5Aiterate2, H5Aopen, H5Aopen_by_idx},
     h5f::H5Fget_name,
     h5i::{H5Iget_file_id, H5Iget_name},
     h5o::{H5O_type_t, H5Oget_comment},
@@ -27,7 +27,8 @@ use hdf5_sys::{
 
 use crate::internal_prelude::*;
 
-use super::attribute::AttributeBuilderEmpty;
+use super::attribute::{AttrInfo, AttributeBuilderEmpty};
+use super::iteration::visit;
 
 /// Named location (file, group, dataset, named datatype).
 #[repr(transparent)]
@@ -125,13 +126,219 @@ impl Location {
         Attribute::from_id(h5try!(H5Aopen(self.id(), name.as_ptr(), H5P_DEFAULT)))
     }
 
-    /// Return the names of all attributes on the object.
+    /// Opens the attribute at `index` along `index_type` in `iteration_order`.
     ///
     /// # Errors
     ///
-    /// Returns an error if an underlying library call fails.
+    /// Fails if `index` is not below the number of attributes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{File, IndexType, IterationOrder};
+    ///
+    /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("attr_by_index.h5")?;
+    /// file.new_attr::<u32>().create("b")?;
+    /// file.new_attr::<u32>().create("a")?;
+    ///
+    /// let last = file.attr_by_index(IndexType::Name, IterationOrder::Decreasing, 0)?;
+    /// assert_eq!(last.name(), "b");
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn attr_by_index(
+        &self, index_type: IndexType, iteration_order: IterationOrder, index: u64,
+    ) -> Result<Attribute> {
+        Attribute::from_id(h5try!(H5Aopen_by_idx(
+            self.id(),
+            b".\0".as_ptr().cast::<c_char>(),
+            index_type.into(),
+            iteration_order.into(),
+            index,
+            H5P_DEFAULT,
+            H5P_DEFAULT
+        )))
+    }
+
+    /// Returns information about the attribute called `name`.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the object has no attribute called `name`.
+    pub fn attr_info(&self, name: &str) -> Result<AttrInfo> {
+        let name = to_cstring(name)?;
+        let mut info = MaybeUninit::<H5A_info_t>::uninit();
+        h5call!(H5Aget_info_by_name(
+            self.id(),
+            b".\0".as_ptr().cast::<c_char>(),
+            name.as_ptr(),
+            info.as_mut_ptr(),
+            H5P_DEFAULT
+        ))?;
+        // SAFETY: H5Aget_info_by_name fills the info on success, and the error was checked
+        let info = unsafe { info.assume_init() };
+        Ok(AttrInfo::from(&info))
+    }
+
+    /// Returns the names of all attributes of the object, in increasing name order.
     pub fn attr_names(&self) -> Result<Vec<String>> {
-        Attribute::attr_names(self)
+        self.attr_names_by(IndexType::Name, IterationOrder::Increasing)
+    }
+
+    /// Returns the names of all attributes of the object along `index_type` in
+    /// `iteration_order`.
+    pub fn attr_names_by(
+        &self, index_type: IndexType, iteration_order: IterationOrder,
+    ) -> Result<Vec<String>> {
+        let mut names = vec![];
+        self.iter_attrs(index_type, iteration_order, |name, _| {
+            names.push(name.to_owned());
+            Ok(())
+        })?;
+        Ok(names)
+    }
+
+    /// Returns the name and [`AttrInfo`] of all attributes of the object along `index_type`
+    /// in `iteration_order`.
+    pub fn attrs(
+        &self, index_type: IndexType, iteration_order: IterationOrder,
+    ) -> Result<Vec<(String, AttrInfo)>> {
+        let mut attrs = vec![];
+        self.iter_attrs(index_type, iteration_order, |name, info| {
+            attrs.push((name.to_owned(), info));
+            Ok(())
+        })?;
+        Ok(attrs)
+    }
+
+    /// Visits every attribute of the object.
+    ///
+    /// The attributes are traversed along `index_type` in `iteration_order`, and `op`
+    /// is called with the name and the [`AttrInfo`] of each attribute. Use
+    /// [`find_attr`](Self::find_attr) to stop early.
+    ///
+    /// An object that does not track attribute creation order is still traversed by
+    /// [`IndexType::CreationOrder`]. Attributes stored compactly in the object header
+    /// come in storage sequence with a position each. Attributes stored densely come
+    /// from the name index in native order with no positions. Track the order with
+    /// [`AttrCreationOrder`](crate::plist::group_create::AttrCreationOrder) for a
+    /// reliable result.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error returned by `op`, or the HDF5 error if the iteration
+    /// itself fails.
+    ///
+    /// # Panics
+    ///
+    /// A panic in `op` is caught while HDF5 frames are on the stack and resumed once
+    /// the iteration has returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::plist::group_create::AttrCreationOrder;
+    /// use hdf5_metno::{File, IndexType, IterationOrder};
+    ///
+    /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("iter_attrs.h5")?;
+    /// let group = file
+    ///     .create_group_builder()
+    ///     .with_gcpl(|gcpl| gcpl.attr_creation_order(AttrCreationOrder::Tracked))
+    ///     .create("g")?;
+    /// group.new_attr::<u32>().create("b")?;
+    /// group.new_attr::<u32>().create("a")?;
+    ///
+    /// let mut names = vec![];
+    /// group.iter_attrs(IndexType::CreationOrder, IterationOrder::Increasing, |name, _| {
+    ///     names.push(name.to_owned());
+    ///     Ok(())
+    /// })?;
+    /// assert_eq!(names, ["b", "a"]);
+    /// assert_eq!(group.attr_names()?, ["a", "b"]);
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn iter_attrs<F>(
+        &self, index_type: IndexType, iteration_order: IterationOrder, mut op: F,
+    ) -> Result<()>
+    where
+        F: FnMut(&str, AttrInfo) -> Result<()>,
+    {
+        self.iter_attrs_from(IterationCursor::start(index_type, iteration_order), |name, info| {
+            op(name, info)?;
+            Ok(None::<()>)
+        })?;
+        Ok(())
+    }
+
+    /// Visits the attributes of the object until `op` returns a value.
+    ///
+    /// The attributes are traversed along `index_type` in `iteration_order`, and `op`
+    /// is called with the name and the [`AttrInfo`] of each attribute until it returns
+    /// `Some`. That value is returned, or `None` once every attribute was visited.
+    ///
+    /// # Errors
+    ///
+    /// As for [`iter_attrs`](Self::iter_attrs).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{File, IndexType, IterationOrder};
+    ///
+    /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("find_attr.h5")?;
+    /// file.new_attr::<u8>().create("small")?;
+    /// file.new_attr::<u64>().create("large")?;
+    ///
+    /// let wide = file.find_attr(IndexType::Name, IterationOrder::Increasing, |name, info| {
+    ///     if info.data_size > 4 { Ok(Some(name.to_owned())) } else { Ok(None) }
+    /// })?;
+    /// assert_eq!(wide, Some("large".to_owned()));
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn find_attr<B, F>(
+        &self, index_type: IndexType, iteration_order: IterationOrder, op: F,
+    ) -> Result<Option<B>>
+    where
+        F: FnMut(&str, AttrInfo) -> Result<Option<B>>,
+    {
+        match self.iter_attrs_from(IterationCursor::start(index_type, iteration_order), op)? {
+            Some((value, _)) => Ok(Some(value)),
+            None => Ok(None),
+        }
+    }
+
+    /// Visits the attributes of the object from `cursor` onwards until `op` returns a
+    /// value.
+    ///
+    /// Behaves like [`find_attr`](Self::find_attr). The value is returned together
+    /// with the cursor of the next attribute, so the iteration can be resumed by
+    /// passing that cursor back. Returns `None` once every attribute was visited,
+    /// including when `cursor` is already at or past the last attribute. See
+    /// [`Group::iter_visit_from`](crate::Group::iter_visit_from) for a paging loop.
+    ///
+    /// # Errors
+    ///
+    /// As for [`iter_attrs`](Self::iter_attrs).
+    pub fn iter_attrs_from<B, F>(
+        &self, cursor: IterationCursor, op: F,
+    ) -> Result<Option<(B, IterationCursor)>>
+    where
+        F: FnMut(&str, AttrInfo) -> Result<Option<B>>,
+    {
+        visit(
+            cursor,
+            || Ok(self.loc_info()?.num_attrs as u64),
+            op,
+            |index_type, iteration_order, position, callback, op_data| unsafe {
+                H5Aiterate2(
+                    self.id(),
+                    index_type,
+                    iteration_order,
+                    position,
+                    Some(callback),
+                    op_data,
+                )
+            },
+        )
     }
 
     pub fn delete_attr(&self, name: &str) -> Result<()> {
@@ -383,6 +590,10 @@ fn H5O_open_by_token(loc_id: hid_t, token: LocationToken) -> Result<Location> {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::hl::plist::common::AttrCreationOrder;
+    #[cfg(feature = "1.10.2")]
+    use crate::hl::plist::file_access::LibraryVersion;
+    use crate::hl::plist::link_create::CharEncoding;
     use crate::{hl::plist::object_copy::ObjectCopy, internal_prelude::*, plist::LinkCreate};
 
     #[test]
@@ -638,5 +849,249 @@ pub mod tests {
                 assert_eq!(data, vec![100, 200, 300]);
             })
         })
+    }
+
+    #[test]
+    pub fn test_iter_attrs_order() {
+        with_tmp_file(|file| {
+            let obj = file.create_group("o").unwrap();
+            for name in ["foo", "123", "bar"] {
+                obj.new_attr::<u32>().create(name).unwrap();
+            }
+            let names = |order| obj.attr_names_by(IndexType::Name, order).unwrap();
+            assert_eq!(names(IterationOrder::Increasing), ["123", "bar", "foo"]);
+            assert_eq!(names(IterationOrder::Decreasing), ["foo", "bar", "123"]);
+            assert_eq!(obj.attr_names().unwrap(), ["123", "bar", "foo"]);
+
+            let empty = file.create_group("empty").unwrap();
+            assert!(
+                empty.attr_names_by(IndexType::Name, IterationOrder::Native).unwrap().is_empty()
+            );
+        })
+    }
+
+    #[test]
+    pub fn test_iter_attrs_creation_order() {
+        with_tmp_file(|file| {
+            let obj = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| gcpl.attr_creation_order(AttrCreationOrder::Tracked))
+                .create("o")
+                .unwrap();
+            obj.new_attr::<u32>().create("foo").unwrap();
+            obj.new_attr::<u64>().char_encoding(CharEncoding::Ascii).create("123").unwrap();
+            obj.new_attr::<u32>().create("bar").unwrap();
+
+            let attr = |name: &str, order, char_encoding, data_size| {
+                (
+                    name.to_owned(),
+                    AttrInfo { creation_order: Some(order), char_encoding, data_size },
+                )
+            };
+            let foo = attr("foo", 0, CharEncoding::Utf8, 4);
+            let num = attr("123", 1, CharEncoding::Ascii, 8);
+            let bar = attr("bar", 2, CharEncoding::Utf8, 4);
+            let attrs = |order| obj.attrs(IndexType::CreationOrder, order).unwrap();
+            assert_eq!(attrs(IterationOrder::Increasing), [foo.clone(), num.clone(), bar.clone()]);
+            assert_eq!(attrs(IterationOrder::Decreasing), [bar, num, foo]);
+        })
+    }
+
+    #[test]
+    pub fn test_find_attr() {
+        with_tmp_file(|file| {
+            for name in ["a", "b", "c"] {
+                file.new_attr::<u32>().create(name).unwrap();
+            }
+
+            let find = |wanted: &str| {
+                let mut visited = vec![];
+                let found = file
+                    .find_attr(IndexType::Name, IterationOrder::Increasing, |name, info| {
+                        visited.push(name.to_owned());
+                        if name == wanted { Ok(Some(info.data_size)) } else { Ok(None) }
+                    })
+                    .unwrap();
+                (found, visited)
+            };
+
+            let (found, visited) = find("b");
+            assert_eq!(found, Some(4));
+            assert_eq!(visited, ["a", "b"]);
+
+            let (found, visited) = find("z");
+            assert_eq!(found, None);
+            assert_eq!(visited, ["a", "b", "c"]);
+        })
+    }
+
+    #[test]
+    pub fn test_iter_attrs_from() {
+        with_tmp_file(|file| {
+            for name in ["a", "b", "c"] {
+                file.new_attr::<u32>().create(name).unwrap();
+            }
+            let start = IterationCursor::start(IndexType::Name, IterationOrder::Increasing);
+
+            let stop_at = |cursor, wanted: &str| {
+                let mut visited = vec![];
+                let stopped = file
+                    .iter_attrs_from(cursor, |name, _| {
+                        visited.push(name.to_owned());
+                        if name == wanted { Ok(Some(())) } else { Ok(None) }
+                    })
+                    .unwrap();
+                (stopped, visited)
+            };
+
+            let (stopped, visited) = stop_at(start, "b");
+            assert_eq!(visited, ["a", "b"]);
+            assert_eq!(stopped, Some(((), start.skip(2))));
+
+            let (stopped, visited) = stop_at(start.skip(2), "z");
+            assert_eq!(visited, ["c"]);
+            assert_eq!(stopped, None);
+
+            let (stopped, visited) = stop_at(start.skip(3), "a");
+            assert!(visited.is_empty());
+            assert_eq!(stopped, None);
+        })
+    }
+
+    #[test]
+    pub fn test_attr_by_index() {
+        with_tmp_file(|file| {
+            let obj = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| gcpl.attr_creation_order(AttrCreationOrder::Tracked))
+                .create("o")
+                .unwrap();
+            for name in ["c", "a", "b"] {
+                obj.new_attr::<u32>().create(name).unwrap();
+            }
+
+            let name = |index_type, iteration_order, index| {
+                obj.attr_by_index(index_type, iteration_order, index).unwrap().name()
+            };
+            assert_eq!(name(IndexType::CreationOrder, IterationOrder::Increasing, 1), "a");
+            assert_eq!(name(IndexType::CreationOrder, IterationOrder::Decreasing, 0), "b");
+            assert_eq!(name(IndexType::Name, IterationOrder::Increasing, 2), "c");
+
+            let err =
+                obj.attr_by_index(IndexType::Name, IterationOrder::Increasing, 3).unwrap_err();
+            assert!(err.contains_major(MajorErrorCode::Args), "{err:?}");
+            assert!(err.contains_minor(MinorErrorCode::BadValue), "{err:?}");
+        })
+    }
+
+    #[test]
+    pub fn test_attr_info() {
+        with_tmp_file(|file| {
+            file.new_attr::<u32>().create("a").unwrap();
+            file.new_attr::<u64>().char_encoding(CharEncoding::Ascii).create("b").unwrap();
+
+            let expected = AttrInfo {
+                creation_order: Some(1),
+                char_encoding: CharEncoding::Ascii,
+                data_size: 8,
+            };
+            assert_eq!(file.attr_info("b").unwrap(), expected);
+            let reported = file
+                .find_attr(IndexType::Name, IterationOrder::Increasing, |name, info| {
+                    if name == "b" { Ok(Some(info)) } else { Ok(None) }
+                })
+                .unwrap();
+            assert_eq!(reported, Some(expected));
+
+            let err = file.attr_info("missing").unwrap_err();
+            assert!(err.contains_major(MajorErrorCode::Attr), "{err:?}");
+            assert!(err.contains_minor(MinorErrorCode::NotFound), "{err:?}");
+        })
+    }
+
+    fn attrs_by_creation_order(
+        file: &File, name: &str, creation_order: AttrCreationOrder, dense: bool,
+    ) -> Vec<(String, Option<u32>)> {
+        let obj = file
+            .create_group_builder()
+            .with_gcpl(|gcpl| {
+                gcpl.attr_creation_order(creation_order);
+                if dense {
+                    gcpl.attr_phase_change(0, 0);
+                }
+                gcpl
+            })
+            .create(name)
+            .unwrap();
+        for name in ["c", "a", "b"] {
+            obj.new_attr::<u32>().create(name).unwrap();
+        }
+        let attrs = obj.attrs(IndexType::CreationOrder, IterationOrder::Increasing).unwrap();
+        attrs.into_iter().map(|(name, info)| (name, info.creation_order)).collect()
+    }
+
+    fn assert_storage_sequence(attrs: &[(String, Option<u32>)]) {
+        let expected =
+            [("c".to_owned(), Some(0)), ("a".to_owned(), Some(1)), ("b".to_owned(), Some(2))];
+        assert_eq!(attrs, expected);
+    }
+
+    fn assert_name_index_fallback(attrs: &[(String, Option<u32>)]) {
+        let mut names: Vec<&str> = attrs.iter().map(|(name, _)| name.as_str()).collect();
+        names.sort_unstable();
+        assert_eq!(names, ["a", "b", "c"]);
+        assert!(attrs.iter().all(|(_, order)| order.is_none()), "{attrs:?}");
+    }
+
+    // Only a tracked object has an attribute creation order index. Compact storage in
+    // the object header still yields the storage sequence with positions, dense storage
+    // in a heap falls back to the name index. Dense storage needs a version-2 object
+    // header, which the default file format only produces from libhdf5 2.0 on.
+    #[test]
+    pub fn test_iter_attrs_untracked_default_format() {
+        with_tmp_file(|file| {
+            let compact =
+                attrs_by_creation_order(&file, "compact", AttrCreationOrder::Untracked, false);
+            assert_storage_sequence(&compact);
+
+            let dense = attrs_by_creation_order(&file, "dense", AttrCreationOrder::Untracked, true);
+            if cfg!(feature = "2.0.0") {
+                assert_name_index_fallback(&dense);
+            } else {
+                assert_storage_sequence(&dense);
+            }
+        })
+    }
+
+    #[cfg(feature = "1.10.2")]
+    #[test]
+    pub fn test_iter_attrs_v2_object_header() {
+        for low in [LibraryVersion::V18, LibraryVersion::latest()] {
+            with_tmp_path(|path| {
+                let file = File::with_options()
+                    .with_fapl(|fapl| fapl.libver_bounds(low, LibraryVersion::latest()))
+                    .create(&path)
+                    .unwrap();
+                let attrs = |name, creation_order, dense| {
+                    attrs_by_creation_order(&file, name, creation_order, dense)
+                };
+                assert_storage_sequence(&attrs(
+                    "tracked_compact",
+                    AttrCreationOrder::Tracked,
+                    false,
+                ));
+                assert_storage_sequence(&attrs("tracked_dense", AttrCreationOrder::Tracked, true));
+                assert_storage_sequence(&attrs(
+                    "untracked_compact",
+                    AttrCreationOrder::Untracked,
+                    false,
+                ));
+                assert_name_index_fallback(&attrs(
+                    "untracked_dense",
+                    AttrCreationOrder::Untracked,
+                    true,
+                ));
+            })
+        }
     }
 }

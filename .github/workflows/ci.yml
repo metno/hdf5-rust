@@ -175,6 +175,7 @@ jobs:
           cargo r --example continuously_rw_1d --features ${{ env.FEATURES }}
           cargo r --example committed_datatype --features ${{ env.FEATURES }}
           cargo r --example swmr --features ${{ env.FEATURES }}
+          cargo r --example creation_order --features ${{ env.FEATURES }}
         if: matrix.rust != 'stable-gnu'
         env:
           FEATURES: hdf5-sys/static,hdf5-sys/zlib,lzf,blosc-all
