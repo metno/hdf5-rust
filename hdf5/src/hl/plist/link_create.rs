@@ -78,6 +78,18 @@ pub enum CharEncoding {
     Utf8,
 }
 
+impl TryFrom<H5T_cset_t> for CharEncoding {
+    type Error = Error;
+
+    fn try_from(encoding: H5T_cset_t) -> Result<Self> {
+        match encoding {
+            H5T_CSET_ASCII => Ok(Self::Ascii),
+            H5T_CSET_UTF8 => Ok(Self::Utf8),
+            encoding => fail!("Unknown char encoding: {:?}", encoding),
+        }
+    }
+}
+
 /// Builder used to create link create property list.
 #[derive(Clone, Debug, Default)]
 pub struct LinkCreateBuilder {
@@ -168,11 +180,7 @@ impl LinkCreate {
 
     #[doc(hidden)]
     pub fn get_char_encoding(&self) -> Result<CharEncoding> {
-        Ok(match h5get!(H5Pget_char_encoding(self.id()): H5T_cset_t)? {
-            H5T_CSET_ASCII => CharEncoding::Ascii,
-            H5T_CSET_UTF8 => CharEncoding::Utf8,
-            encoding => fail!("Unknown char encoding: {:?}", encoding),
-        })
+        h5get!(H5Pget_char_encoding(self.id()): H5T_cset_t)?.try_into()
     }
 
     /// Returns the character encoding used to create links.
