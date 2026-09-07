@@ -6,7 +6,7 @@
 //! be requested when the group is created and cannot be turned on later.
 
 use hdf5::plist::group_create::LinkCreationOrder;
-use hdf5::{File, IndexType, IterationOrder, LinkCursor, LinkType, MajorErrorCode, Result};
+use hdf5::{File, IndexType, IterationCursor, IterationOrder, LinkType, MajorErrorCode, Result};
 use hdf5_metno as hdf5;
 
 const FILE_NAME: &str = "link_order.h5";
@@ -59,7 +59,7 @@ fn read() -> Result<()> {
     assert_eq!(first_soft, Some("temp".to_owned()));
 
     // A cursor resumes a stopped iteration, here to read the links in pages.
-    let mut cursor = LinkCursor::start(IndexType::CreationOrder, IterationOrder::Increasing);
+    let mut cursor = IterationCursor::start(IndexType::CreationOrder, IterationOrder::Increasing);
     let mut page = vec![];
     while let Some(((), next)) = tracked.iter_visit_from(cursor, |name, _| {
         page.push(name.to_owned());

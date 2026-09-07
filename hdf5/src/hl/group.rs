@@ -1,11 +1,7 @@
-use std::any::Any;
 use std::fmt::{self, Debug};
 use std::ops::Deref;
-use std::panic::{self, AssertUnwindSafe};
-use std::ptr::addr_of_mut;
 
 use hdf5_sys::{
-    h5::{H5_index_t, H5_iter_order_t, hsize_t},
     h5d::H5Dopen2,
     h5g::{H5G_info_t, H5Gcreate_anon, H5Gcreate2, H5Gget_create_plist, H5Gget_info, H5Gopen2},
     h5l::{
@@ -18,6 +14,7 @@ use hdf5_sys::{
 
 use crate::globals::H5P_LINK_CREATE;
 use crate::hl::dataset::Maybe;
+use crate::hl::iteration::visit;
 use crate::hl::plist::group_create::{GroupCreate, GroupCreateBuilder};
 use crate::hl::plist::link_create::{CharEncoding, LinkCreate, LinkCreateBuilder};
 use crate::internal_prelude::*;
@@ -420,104 +417,6 @@ impl GroupBuilder {
     }
 }
 
-/// The index the links of a group are traversed along.
-///
-/// Corresponds to `H5_index_t`. Traversing by [`CreationOrder`](Self::CreationOrder)
-/// requires the group to track link creation order, see
-/// [`LinkCreationOrder`](crate::plist::group_create::LinkCreationOrder).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IndexType {
-    /// Index on link names.
-    Name,
-    /// Index on link creation order.
-    CreationOrder,
-}
-
-impl Default for IndexType {
-    fn default() -> Self {
-        Self::Name
-    }
-}
-
-impl From<IndexType> for H5_index_t {
-    fn from(v: IndexType) -> Self {
-        match v {
-            IndexType::Name => Self::H5_INDEX_NAME,
-            IndexType::CreationOrder => Self::H5_INDEX_CRT_ORDER,
-        }
-    }
-}
-
-/// The order the links of a group are visited in along an [`IndexType`].
-///
-/// Corresponds to `H5_iter_order_t`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IterationOrder {
-    /// Increasing order.
-    Increasing,
-    /// Decreasing order.
-    Decreasing,
-    /// No particular order, whatever is fastest.
-    Native,
-}
-
-impl Default for IterationOrder {
-    fn default() -> Self {
-        Self::Native
-    }
-}
-
-impl From<IterationOrder> for H5_iter_order_t {
-    fn from(v: IterationOrder) -> Self {
-        match v {
-            IterationOrder::Increasing => Self::H5_ITER_INC,
-            IterationOrder::Decreasing => Self::H5_ITER_DEC,
-            IterationOrder::Native => Self::H5_ITER_NATIVE,
-        }
-    }
-}
-
-/// A position in a link iteration.
-///
-/// The cursor pairs the position with the [`IndexType`] and [`IterationOrder`] it
-/// counts along, so an iteration can only be resumed the way it was started.
-/// [`Group::iter_visit_from`] returns the cursor of a stopped iteration and accepts
-/// it back to continue.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct LinkCursor {
-    index_type: IndexType,
-    iteration_order: IterationOrder,
-    position: u64,
-}
-
-impl LinkCursor {
-    /// Creates a cursor at the first link along `index_type` in `iteration_order`.
-    pub const fn start(index_type: IndexType, iteration_order: IterationOrder) -> Self {
-        Self { index_type, iteration_order, position: 0 }
-    }
-
-    /// Moves the cursor past the next `links` links.
-    #[must_use]
-    pub const fn skip(self, links: u64) -> Self {
-        Self { position: self.position + links, ..self }
-    }
-
-    /// Returns the index type the cursor counts along.
-    pub const fn index_type(self) -> IndexType {
-        self.index_type
-    }
-
-    /// Returns the iteration order the cursor counts along.
-    pub const fn iteration_order(self) -> IterationOrder {
-        self.iteration_order
-    }
-
-    /// Returns the number of links before the cursor.
-    pub const fn position(self) -> u64 {
-        self.position
-    }
-}
-
 /// The type of an object link.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LinkType {
@@ -599,7 +498,7 @@ impl Group {
     where
         F: FnMut(&str, LinkInfo) -> Result<()>,
     {
-        self.iter_visit_from(LinkCursor::start(index_type, iteration_order), |name, info| {
+        self.iter_visit_from(IterationCursor::start(index_type, iteration_order), |name, info| {
             op(name, info)?;
             Ok(None::<()>)
         })?;
@@ -648,7 +547,7 @@ impl Group {
     where
         F: FnMut(&str, LinkInfo) -> Result<Option<B>>,
     {
-        match self.iter_visit_from(LinkCursor::start(index_type, iteration_order), op)? {
+        match self.iter_visit_from(IterationCursor::start(index_type, iteration_order), op)? {
             Some((value, _)) => Ok(Some(value)),
             None => Ok(None),
         }
@@ -668,14 +567,14 @@ impl Group {
     /// # Examples
     ///
     /// ```
-    /// use hdf5_metno::{File, IndexType, IterationOrder, LinkCursor};
+    /// use hdf5_metno::{File, IndexType, IterationOrder, IterationCursor};
     ///
     /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("iter_visit_from.h5")?;
     /// for name in ["a", "b", "c"] {
     ///     file.create_group(name)?;
     /// }
     ///
-    /// let mut cursor = LinkCursor::start(IndexType::Name, IterationOrder::Increasing).skip(1);
+    /// let mut cursor = IterationCursor::start(IndexType::Name, IterationOrder::Increasing).skip(1);
     /// let mut names = vec![];
     /// while let Some((name, next)) =
     ///     file.iter_visit_from(cursor, |name, _| Ok(Some(name.to_owned())))?
@@ -688,88 +587,26 @@ impl Group {
     /// # Ok::<(), hdf5_metno::Error>(())
     /// ```
     pub fn iter_visit_from<B, F>(
-        &self, cursor: LinkCursor, op: F,
-    ) -> Result<Option<(B, LinkCursor)>>
+        &self, cursor: IterationCursor, op: F,
+    ) -> Result<Option<(B, IterationCursor)>>
     where
         F: FnMut(&str, LinkInfo) -> Result<Option<B>>,
     {
-        enum Stop<B> {
-            Found(B),
-            Error(Error),
-            Panic(Box<dyn Any + Send>),
-        }
-
-        struct OpData<B, F> {
-            op: F,
-            stop: Option<Stop<B>>,
-        }
-
-        // Called by H5Literate once per link, never concurrently
-        unsafe extern "C" fn callback<B, F>(
-            _id: hid_t, name: *const c_char, info: *const H5L_info_t, op_data: *mut c_void,
-        ) -> herr_t
-        where
-            F: FnMut(&str, LinkInfo) -> Result<Option<B>>,
-        {
-            // SAFETY: op_data is the pointer to the OpData passed to H5Literate below, which
-            // outlives the H5Literate call, and H5Literate does not run the callback concurrently
-            let Some(data) = (unsafe { op_data.cast::<OpData<B, F>>().as_mut() }) else {
-                return -1;
-            };
-            let visited = panic::catch_unwind(AssertUnwindSafe(|| {
-                assert!(!name.is_null(), "iter_visit: null name ptr");
-                // SAFETY: HDF5 passes a nul-terminated link name that is valid for the duration
-                // of the callback
-                let name = unsafe { std::ffi::CStr::from_ptr(name) };
-                // SAFETY: HDF5 passes a pointer to the link info that is valid for the duration
-                // of the callback
-                let info = unsafe { info.as_ref() }.expect("iter_visit: null info ptr");
-                (data.op)(name.to_string_lossy().as_ref(), info.into())
-            }));
-            match visited {
-                Ok(Ok(None)) => 0,
-                Ok(Ok(Some(value))) => {
-                    data.stop = Some(Stop::Found(value));
-                    1
-                }
-                Ok(Err(err)) => {
-                    data.stop = Some(Stop::Error(err));
-                    -1
-                }
-                Err(payload) => {
-                    data.stop = Some(Stop::Panic(payload));
-                    -1
-                }
-            }
-        }
-
-        // H5Literate rejects a start position at or past the last link
-        if cursor.position > 0 && cursor.position >= group_info(self.id())?.nlinks {
-            return Ok(None);
-        }
-
-        let mut data = OpData { op, stop: None };
-        let mut position: hsize_t = cursor.position;
-        let ret = h5call!(H5Literate(
-            self.id(),
-            cursor.index_type.into(),
-            cursor.iteration_order.into(),
-            &mut position,
-            Some(callback::<B, F>),
-            addr_of_mut!(data).cast::<c_void>()
-        ));
-        match data.stop {
-            Some(Stop::Panic(payload)) => panic::resume_unwind(payload),
-            Some(Stop::Error(err)) => Err(err),
-            Some(Stop::Found(value)) => {
-                ret?;
-                Ok(Some((value, LinkCursor { position, ..cursor })))
-            }
-            None => {
-                ret?;
-                Ok(None)
-            }
-        }
+        visit(
+            cursor,
+            || Ok(group_info(self.id())?.nlinks),
+            op,
+            |index_type, iteration_order, position, callback, op_data| unsafe {
+                H5Literate(
+                    self.id(),
+                    index_type,
+                    iteration_order,
+                    position,
+                    Some(callback),
+                    op_data,
+                )
+            },
+        )
     }
 
     fn get_all_of_type(&self, loc_type: LocationType) -> Result<Vec<Location>> {
@@ -870,7 +707,7 @@ pub mod tests {
     use crate::hl::plist::file_access::LibraryVersion;
     use crate::hl::plist::link_create::CharEncoding;
     use crate::internal_prelude::*;
-    use crate::{IndexType, IterationOrder, LinkCursor, LinkType};
+    use crate::{IndexType, IterationCursor, IterationOrder, LinkType};
     use hdf5_types::{IntSize, TypeDescriptor, VarLenUnicode};
     use std::panic::{self, AssertUnwindSafe};
 
@@ -1505,7 +1342,7 @@ pub mod tests {
             for name in ["a", "b", "c"] {
                 file.create_group(name).unwrap();
             }
-            let start = LinkCursor::start(IndexType::Name, IterationOrder::Increasing);
+            let start = IterationCursor::start(IndexType::Name, IterationOrder::Increasing);
 
             let stop_at = |cursor, wanted: &str| {
                 let mut visited = vec![];
