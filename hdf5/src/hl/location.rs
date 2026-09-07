@@ -19,7 +19,7 @@ use hdf5_sys::h5o::{H5Oget_info_by_name2, H5Oget_info2};
 #[cfg(not(feature = "1.12.0"))]
 use hdf5_sys::{h5::haddr_t, h5o::H5O_info1_t, h5o::H5Oopen_by_addr};
 use hdf5_sys::{
-    h5a::{H5Adelete, H5Aiterate2, H5Aopen},
+    h5a::{H5A_info_t, H5Adelete, H5Aget_info_by_name, H5Aiterate2, H5Aopen, H5Aopen_by_idx},
     h5f::H5Fget_name,
     h5i::{H5Iget_file_id, H5Iget_name},
     h5o::{H5O_type_t, H5Oget_comment},
@@ -124,6 +124,59 @@ impl Location {
     pub fn attr(&self, name: &str) -> Result<Attribute> {
         let name = to_cstring(name)?;
         Attribute::from_id(h5try!(H5Aopen(self.id(), name.as_ptr(), H5P_DEFAULT)))
+    }
+
+    /// Opens the attribute at `index` along `index_type` in `iteration_order`.
+    ///
+    /// # Errors
+    ///
+    /// Fails if `index` is not below the number of attributes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{File, IndexType, IterationOrder};
+    ///
+    /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("attr_by_index.h5")?;
+    /// file.new_attr::<u32>().create("b")?;
+    /// file.new_attr::<u32>().create("a")?;
+    ///
+    /// let last = file.attr_by_index(IndexType::Name, IterationOrder::Decreasing, 0)?;
+    /// assert_eq!(last.name(), "b");
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn attr_by_index(
+        &self, index_type: IndexType, iteration_order: IterationOrder, index: u64,
+    ) -> Result<Attribute> {
+        Attribute::from_id(h5try!(H5Aopen_by_idx(
+            self.id(),
+            b".\0".as_ptr().cast::<c_char>(),
+            index_type.into(),
+            iteration_order.into(),
+            index,
+            H5P_DEFAULT,
+            H5P_DEFAULT
+        )))
+    }
+
+    /// Returns information about the attribute called `name`.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the object has no attribute called `name`.
+    pub fn attr_info(&self, name: &str) -> Result<AttrInfo> {
+        let name = to_cstring(name)?;
+        let mut info = MaybeUninit::<H5A_info_t>::uninit();
+        h5call!(H5Aget_info_by_name(
+            self.id(),
+            b".\0".as_ptr().cast::<c_char>(),
+            name.as_ptr(),
+            info.as_mut_ptr(),
+            H5P_DEFAULT
+        ))?;
+        // SAFETY: H5Aget_info_by_name fills the info on success, and the error was checked
+        let info = unsafe { info.assume_init() };
+        Ok(AttrInfo::from(&info))
     }
 
     /// Returns the names of all attributes of the object, in increasing name order.
@@ -904,6 +957,58 @@ pub mod tests {
             assert_eq!(stopped, None);
         })
     }
+
+    #[test]
+    pub fn test_attr_by_index() {
+        with_tmp_file(|file| {
+            let obj = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| gcpl.attr_creation_order(AttrCreationOrder::Tracked))
+                .create("o")
+                .unwrap();
+            for name in ["c", "a", "b"] {
+                obj.new_attr::<u32>().create(name).unwrap();
+            }
+
+            let name = |index_type, iteration_order, index| {
+                obj.attr_by_index(index_type, iteration_order, index).unwrap().name()
+            };
+            assert_eq!(name(IndexType::CreationOrder, IterationOrder::Increasing, 1), "a");
+            assert_eq!(name(IndexType::CreationOrder, IterationOrder::Decreasing, 0), "b");
+            assert_eq!(name(IndexType::Name, IterationOrder::Increasing, 2), "c");
+
+            let err =
+                obj.attr_by_index(IndexType::Name, IterationOrder::Increasing, 3).unwrap_err();
+            assert!(err.contains_major(MajorErrorCode::Args), "{err:?}");
+            assert!(err.contains_minor(MinorErrorCode::BadValue), "{err:?}");
+        })
+    }
+
+    #[test]
+    pub fn test_attr_info() {
+        with_tmp_file(|file| {
+            file.new_attr::<u32>().create("a").unwrap();
+            file.new_attr::<u64>().char_encoding(CharEncoding::Ascii).create("b").unwrap();
+
+            let expected = AttrInfo {
+                creation_order: Some(1),
+                char_encoding: CharEncoding::Ascii,
+                data_size: 8,
+            };
+            assert_eq!(file.attr_info("b").unwrap(), expected);
+            let reported = file
+                .find_attr(IndexType::Name, IterationOrder::Increasing, |name, info| {
+                    if name == "b" { Ok(Some(info)) } else { Ok(None) }
+                })
+                .unwrap();
+            assert_eq!(reported, Some(expected));
+
+            let err = file.attr_info("missing").unwrap_err();
+            assert!(err.contains_major(MajorErrorCode::Attr), "{err:?}");
+            assert!(err.contains_minor(MinorErrorCode::NotFound), "{err:?}");
+        })
+    }
+
     fn attrs_by_creation_order(
         file: &File, name: &str, creation_order: AttrCreationOrder, dense: bool,
     ) -> Vec<(String, Option<u32>)> {
