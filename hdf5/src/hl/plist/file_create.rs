@@ -405,9 +405,9 @@ impl FileCreateBuilder {
         self
     }
 
-    /// Sets flags for tracking and indexing attribute creation order.
+    /// Sets whether attribute creation order is tracked and indexed.
     ///
-    /// For further details, see [`AttrCreationOrder`](struct.AttrCreationOrder.html).
+    /// See [`AttrCreationOrder`] for the available settings.
     pub fn attr_creation_order(&mut self, attr_creation_order: AttrCreationOrder) -> &mut Self {
         self.attr_creation_order = Some(attr_creation_order);
         self
@@ -481,7 +481,7 @@ impl FileCreateBuilder {
             h5try!(H5Pset_attr_phase_change(id, v.max_compact as _, v.min_dense as _));
         }
         if let Some(v) = self.attr_creation_order {
-            h5try!(H5Pset_attr_creation_order(id, v.bits() as _));
+            h5try!(H5Pset_attr_creation_order(id, v.into()));
         }
         if let Some(v) = self.link_creation_order {
             h5try!(H5Pset_link_creation_order(id, v.into()));
@@ -681,11 +681,12 @@ impl FileCreate {
 
     #[doc(hidden)]
     pub fn get_attr_creation_order(&self) -> Result<AttrCreationOrder> {
-        h5get!(H5Pget_attr_creation_order(self.id()): c_uint)
-            .map(AttrCreationOrder::from_bits_truncate)
+        h5get!(H5Pget_attr_creation_order(self.id()): c_uint).map(AttrCreationOrder::from_flags)
     }
 
-    /// Returns flags for tracking and indexing attribute creation order.
+    /// Returns whether attribute creation order is tracked and indexed.
+    ///
+    /// Returns [`AttrCreationOrder::Untracked`] if the property cannot be read.
     pub fn attr_creation_order(&self) -> AttrCreationOrder {
         self.get_attr_creation_order().unwrap_or_default()
     }

@@ -158,11 +158,10 @@ fn test_fcpl_attr_phase_change() -> hdf5::Result<()> {
 
 #[test]
 fn test_fcpl_attr_creation_order() -> hdf5::Result<()> {
-    assert_eq!(FC::try_new()?.get_attr_creation_order()?.bits(), 0);
-    assert_eq!(FC::try_new()?.attr_creation_order().bits(), 0);
-    test_pl!(FC, attr_creation_order: AttrCreationOrder::TRACKED);
-    test_pl!(FC, attr_creation_order: AttrCreationOrder::TRACKED | AttrCreationOrder::INDEXED);
-    assert!(FCB::new().attr_creation_order(AttrCreationOrder::INDEXED).finish().is_err());
+    assert_eq!(FC::try_new()?.get_attr_creation_order()?, AttrCreationOrder::Untracked);
+    assert_eq!(FC::try_new()?.attr_creation_order(), AttrCreationOrder::Untracked);
+    test_pl!(FC, attr_creation_order: AttrCreationOrder::Tracked);
+    test_pl!(FC, attr_creation_order: AttrCreationOrder::Indexed);
     Ok(())
 }
 
@@ -922,11 +921,10 @@ fn test_dcpl_attr_phase_change() -> hdf5::Result<()> {
 
 #[test]
 fn test_dcpl_attr_creation_order() -> hdf5::Result<()> {
-    assert_eq!(DC::try_new()?.get_attr_creation_order()?.bits(), 0);
-    assert_eq!(DC::try_new()?.attr_creation_order().bits(), 0);
-    test_pl!(DC, attr_creation_order: AttrCreationOrder::TRACKED);
-    test_pl!(DC, attr_creation_order: AttrCreationOrder::TRACKED | AttrCreationOrder::INDEXED);
-    assert!(DCB::new().attr_creation_order(AttrCreationOrder::INDEXED).finish().is_err());
+    assert_eq!(DC::try_new()?.get_attr_creation_order()?, AttrCreationOrder::Untracked);
+    assert_eq!(DC::try_new()?.attr_creation_order(), AttrCreationOrder::Untracked);
+    test_pl!(DC, attr_creation_order: AttrCreationOrder::Tracked);
+    test_pl!(DC, attr_creation_order: AttrCreationOrder::Indexed);
     Ok(())
 }
 
