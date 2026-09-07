@@ -10,9 +10,10 @@ use crate::internal_prelude::*;
 
 /// The index the links of a group or the attributes of an object are traversed along.
 ///
-/// Corresponds to `H5_index_t`. Traversing by [`CreationOrder`](Self::CreationOrder)
-/// requires creation order to be tracked, see
-/// [`LinkCreationOrder`](crate::plist::group_create::LinkCreationOrder) and
+/// Corresponds to `H5_index_t`. Links can only be traversed by
+/// [`CreationOrder`](Self::CreationOrder) in a group that tracks it, see
+/// [`LinkCreationOrder`](crate::plist::group_create::LinkCreationOrder). Attribute
+/// creation order is tracked with
 /// [`AttrCreationOrder`](crate::plist::group_create::AttrCreationOrder).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IndexType {

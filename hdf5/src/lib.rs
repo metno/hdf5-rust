@@ -60,7 +60,7 @@ mod export {
         hl::extents::{Extent, Extents, SimpleExtents},
         hl::selection::{Hyperslab, Selection, SliceOrIndex},
         hl::{
-            Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
+            AttrInfo, Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
             AttributeBuilderEmptyShape, ByteReader, CommittedDatatype, Container, Conversion,
             Dataset, DatasetBuilder, DatasetBuilderData, DatasetBuilderEmpty,
             DatasetBuilderEmptyShape, DatasetType, Dataspace, Datatype, File, FileBuilder, Group,
