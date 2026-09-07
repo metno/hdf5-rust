@@ -1,3 +1,5 @@
+use std::os::raw::c_uint;
+
 use hdf5_sys::h5p::{H5P_CRT_ORDER_INDEXED, H5P_CRT_ORDER_TRACKED};
 
 use bitflags::bitflags;
@@ -43,5 +45,58 @@ bitflags! {
         const TRACKED = H5P_CRT_ORDER_TRACKED as _;
         /// Attribute creation order is indexed (requires to be tracked).
         const INDEXED = H5P_CRT_ORDER_INDEXED as _;
+    }
+}
+
+/// Tracking of link creation order in a group.
+///
+/// By default link creation order is not recorded. `Tracked` records the order in
+/// which links are created and allows the group to be traversed by
+/// [`IndexType::CreationOrder`](crate::IndexType::CreationOrder). `Indexed` also
+/// maintains an index for that traversal.
+///
+/// The setting is fixed in the creation property list. HDF5 provides no way to
+/// turn on tracking or build the index after the group exists.
+///
+/// # Examples
+///
+/// ```
+/// use hdf5_metno::plist::GroupCreateBuilder;
+/// use hdf5_metno::plist::group_create::LinkCreationOrder;
+///
+/// let gcpl = GroupCreateBuilder::new().link_creation_order(LinkCreationOrder::Indexed).finish()?;
+/// assert_eq!(gcpl.link_creation_order(), LinkCreationOrder::Indexed);
+/// # Ok::<(), hdf5_metno::Error>(())
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum LinkCreationOrder {
+    /// Link creation order is not recorded.
+    #[default]
+    Untracked,
+    /// Link creation order is recorded.
+    Tracked,
+    /// Link creation order is recorded and indexed.
+    Indexed,
+}
+
+impl LinkCreationOrder {
+    pub(crate) fn from_flags(flags: c_uint) -> Self {
+        if flags & H5P_CRT_ORDER_INDEXED != 0 {
+            Self::Indexed
+        } else if flags & H5P_CRT_ORDER_TRACKED != 0 {
+            Self::Tracked
+        } else {
+            Self::Untracked
+        }
+    }
+}
+
+impl From<LinkCreationOrder> for c_uint {
+    fn from(v: LinkCreationOrder) -> Self {
+        match v {
+            LinkCreationOrder::Untracked => 0,
+            LinkCreationOrder::Tracked => H5P_CRT_ORDER_TRACKED,
+            LinkCreationOrder::Indexed => H5P_CRT_ORDER_TRACKED | H5P_CRT_ORDER_INDEXED,
+        }
     }
 }

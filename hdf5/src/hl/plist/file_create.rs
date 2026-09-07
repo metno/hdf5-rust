@@ -13,11 +13,12 @@ use hdf5_sys::h5o::{
 };
 use hdf5_sys::h5p::{
     H5Pcreate, H5Pget_attr_creation_order, H5Pget_attr_phase_change, H5Pget_istore_k,
-    H5Pget_obj_track_times, H5Pget_shared_mesg_index, H5Pget_shared_mesg_nindexes,
-    H5Pget_shared_mesg_phase_change, H5Pget_sizes, H5Pget_sym_k, H5Pget_userblock,
-    H5Pset_attr_creation_order, H5Pset_attr_phase_change, H5Pset_istore_k, H5Pset_obj_track_times,
-    H5Pset_shared_mesg_index, H5Pset_shared_mesg_nindexes, H5Pset_shared_mesg_phase_change,
-    H5Pset_sizes, H5Pset_sym_k, H5Pset_userblock,
+    H5Pget_link_creation_order, H5Pget_obj_track_times, H5Pget_shared_mesg_index,
+    H5Pget_shared_mesg_nindexes, H5Pget_shared_mesg_phase_change, H5Pget_sizes, H5Pget_sym_k,
+    H5Pget_userblock, H5Pset_attr_creation_order, H5Pset_attr_phase_change, H5Pset_istore_k,
+    H5Pset_link_creation_order, H5Pset_obj_track_times, H5Pset_shared_mesg_index,
+    H5Pset_shared_mesg_nindexes, H5Pset_shared_mesg_phase_change, H5Pset_sizes, H5Pset_sym_k,
+    H5Pset_userblock,
 };
 #[cfg(feature = "1.10.1")]
 use hdf5_sys::h5p::{
@@ -26,7 +27,7 @@ use hdf5_sys::h5p::{
 };
 
 use crate::globals::H5P_FILE_CREATE;
-pub use crate::hl::plist::common::{AttrCreationOrder, AttrPhaseChange};
+pub use crate::hl::plist::common::{AttrCreationOrder, AttrPhaseChange, LinkCreationOrder};
 use crate::internal_prelude::*;
 
 /// File creation properties.
@@ -68,6 +69,7 @@ impl Debug for FileCreate {
         formatter.field("obj_track_times", &self.obj_track_times());
         formatter.field("attr_phase_change", &self.attr_phase_change());
         formatter.field("attr_creation_order", &self.attr_creation_order());
+        formatter.field("link_creation_order", &self.link_creation_order());
         #[cfg(feature = "1.10.1")]
         {
             formatter.field("file_space_page_size", &self.file_space_page_size());
@@ -269,6 +271,7 @@ pub struct FileCreateBuilder {
     obj_track_times: Option<bool>,
     attr_phase_change: Option<AttrPhaseChange>,
     attr_creation_order: Option<AttrCreationOrder>,
+    link_creation_order: Option<LinkCreationOrder>,
     #[cfg(feature = "1.10.1")]
     file_space_page_size: Option<u64>,
     #[cfg(feature = "1.10.1")]
@@ -296,6 +299,7 @@ impl FileCreateBuilder {
         let apc = plist.get_attr_phase_change()?;
         builder.attr_phase_change(apc.max_compact, apc.min_dense);
         builder.attr_creation_order(plist.get_attr_creation_order()?);
+        builder.link_creation_order(plist.get_link_creation_order()?);
         #[cfg(feature = "1.10.1")]
         {
             builder.file_space_page_size(plist.get_file_space_page_size()?);
@@ -409,6 +413,14 @@ impl FileCreateBuilder {
         self
     }
 
+    /// Sets whether link creation order is tracked and indexed in the root group.
+    ///
+    /// See [`LinkCreationOrder`] for the available settings.
+    pub fn link_creation_order(&mut self, link_creation_order: LinkCreationOrder) -> &mut Self {
+        self.link_creation_order = Some(link_creation_order);
+        self
+    }
+
     #[cfg(feature = "1.10.1")]
     /// Sets the file space page size.
     ///
@@ -470,6 +482,9 @@ impl FileCreateBuilder {
         }
         if let Some(v) = self.attr_creation_order {
             h5try!(H5Pset_attr_creation_order(id, v.bits() as _));
+        }
+        if let Some(v) = self.link_creation_order {
+            h5try!(H5Pset_link_creation_order(id, v.into()));
         }
         #[cfg(feature = "1.10.1")]
         {
@@ -673,6 +688,18 @@ impl FileCreate {
     /// Returns flags for tracking and indexing attribute creation order.
     pub fn attr_creation_order(&self) -> AttrCreationOrder {
         self.get_attr_creation_order().unwrap_or_default()
+    }
+
+    #[doc(hidden)]
+    pub fn get_link_creation_order(&self) -> Result<LinkCreationOrder> {
+        h5get!(H5Pget_link_creation_order(self.id()): c_uint).map(LinkCreationOrder::from_flags)
+    }
+
+    /// Returns whether link creation order is tracked and indexed in the root group.
+    ///
+    /// Returns [`LinkCreationOrder::Untracked`] if the property cannot be read.
+    pub fn link_creation_order(&self) -> LinkCreationOrder {
+        self.get_link_creation_order().unwrap_or_default()
     }
 
     /// Retrieves the file space page size.
