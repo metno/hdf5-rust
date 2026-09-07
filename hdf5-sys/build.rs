@@ -690,9 +690,6 @@ impl Config {
         for dir in &self.link_paths {
             println!("cargo::rustc-link-search=native={}", dir.to_str().unwrap());
         }
-        println!("cargo::rerun-if-env-changed=HDF5_DIR");
-        println!("cargo::rerun-if-env-changed=HDF5_VERSION");
-
         if is_msvc() {
             println!("cargo::metadata=msvc_dll_indirection=1");
         }
@@ -769,6 +766,9 @@ impl Config {
 }
 
 fn main() {
+    println!("cargo::rerun-if-env-changed=HDF5_DIR");
+    println!("cargo::rerun-if-env-changed=HDF5_VERSION");
+
     if feature_enabled("STATIC") && std::env::var_os("HDF5_DIR").is_none() {
         get_build_and_emit();
     } else {
