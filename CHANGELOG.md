@@ -10,6 +10,14 @@
 - Changed `DatasetBuilder::empty_as` and `DatasetBuilder::with_data_as` to accept an existing `Datatype` or `CommittedDatatype` as well as a `TypeDescriptor`, through the new `DatasetType`, so a dataset can be created with a committed datatype.
 - Added `FileCreateBuilder::sizes` and `Sizeof` to set the offset and length sizes of a file (breaking change, `SizeofInfo` holds `Sizeof` instead of `usize`)
 - Added more variants to `LibraryVersion`. If you specified `Latest` before you may start generating files which are no longer compatible with earlier versions of `hdf5`
+- Exported `IterationOrder` and `IndexType`, the arguments of `Group::iter_visit`
+- Changed `Group::iter_visit` and `Group::iter_visit_default` to take an `FnMut(&str, LinkInfo) -> Result<()>` closure instead of an accumulator and a `bool` closure, and `LinkInfo::is_utf8` to `LinkInfo::char_encoding` (breaking change). An error returned by the closure is propagated, and `Group::groups`, `Group::datasets`, `Group::committed_datatypes` and `Group::member_names` now fail instead of returning a truncated list when a link cannot be resolved
+- Added `Group::member_names_by` and `Group::links` to list the links along an index type in an order, `Group::find_link` to stop a link iteration with a value, and `Group::iter_visit_from` with `IterationCursor` to skip links and resume a stopped iteration
+- Added `FileCreateBuilder::link_creation_order`, `GroupCreateBuilder::link_creation_order`, the matching getters and `LinkCreationOrder`, so a group can track and index link creation order
+- Changed `AttrCreationOrder` from bitflags to an enum with `Untracked`, `Tracked` and `Indexed`, matching `LinkCreationOrder` (breaking change)
+- Added `GroupCreateBuilder::attr_creation_order` and `GroupCreateBuilder::attr_phase_change` with the matching `GroupCreate` getters
+- Added `Location::iter_attrs`, `Location::find_attr` and `Location::iter_attrs_from` with `AttrInfo`, and `Location::attr_names_by` and `Location::attrs`, to iterate attributes by name or creation order in either direction, sharing `IndexType`, `IterationOrder` and `IterationCursor` with link iteration
+- Added `Location::attr_by_index` and `Location::attr_info`
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased

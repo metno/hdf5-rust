@@ -1,22 +1,20 @@
 use std::fmt::{self, Debug};
 use std::ops::Deref;
-use std::panic;
-use std::ptr::addr_of_mut;
 
 use hdf5_sys::{
-    h5::{H5_index_t, H5_iter_order_t, hsize_t},
     h5d::H5Dopen2,
     h5g::{H5G_info_t, H5Gcreate_anon, H5Gcreate2, H5Gget_create_plist, H5Gget_info, H5Gopen2},
     h5l::{
-        H5L_SAME_LOC, H5L_info_t, H5L_iterate_t, H5L_type_t, H5Lcreate_external, H5Lcreate_hard,
-        H5Lcreate_soft, H5Ldelete, H5Lexists, H5Literate, H5Lmove,
+        H5L_SAME_LOC, H5L_info_t, H5L_type_t, H5Lcreate_external, H5Lcreate_hard, H5Lcreate_soft,
+        H5Ldelete, H5Lexists, H5Literate, H5Lmove,
     },
     h5p::{H5Pcreate, H5Pset_create_intermediate_group},
-    h5t::{H5T_cset_t, H5Tcommit2, H5Topen2},
+    h5t::{H5Tcommit2, H5Topen2},
 };
 
 use crate::globals::H5P_LINK_CREATE;
 use crate::hl::dataset::Maybe;
+use crate::hl::iteration::visit;
 use crate::hl::plist::group_create::{GroupCreate, GroupCreateBuilder};
 use crate::hl::plist::link_create::{CharEncoding, LinkCreate, LinkCreateBuilder};
 use crate::internal_prelude::*;
@@ -419,50 +417,6 @@ impl GroupBuilder {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TraversalOrder {
-    Name,
-    Creation,
-}
-
-impl Default for TraversalOrder {
-    fn default() -> Self {
-        Self::Name
-    }
-}
-
-impl From<TraversalOrder> for H5_index_t {
-    fn from(v: TraversalOrder) -> Self {
-        match v {
-            TraversalOrder::Name => Self::H5_INDEX_NAME,
-            TraversalOrder::Creation => Self::H5_INDEX_CRT_ORDER,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IterationOrder {
-    Increasing,
-    Decreasing,
-    Native,
-}
-
-impl Default for IterationOrder {
-    fn default() -> Self {
-        Self::Native
-    }
-}
-
-impl From<IterationOrder> for H5_iter_order_t {
-    fn from(v: IterationOrder) -> Self {
-        match v {
-            IterationOrder::Increasing => Self::H5_ITER_INC,
-            IterationOrder::Decreasing => Self::H5_ITER_DEC,
-            IterationOrder::Native => Self::H5_ITER_NATIVE,
-        }
-    }
-}
-
 /// The type of an object link.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LinkType {
@@ -489,97 +443,182 @@ impl From<H5L_type_t> for LinkType {
 pub struct LinkInfo {
     pub link_type: LinkType,
     pub creation_order: Option<i64>,
-    pub is_utf8: bool,
+    /// Encoding of the link name. HDF5 values other than UTF-8 are reported as ASCII.
+    pub char_encoding: CharEncoding,
 }
 
 impl From<&H5L_info_t> for LinkInfo {
     fn from(link: &H5L_info_t) -> Self {
         let link_type = link.type_.into();
         let creation_order = if link.corder_valid == 1 { Some(link.corder) } else { None };
-        let is_utf8 = link.cset == H5T_cset_t::H5T_CSET_UTF8;
-        Self { link_type, creation_order, is_utf8 }
+        let char_encoding = CharEncoding::try_from(link.cset).unwrap_or(CharEncoding::Ascii);
+        Self { link_type, creation_order, char_encoding }
     }
 }
 
 /// Iteration methods
 impl Group {
-    /// Visits all objects in the group
-    pub fn iter_visit<F, G>(
-        &self, iteration_order: IterationOrder, traversal_order: TraversalOrder, mut val: G,
-        mut op: F,
-    ) -> Result<G>
+    /// Visits every link of the group, non-recursively.
+    ///
+    /// The links are traversed along `index_type` in `iteration_order`, and `op` is
+    /// called with the name and the [`LinkInfo`] of each link. Use
+    /// [`find_link`](Self::find_link) to stop early.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error returned by `op`. Returns the HDF5 error if the
+    /// iteration itself fails, for example when traversing by
+    /// [`IndexType::CreationOrder`] on a group that does not track link creation order.
+    ///
+    /// # Panics
+    ///
+    /// A panic in `op` is caught while HDF5 frames are on the stack and resumed once
+    /// the iteration has returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{File, IndexType, IterationOrder};
+    ///
+    /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("iter_visit.h5")?;
+    /// file.create_group("b")?;
+    /// file.create_group("a")?;
+    ///
+    /// let mut names = vec![];
+    /// file.iter_visit(IndexType::Name, IterationOrder::Decreasing, |name, _| {
+    ///     names.push(name.to_owned());
+    ///     Ok(())
+    /// })?;
+    /// assert_eq!(names, ["b", "a"]);
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn iter_visit<F>(
+        &self, index_type: IndexType, iteration_order: IterationOrder, mut op: F,
+    ) -> Result<()>
     where
-        F: Fn(&Self, &str, LinkInfo, &mut G) -> bool,
+        F: FnMut(&str, LinkInfo) -> Result<()>,
     {
-        /// Struct used to pass a tuple
-        struct Vtable<'a, F, D> {
-            f: &'a mut F,
-            d: &'a mut D,
-        }
-        // Maps a closure to a C callback
-        //
-        // This function will be called multiple times, but never concurrently
-        unsafe extern "C" fn callback<F, G>(
-            id: hid_t, name: *const c_char, info: *const H5L_info_t, op_data: *mut c_void,
-        ) -> herr_t
-        where
-            F: FnMut(&Group, &str, LinkInfo, &mut G) -> bool,
-        {
-            panic::catch_unwind(|| {
-                let vtable = op_data.cast::<Vtable<F, G>>();
-                let vtable = unsafe { vtable.as_mut().expect("iter_visit: null op_data ptr") };
-                unsafe { name.as_ref().expect("iter_visit: null name ptr") };
-                let name = unsafe { std::ffi::CStr::from_ptr(name) };
-                let info = unsafe { info.as_ref().expect("iter_visit: null info ptr") };
-                let handle = Handle::try_borrow(id).expect("iter_visit: unable to create a handle");
-                let group = Group::from_handle(handle);
-                let ret =
-                    (vtable.f)(&group, name.to_string_lossy().as_ref(), info.into(), vtable.d);
-                i32::from(!ret)
-            })
-            .unwrap_or(-1)
-        }
-
-        let callback_fn: H5L_iterate_t = Some(callback::<F, G>);
-        let iter_pos: *mut hsize_t = &mut 0_u64;
-
-        // Store our references on the heap
-        let mut vtable = Vtable { f: &mut op, d: &mut val };
-        let other_data = addr_of_mut!(vtable).cast::<c_void>();
-
-        h5call!(H5Literate(
-            self.id(),
-            traversal_order.into(),
-            iteration_order.into(),
-            iter_pos,
-            callback_fn,
-            other_data
-        ))
-        .map(|_| val)
+        self.iter_visit_from(IterationCursor::start(index_type, iteration_order), |name, info| {
+            op(name, info)?;
+            Ok(None::<()>)
+        })?;
+        Ok(())
     }
 
-    /// Visits all objects in the group using default iteration/traversal order.
-    pub fn iter_visit_default<F, G>(&self, val: G, op: F) -> Result<G>
+    /// Visits every link of the group by name in native order.
+    ///
+    /// Equivalent to [`iter_visit`](Self::iter_visit) with [`IndexType::Name`] and
+    /// [`IterationOrder::Native`].
+    pub fn iter_visit_default<F>(&self, op: F) -> Result<()>
     where
-        F: Fn(&Self, &str, LinkInfo, &mut G) -> bool,
+        F: FnMut(&str, LinkInfo) -> Result<()>,
     {
-        self.iter_visit(IterationOrder::default(), TraversalOrder::default(), val, op)
+        self.iter_visit(IndexType::default(), IterationOrder::default(), op)
+    }
+
+    /// Visits the links of the group until `op` returns a value.
+    ///
+    /// The links are traversed along `index_type` in `iteration_order`, and `op` is
+    /// called with the name and the [`LinkInfo`] of each link until it returns `Some`.
+    /// That value is returned, or `None` once every link was visited.
+    ///
+    /// # Errors
+    ///
+    /// As for [`iter_visit`](Self::iter_visit).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{File, IndexType, IterationOrder, LinkType};
+    ///
+    /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("find_link.h5")?;
+    /// file.create_group("b")?;
+    /// file.link_soft("b", "a")?;
+    ///
+    /// let first_hard = file.find_link(IndexType::Name, IterationOrder::Increasing, |name, info| {
+    ///     Ok((info.link_type == LinkType::Hard).then(|| name.to_owned()))
+    /// })?;
+    /// assert_eq!(first_hard, Some("b".to_owned()));
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn find_link<B, F>(
+        &self, index_type: IndexType, iteration_order: IterationOrder, op: F,
+    ) -> Result<Option<B>>
+    where
+        F: FnMut(&str, LinkInfo) -> Result<Option<B>>,
+    {
+        match self.iter_visit_from(IterationCursor::start(index_type, iteration_order), op)? {
+            Some((value, _)) => Ok(Some(value)),
+            None => Ok(None),
+        }
+    }
+
+    /// Visits the links of the group from `cursor` onwards until `op` returns a value.
+    ///
+    /// Behaves like [`find_link`](Self::find_link). The value is returned together
+    /// with the cursor of the next link, so the iteration can be resumed by passing
+    /// that cursor back. Returns `None` once every link was visited, including when
+    /// `cursor` is already at or past the last link.
+    ///
+    /// # Errors
+    ///
+    /// As for [`iter_visit`](Self::iter_visit).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{File, IndexType, IterationOrder, IterationCursor};
+    ///
+    /// let file = File::with_options().with_fapl(|p| p.core_filebacked(false)).create("iter_visit_from.h5")?;
+    /// for name in ["a", "b", "c"] {
+    ///     file.create_group(name)?;
+    /// }
+    ///
+    /// let mut cursor = IterationCursor::start(IndexType::Name, IterationOrder::Increasing).skip(1);
+    /// let mut names = vec![];
+    /// while let Some((name, next)) =
+    ///     file.iter_visit_from(cursor, |name, _| Ok(Some(name.to_owned())))?
+    /// {
+    ///     names.push(name);
+    ///     cursor = next;
+    /// }
+    /// assert_eq!(names, ["b", "c"]);
+    /// assert_eq!(cursor.position(), 3);
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn iter_visit_from<B, F>(
+        &self, cursor: IterationCursor, op: F,
+    ) -> Result<Option<(B, IterationCursor)>>
+    where
+        F: FnMut(&str, LinkInfo) -> Result<Option<B>>,
+    {
+        visit(
+            cursor,
+            || Ok(group_info(self.id())?.nlinks),
+            op,
+            |index_type, iteration_order, position, callback, op_data| unsafe {
+                H5Literate(
+                    self.id(),
+                    index_type,
+                    iteration_order,
+                    position,
+                    Some(callback),
+                    op_data,
+                )
+            },
+        )
     }
 
     fn get_all_of_type(&self, loc_type: LocationType) -> Result<Vec<Location>> {
-        self.iter_visit_default(vec![], |group, name, _info, objects| {
-            if let Ok(info) = group.loc_info_by_name(name) {
-                if info.loc_type == loc_type {
-                    if let Ok(loc) = group.open_by_token(info.token) {
-                        objects.push(loc);
-                        return true; // ok, object extracted and pushed
-                    }
-                } else {
-                    return true; // ok, object is of another type, skipped
-                }
+        let mut objects = vec![];
+        self.iter_visit_default(|name, _| {
+            let info = self.loc_info_by_name(name)?;
+            if info.loc_type == loc_type {
+                objects.push(self.open_by_token(info.token)?);
             }
-            false // an error occurred somewhere along the way
-        })
+            Ok(())
+        })?;
+        Ok(objects)
     }
 
     /// Returns all groups in the group, non-recursively
@@ -629,23 +668,51 @@ impl Group {
         CommittedDatatype::from_id(h5try!(H5Topen2(self.id(), name.as_ptr(), H5P_DEFAULT)))
     }
 
-    /// Returns the names of all objects in the group, non-recursively.
+    /// Returns the names of all links in the group by name in native order, non-recursively.
     pub fn member_names(&self) -> Result<Vec<String>> {
-        self.iter_visit_default(vec![], |_, name, _, names| {
+        self.member_names_by(IndexType::default(), IterationOrder::default())
+    }
+
+    /// Returns the names of all links in the group along `index_type` in `iteration_order`.
+    pub fn member_names_by(
+        &self, index_type: IndexType, iteration_order: IterationOrder,
+    ) -> Result<Vec<String>> {
+        let mut names = vec![];
+        self.iter_visit(index_type, iteration_order, |name, _| {
             names.push(name.to_owned());
-            true
-        })
+            Ok(())
+        })?;
+        Ok(names)
+    }
+
+    /// Returns the name and [`LinkInfo`] of all links in the group along `index_type` in
+    /// `iteration_order`.
+    pub fn links(
+        &self, index_type: IndexType, iteration_order: IterationOrder,
+    ) -> Result<Vec<(String, LinkInfo)>> {
+        let mut links = vec![];
+        self.iter_visit(index_type, iteration_order, |name, info| {
+            links.push((name.to_owned(), info));
+            Ok(())
+        })?;
+        Ok(links)
     }
 }
 
 #[cfg(test)]
 pub mod tests {
+    use crate::hl::plist::common::{AttrCreationOrder, AttrPhaseChange, LinkCreationOrder};
+    use crate::hl::plist::file_access::FileCloseDegree;
+    #[cfg(feature = "1.10.2")]
+    use crate::hl::plist::file_access::LibraryVersion;
+    use crate::hl::plist::link_create::CharEncoding;
     use crate::internal_prelude::*;
+    use crate::{IndexType, IterationCursor, IterationOrder, LinkType};
     use hdf5_types::{IntSize, TypeDescriptor, VarLenUnicode};
+    use std::panic::{self, AssertUnwindSafe};
 
     #[test]
     pub fn test_debug() {
-        use crate::hl::plist::file_access::FileCloseDegree;
         with_tmp_path(|path| {
             let file = File::with_options()
                 .with_fapl(|fapl| fapl.fclose_degree(FileCloseDegree::Strong))
@@ -843,6 +910,31 @@ pub mod tests {
         })
     }
 
+    #[test]
+    pub fn test_group_attr_creation_order() {
+        with_tmp_file(|file| {
+            let group = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| {
+                    gcpl.attr_creation_order(AttrCreationOrder::Indexed).attr_phase_change(2, 1)
+                })
+                .create("g")
+                .unwrap();
+            for name in ["c", "a", "b"] {
+                group.new_attr::<u32>().create(name).unwrap();
+            }
+
+            let gcpl = group.gcpl().unwrap();
+            assert_eq!(gcpl.attr_creation_order(), AttrCreationOrder::Indexed);
+            assert_eq!(gcpl.attr_phase_change(), AttrPhaseChange { max_compact: 2, min_dense: 1 });
+            assert_eq!(group.attr_names().unwrap(), ["a", "b", "c"]);
+
+            let gcpl = file.create_group("untracked").unwrap().gcpl().unwrap();
+            assert_eq!(gcpl.attr_creation_order(), AttrCreationOrder::Untracked);
+            assert_eq!(gcpl.attr_phase_change(), AttrPhaseChange::default());
+        })
+    }
+
     // `obj_track_times` maps to a flag bit in the object header. Only a version-2
     // object header carries that flag (`H5O_HDR_STORE_TIMES` in the header prefix),
     // so only a v2 header can record the setting and report it back through
@@ -857,7 +949,6 @@ pub mod tests {
     #[cfg(feature = "1.10.2")]
     #[test]
     pub fn test_group_track_times_disabled() {
-        use crate::hl::plist::file_access::LibraryVersion;
         // exercise both the minimum v18 format and the newest one
         for low in [LibraryVersion::V18, LibraryVersion::latest()] {
             with_tmp_path(|path| {
@@ -1128,6 +1219,190 @@ pub mod tests {
             for dataset in datasets {
                 assert!(matches!(dataset.name().as_ref(), "/a/foo" | "/a/123" | "/a/bar"));
             }
+        })
+    }
+
+    #[test]
+    pub fn test_iter_visit_order() {
+        with_tmp_file(|file| {
+            let group = file.create_group("a").unwrap();
+            for name in ["foo", "123", "bar"] {
+                group.new_dataset::<u32>().create(name).unwrap();
+            }
+            let names = |order| group.member_names_by(IndexType::Name, order).unwrap();
+            assert_eq!(names(IterationOrder::Increasing), ["123", "bar", "foo"]);
+            assert_eq!(names(IterationOrder::Decreasing), ["foo", "bar", "123"]);
+
+            let empty = file.create_group("empty").unwrap();
+            assert!(
+                empty.member_names_by(IndexType::Name, IterationOrder::Native).unwrap().is_empty()
+            );
+        })
+    }
+
+    #[test]
+    pub fn test_iter_visit_creation_order() {
+        with_tmp_file(|file| {
+            let group = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| gcpl.link_creation_order(LinkCreationOrder::Tracked))
+                .create("a")
+                .unwrap();
+            for name in ["foo", "123", "bar"] {
+                group.new_dataset::<u32>().create(name).unwrap();
+            }
+
+            let link = |name: &str, order| {
+                let info = LinkInfo {
+                    link_type: LinkType::Hard,
+                    creation_order: Some(order),
+                    char_encoding: CharEncoding::Ascii,
+                };
+                (name.to_owned(), info)
+            };
+            let foo = link("foo", 0);
+            let num = link("123", 1);
+            let bar = link("bar", 2);
+            let links = |order| group.links(IndexType::CreationOrder, order).unwrap();
+            assert_eq!(links(IterationOrder::Increasing), [foo.clone(), num.clone(), bar.clone()]);
+            assert_eq!(links(IterationOrder::Decreasing), [bar, num, foo]);
+
+            // A default group is a symbol table before 2.0 (BADVALUE, no creation order index)
+            // and a new-style group from 2.0 (NOTFOUND, creation order not tracked)
+            let not_tracked = if cfg!(feature = "2.0.0") {
+                MinorErrorCode::NotFound
+            } else {
+                MinorErrorCode::BadValue
+            };
+            let untracked = file.create_group("b").unwrap();
+            untracked.new_dataset::<u32>().create("foo").unwrap();
+            let err = untracked
+                .member_names_by(IndexType::CreationOrder, IterationOrder::Native)
+                .unwrap_err();
+            assert!(err.contains_major(MajorErrorCode::SymbolTable), "{err:?}");
+            assert!(err.contains_minor(not_tracked), "{err:?}");
+        })
+    }
+
+    #[test]
+    pub fn test_find_link() {
+        with_tmp_file(|file| {
+            for name in ["a", "b", "c"] {
+                file.create_group(name).unwrap();
+            }
+
+            let find = |wanted: &str| {
+                let mut visited = vec![];
+                let found = file
+                    .find_link(IndexType::Name, IterationOrder::Increasing, |name, info| {
+                        visited.push(name.to_owned());
+                        if name == wanted {
+                            Ok(Some((name.to_owned(), info.link_type)))
+                        } else {
+                            Ok(None)
+                        }
+                    })
+                    .unwrap();
+                (found, visited)
+            };
+
+            let (found, visited) = find("b");
+            assert_eq!(found, Some(("b".to_owned(), LinkType::Hard)));
+            assert_eq!(visited, ["a", "b"]);
+
+            let (found, visited) = find("z");
+            assert_eq!(found, None);
+            assert_eq!(visited, ["a", "b", "c"]);
+        })
+    }
+
+    #[test]
+    pub fn test_iter_visit_error() {
+        with_tmp_file(|file| {
+            for name in ["a", "b", "c"] {
+                file.create_group(name).unwrap();
+            }
+
+            let mut visited = vec![];
+            let err = file
+                .iter_visit(IndexType::Name, IterationOrder::Increasing, |name, _| {
+                    visited.push(name.to_owned());
+                    if name == "b" { Err("stop".into()) } else { Ok(()) }
+                })
+                .unwrap_err();
+            assert_eq!(visited, ["a", "b"]);
+            assert!(matches!(err, Error::Internal(ref msg) if msg == "stop"), "{err:?}");
+            assert!(err.stack().is_none());
+        })
+    }
+
+    #[test]
+    pub fn test_iter_visit_from() {
+        with_tmp_file(|file| {
+            for name in ["a", "b", "c"] {
+                file.create_group(name).unwrap();
+            }
+            let start = IterationCursor::start(IndexType::Name, IterationOrder::Increasing);
+
+            let stop_at = |cursor, wanted: &str| {
+                let mut visited = vec![];
+                let stopped = file
+                    .iter_visit_from(cursor, |name, _| {
+                        visited.push(name.to_owned());
+                        if name == wanted { Ok(Some(name.len())) } else { Ok(None) }
+                    })
+                    .unwrap();
+                (stopped, visited)
+            };
+
+            let (stopped, visited) = stop_at(start, "b");
+            assert_eq!(visited, ["a", "b"]);
+            assert_eq!(stopped, Some((1, start.skip(2))));
+
+            let (stopped, visited) = stop_at(start.skip(2), "c");
+            assert_eq!(visited, ["c"]);
+            assert_eq!(stopped, Some((1, start.skip(3))));
+
+            let (stopped, visited) = stop_at(start.skip(2), "z");
+            assert_eq!(visited, ["c"]);
+            assert_eq!(stopped, None);
+
+            for past_end in [start.skip(3), start.skip(9)] {
+                let (stopped, visited) = stop_at(past_end, "a");
+                assert!(visited.is_empty());
+                assert_eq!(stopped, None);
+            }
+        })
+    }
+
+    #[test]
+    pub fn test_iter_visit_panic() {
+        with_tmp_file(|file| {
+            file.create_group("a").unwrap();
+            let payload = panic::catch_unwind(AssertUnwindSafe(|| {
+                file.iter_visit_default(|_, _| -> Result<()> { panic!("boom") })
+            }))
+            .unwrap_err();
+            assert_eq!(payload.downcast_ref::<&str>(), Some(&"boom"));
+
+            let lock_is_free = std::thread::spawn(|| {
+                crate::sync::LOCK.try_lock_for(std::time::Duration::from_secs(30)).is_some()
+            });
+            assert!(lock_is_free.join().unwrap());
+            assert_eq!(file.member_names().unwrap(), ["a"]);
+        })
+    }
+
+    #[test]
+    pub fn test_iterators_unresolvable_link() {
+        with_tmp_file(|file| {
+            file.create_group("a").unwrap();
+            file.link_soft("missing", "dangling").unwrap();
+
+            assert_eq!(file.member_names().unwrap(), ["a", "dangling"]);
+            let err = file.groups().unwrap_err();
+            assert!(err.contains_major(MajorErrorCode::SymbolTable), "{err:?}");
+            assert!(err.contains_minor(MinorErrorCode::NotFound), "{err:?}");
         })
     }
 }

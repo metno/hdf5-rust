@@ -9,6 +9,7 @@ pub mod extents;
 pub mod file;
 pub mod filters;
 pub mod group;
+pub mod iteration;
 pub mod location;
 pub mod object;
 pub mod plist;
@@ -17,7 +18,7 @@ pub mod selection;
 
 pub use self::{
     attribute::{
-        Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
+        AttrInfo, Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
         AttributeBuilderEmptyShape,
     },
     committed_datatype::CommittedDatatype,
@@ -30,6 +31,7 @@ pub use self::{
     datatype::{Conversion, Datatype},
     file::{File, FileBuilder, OpenMode},
     group::{Group, GroupBuilder, LinkInfo, LinkType},
+    iteration::{IndexType, IterationCursor, IterationOrder},
     location::{Location, LocationInfo, LocationToken, LocationType},
     object::Object,
     plist::PropertyList,
