@@ -4,6 +4,7 @@ use std::str::FromStr;
 use hdf5::dataset::*;
 use hdf5::file::*;
 use hdf5::plist::*;
+use hdf5::{MajorErrorCode, MinorErrorCode};
 use hdf5_metno as hdf5;
 
 macro_rules! test_pl {
@@ -659,6 +660,36 @@ fn test_gcpl_obj_track_times() -> hdf5::Result<()> {
     assert_eq!(
         GCB::from_plist(&GCB::new().obj_track_times(false).finish()?)?.finish()?.obj_track_times(),
         false
+    );
+    Ok(())
+}
+
+#[test]
+fn test_gcpl_attr_phase_change() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_attr_phase_change()?, AttrPhaseChange::default());
+    assert_eq!(GC::try_new()?.attr_phase_change(), AttrPhaseChange::default());
+    let pl = GCB::new().attr_phase_change(34, 21).finish()?;
+    let expected = AttrPhaseChange { max_compact: 34, min_dense: 21 };
+    assert_eq!(pl.get_attr_phase_change()?, expected);
+    assert_eq!(pl.attr_phase_change(), expected);
+    assert_eq!(GCB::from_plist(&pl)?.finish()?.get_attr_phase_change()?, expected);
+    let err = GCB::new().attr_phase_change(12, 34).finish().unwrap_err();
+    assert!(err.contains_major(MajorErrorCode::Args), "{err:?}");
+    assert!(err.contains_minor(MinorErrorCode::BadRange), "{err:?}");
+    Ok(())
+}
+
+#[test]
+fn test_gcpl_attr_creation_order() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_attr_creation_order()?, AttrCreationOrder::Untracked);
+    assert_eq!(GC::try_new()?.attr_creation_order(), AttrCreationOrder::Untracked);
+    test_pl!(GC, attr_creation_order: AttrCreationOrder::Tracked);
+    test_pl!(GC, attr_creation_order: AttrCreationOrder::Indexed);
+    assert_eq!(
+        GCB::from_plist(&GCB::new().attr_creation_order(AttrCreationOrder::Indexed).finish()?)?
+            .finish()?
+            .attr_creation_order(),
+        AttrCreationOrder::Indexed
     );
     Ok(())
 }
