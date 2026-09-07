@@ -15,6 +15,7 @@
 - Added `Group::member_names_by` and `Group::links` to list the links along an index type in an order, `Group::find_link` to stop a link iteration with a value, and `Group::iter_visit_from` with `LinkCursor` to skip links and resume a stopped iteration
 - Added `FileCreateBuilder::link_creation_order`, `GroupCreateBuilder::link_creation_order`, the matching getters and `LinkCreationOrder`, so a group can track and index link creation order
 - Changed `AttrCreationOrder` from bitflags to an enum with `Untracked`, `Tracked` and `Indexed`, matching `LinkCreationOrder` (breaking change)
+- Added `GroupCreateBuilder::attr_creation_order` and `GroupCreateBuilder::attr_phase_change` with the matching `GroupCreate` getters
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
