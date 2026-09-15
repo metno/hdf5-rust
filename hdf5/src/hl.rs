@@ -30,7 +30,7 @@ pub use self::{
     dataspace::Dataspace,
     datatype::{Conversion, Datatype},
     file::{File, FileBuilder, OpenMode},
-    group::{Group, GroupBuilder, LinkInfo, LinkType},
+    group::{Group, GroupBuilder, GroupInfo, GroupStorageType, LinkInfo, LinkType},
     iteration::{IndexType, IterationCursor, IterationOrder},
     location::{Location, LocationInfo, LocationToken, LocationType},
     object::Object,
