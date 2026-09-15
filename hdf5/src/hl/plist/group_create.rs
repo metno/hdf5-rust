@@ -3,9 +3,13 @@
 use std::fmt::{self, Debug};
 use std::ops::Deref;
 
-use hdf5_sys::h5p::{H5Pcreate, H5Pget_obj_track_times, H5Pset_obj_track_times};
+use hdf5_sys::h5p::{
+    H5Pcreate, H5Pget_link_creation_order, H5Pget_obj_track_times, H5Pset_link_creation_order,
+    H5Pset_obj_track_times,
+};
 
 use crate::globals::H5P_GROUP_CREATE;
+pub use crate::hl::plist::common::LinkCreationOrder;
 use crate::internal_prelude::*;
 
 /// Group creation properties.
@@ -44,6 +48,7 @@ impl Debug for GroupCreate {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut formatter = f.debug_struct("GroupCreate");
         formatter.field("obj_track_times", &self.obj_track_times());
+        formatter.field("link_creation_order", &self.link_creation_order());
         formatter.finish()
     }
 }
@@ -68,6 +73,7 @@ impl Eq for GroupCreate {}
 #[derive(Clone, Debug, Default)]
 pub struct GroupCreateBuilder {
     obj_track_times: Option<bool>,
+    link_creation_order: Option<LinkCreationOrder>,
 }
 
 impl GroupCreateBuilder {
@@ -80,6 +86,7 @@ impl GroupCreateBuilder {
     pub fn from_plist(plist: &GroupCreate) -> Result<Self> {
         let mut builder = Self::default();
         builder.obj_track_times(plist.get_obj_track_times()?);
+        builder.link_creation_order(plist.get_link_creation_order()?);
         Ok(builder)
     }
 
@@ -91,9 +98,20 @@ impl GroupCreateBuilder {
         self
     }
 
+    /// Sets whether link creation order is tracked and indexed.
+    ///
+    /// See [`LinkCreationOrder`] for the available settings.
+    pub fn link_creation_order(&mut self, link_creation_order: LinkCreationOrder) -> &mut Self {
+        self.link_creation_order = Some(link_creation_order);
+        self
+    }
+
     fn populate_plist(&self, id: hid_t) -> Result<()> {
         if let Some(v) = self.obj_track_times {
             h5try!(H5Pset_obj_track_times(id, hbool_t::from(v)));
+        }
+        if let Some(v) = self.link_creation_order {
+            h5try!(H5Pset_link_creation_order(id, v.into()));
         }
         Ok(())
     }
@@ -137,5 +155,17 @@ impl GroupCreate {
     /// Returns true if the time data is recorded.
     pub fn obj_track_times(&self) -> bool {
         self.get_obj_track_times().unwrap_or(true)
+    }
+
+    #[doc(hidden)]
+    pub fn get_link_creation_order(&self) -> Result<LinkCreationOrder> {
+        h5get!(H5Pget_link_creation_order(self.id()): c_uint).map(LinkCreationOrder::from_flags)
+    }
+
+    /// Returns whether link creation order is tracked and indexed.
+    ///
+    /// Returns [`LinkCreationOrder::Untracked`] if the property cannot be read.
+    pub fn link_creation_order(&self) -> LinkCreationOrder {
+        self.get_link_creation_order().unwrap_or_default()
     }
 }
