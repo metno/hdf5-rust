@@ -834,13 +834,14 @@ pub(crate) fn validate_filters(filters: &[Filter], type_class: H5T_class_t) -> R
 #[cfg(test)]
 mod tests {
     use hdf5_sys::h5t::H5T_class_t;
-    use ndarray::{Array2, Axis};
-    use std::io::{Seek, SeekFrom};
 
+    #[cfg(feature = "blosc-all")]
+    use super::blosc_available;
     use super::{
-        Filter, FilterInfo, SZip, ScaleOffset, blosc_available, deflate_available, lzf_available,
-        szip_available, validate_filters,
+        Filter, FilterInfo, SZip, ScaleOffset, deflate_available, lzf_available, szip_available,
+        validate_filters,
     };
+    #[cfg(feature = "zfp")]
     use crate::hl::filters::zfp_available;
     use crate::test::with_tmp_file;
     use crate::{Result, plist::DatasetCreate};

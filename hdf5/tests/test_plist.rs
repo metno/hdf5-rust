@@ -1,3 +1,4 @@
+#[cfg(feature = "mpio")]
 use std::mem;
 use std::str::FromStr;
 
