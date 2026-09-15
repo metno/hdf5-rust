@@ -315,6 +315,25 @@ impl AttributeBuilderInner {
         self.packed = packed;
     }
 
+    /// Rejects a committed datatype that lives in another file than the attribute.
+    #[cfg(not(any(all(feature = "1.8.18", not(feature = "1.10.0")), feature = "1.10.1")))]
+    fn ensure_same_file(&self, dtype: &Datatype) -> Result<()> {
+        use crate::hl::location::H5O_get_info;
+
+        if !dtype.is_committed() {
+            return Ok(());
+        }
+        let parent = try_ref_clone!(self.parent);
+        let parent_file = H5O_get_info(parent.id(), false)?.fileno;
+        let dtype_file = H5O_get_info(dtype.id(), false)?.fileno;
+        ensure!(
+            parent_file == dtype_file,
+            "committed datatype is in a different file than the attribute, which this HDF5 \
+             version cannot store"
+        );
+        Ok(())
+    }
+
     unsafe fn create(
         &self, dtype: &DatasetType, name: &str, extents: &Extents,
     ) -> Result<Attribute> {
