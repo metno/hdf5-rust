@@ -2,7 +2,6 @@ use std::fmt::{self, Debug};
 use std::ops::Deref;
 
 use hdf5_sys::h5a::{H5A_info_t, H5Acreate2, H5Adelete, H5Aget_create_plist, H5Aget_name};
-use hdf5_types::TypeDescriptor;
 use ndarray::ArrayView;
 
 use crate::hl::plist::attribute_create::{AttributeCreate, AttributeCreateBuilder, CharEncoding};
@@ -99,8 +98,8 @@ impl AttributeBuilder {
     }
 
     /// Sets the attribute's type from a type descriptor without initializing its data.
-    pub fn empty_as(self, type_desc: &TypeDescriptor) -> AttributeBuilderEmpty {
-        AttributeBuilderEmpty { builder: self.builder, type_desc: type_desc.clone() }
+    pub fn empty_as(self, dtype: impl Into<DatasetType>) -> AttributeBuilderEmpty {
+        AttributeBuilderEmpty { builder: self.builder, dtype: dtype.into() }
     }
 
     /// Sets the data to store in the attribute.
@@ -110,12 +109,12 @@ impl AttributeBuilder {
         T: H5Type,
         D: ndarray::Dimension,
     {
-        self.with_data_as::<A, T, D>(data, &T::type_descriptor())
+        self.with_data_as::<A, T, D>(data, T::type_descriptor())
     }
 
     /// Sets the data to store in the attribute and sets its element type with a type descriptor.
     pub fn with_data_as<'d, A, T, D>(
-        self, data: A, type_desc: &TypeDescriptor,
+        self, data: A, dtype: impl Into<DatasetType>,
     ) -> AttributeBuilderData<'d, T, D>
     where
         A: Into<ArrayView<'d, T, D>>,
@@ -125,7 +124,7 @@ impl AttributeBuilder {
         AttributeBuilderData {
             builder: self.builder,
             data: data.into(),
-            type_desc: type_desc.clone(),
+            dtype: dtype.into(),
             conv: Conversion::Soft,
         }
     }
@@ -154,7 +153,7 @@ impl AttributeBuilder {
 /// An attribute builder with the type known
 pub struct AttributeBuilderEmpty {
     builder: AttributeBuilderInner,
-    type_desc: TypeDescriptor,
+    dtype: DatasetType,
 }
 
 impl AttributeBuilderEmpty {
@@ -162,7 +161,7 @@ impl AttributeBuilderEmpty {
     pub fn shape<S: Into<Extents>>(self, extents: S) -> AttributeBuilderEmptyShape {
         AttributeBuilderEmptyShape {
             builder: self.builder,
-            type_desc: self.type_desc,
+            dtype: self.dtype,
             extents: extents.into(),
         }
     }
@@ -196,14 +195,14 @@ impl AttributeBuilderEmpty {
 /// An attribute builder with type and shape known
 pub struct AttributeBuilderEmptyShape {
     builder: AttributeBuilderInner,
-    type_desc: TypeDescriptor,
+    dtype: DatasetType,
     extents: Extents,
 }
 
 impl AttributeBuilderEmptyShape {
     /// Creates the attribute.
     pub fn create<'n, T: Into<&'n str>>(&self, name: T) -> Result<Attribute> {
-        h5lock!(self.builder.create(&self.type_desc, name.into(), &self.extents))
+        h5lock!(self.builder.create(&self.dtype, name.into(), &self.extents))
     }
 
     #[inline]
@@ -231,7 +230,7 @@ impl AttributeBuilderEmptyShape {
 pub struct AttributeBuilderData<'d, T, D> {
     builder: AttributeBuilderInner,
     data: ArrayView<'d, T, D>,
-    type_desc: TypeDescriptor,
+    dtype: DatasetType,
     conv: Conversion,
 }
 
@@ -263,9 +262,9 @@ where
 
         h5lock!({
             let dtype_src = Datatype::from_type::<T>()?;
-            let dtype_dst = Datatype::from_descriptor(&self.type_desc)?;
+            let dtype_dst = self.dtype.to_datatype()?;
             dtype_src.ensure_convertible(&dtype_dst, self.conv)?;
-            let ds = self.builder.create(&self.type_desc, name, &extents)?;
+            let ds = self.builder.create(&self.dtype, name, &extents)?;
             if let Err(err) = ds.write(self.data.view()) {
                 self.builder.try_unlink(name);
                 Err(err)
@@ -316,13 +315,45 @@ impl AttributeBuilderInner {
         self.packed = packed;
     }
 
-    unsafe fn create(
-        &self, desc: &TypeDescriptor, name: &str, extents: &Extents,
-    ) -> Result<Attribute> {
-        // construct in-file type descriptor; convert to packed representation if needed
-        let desc = if self.packed { desc.to_packed_repr() } else { desc.to_c_repr() };
+    /// Rejects a committed datatype that lives in another file than the attribute.
+    #[cfg(not(any(all(feature = "1.8.18", not(feature = "1.10.0")), feature = "1.10.1")))]
+    fn ensure_same_file(&self, dtype: &Datatype) -> Result<()> {
+        use crate::hl::location::H5O_get_info;
 
-        let datatype = Datatype::from_descriptor(&desc)?;
+        if !dtype.is_committed() {
+            return Ok(());
+        }
+        let parent = try_ref_clone!(self.parent);
+        let parent_file = H5O_get_info(parent.id(), false)?.fileno;
+        let dtype_file = H5O_get_info(dtype.id(), false)?.fileno;
+        ensure!(
+            parent_file == dtype_file,
+            "committed datatype is in a different file than the attribute, which this HDF5 \
+             version cannot store"
+        );
+        Ok(())
+    }
+
+    unsafe fn create(
+        &self, dtype: &DatasetType, name: &str, extents: &Extents,
+    ) -> Result<Attribute> {
+        let datatype = match dtype {
+            DatasetType::Descriptor(desc) => {
+                // construct in-file type descriptor; convert to packed representation if needed
+                let desc = if self.packed { desc.to_packed_repr() } else { desc.to_c_repr() };
+                Datatype::from_descriptor(&desc)?
+            }
+            DatasetType::Datatype(dtype) => {
+                ensure!(!self.packed, "packed layout cannot be applied to an existing datatype");
+                #[cfg(not(any(
+                    all(feature = "1.8.18", not(feature = "1.10.0")),
+                    feature = "1.10.1"
+                )))]
+                self.ensure_same_file(dtype)?;
+                dtype.clone()
+            }
+        };
+
         let parent = try_ref_clone!(self.parent);
 
         let dataspace = Dataspace::try_new(extents)?;
@@ -513,6 +544,18 @@ pub mod attribute_tests {
             assert_eq!(attr_names.len(), 2);
             assert!(attr_names.contains(&"foo".to_string()));
             assert!(attr_names.contains(&"bar".to_string()));
+        })
+    }
+
+    #[test]
+    pub fn test_create_with_committed_type() -> Result<()> {
+        with_tmp_file(|file| {
+            let committed = Datatype::from_type::<u32>()?;
+            file.commit_datatype("inty", &committed)?;
+
+            file.new_attr_builder().empty_as(committed).create("bar")?;
+
+            Ok(())
         })
     }
 }
