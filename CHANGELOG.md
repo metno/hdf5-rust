@@ -19,6 +19,7 @@
 - Added `Location::iter_attrs`, `Location::find_attr` and `Location::iter_attrs_from` with `AttrInfo`, and `Location::attr_names_by` and `Location::attrs`, to iterate attributes by name or creation order in either direction, sharing `IndexType`, `IterationOrder` and `IterationCursor` with link iteration
 - Added `Location::attr_by_index` and `Location::attr_info`
 - Added `Group::info` with `GroupInfo` and `GroupStorageType`, exposing `H5Gget_info`
+- Changed `AttributeBuilder::empty_as` and `AttributeBuilder::with_data_as` to accept an existing `Datatype` or `CommittedDatatype` as well as a `TypeDescriptor`, through the new `DatasetType`, so an attribute can be created with a committed datatype.
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased

@@ -303,7 +303,7 @@ pub enum DatasetType {
 
 impl DatasetType {
     /// The datatype the data is converted to, for checking the conversion.
-    fn to_datatype(&self) -> Result<Datatype> {
+    pub(crate) fn to_datatype(&self) -> Result<Datatype> {
         match self {
             Self::Descriptor(desc) => Datatype::from_descriptor(desc),
             Self::Datatype(dtype) => Ok(dtype.clone()),
