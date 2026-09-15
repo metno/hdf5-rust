@@ -65,8 +65,8 @@ fn known_hdf5_versions() -> Vec<Version> {
     vs.extend((0..=0).map(|v| Version::new(2, 2, v))); // 2.2.[0]
     vs.extend((0..=1).map(|v| Version::new(2, 1, v))); // 2.1.[0-1]
     vs.extend((0..=0).map(|v| Version::new(2, 0, v))); // 2.0.[0]
-    vs.extend((5..=21).map(|v| Version::new(1, 8, v))); // 1.8.[5-23]
-    vs.extend((0..=8).map(|v| Version::new(1, 10, v))); // 1.10.[0-10]
+    vs.extend((5..=23).map(|v| Version::new(1, 8, v))); // 1.8.[5-23]
+    vs.extend((0..=10).map(|v| Version::new(1, 10, v))); // 1.10.[0-10]
     vs.extend((0..=2).map(|v| Version::new(1, 12, v))); // 1.12.[0-2]
     vs.extend((0..=6).map(|v| Version::new(1, 14, v))); // 1.14.[0-6]
     vs
