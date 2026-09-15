@@ -864,7 +864,7 @@ impl Group {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::hl::plist::common::LinkCreationOrder;
+    use crate::hl::plist::common::{AttrCreationOrder, AttrPhaseChange, LinkCreationOrder};
     use crate::hl::plist::file_access::FileCloseDegree;
     #[cfg(feature = "1.10.2")]
     use crate::hl::plist::file_access::LibraryVersion;
@@ -1070,6 +1070,31 @@ pub mod tests {
             let enabled =
                 file.create_group_builder().obj_track_times(true).create("enabled").unwrap();
             assert!(enabled.create_plist().unwrap().obj_track_times());
+        })
+    }
+
+    #[test]
+    pub fn test_group_attr_creation_order() {
+        with_tmp_file(|file| {
+            let group = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| {
+                    gcpl.attr_creation_order(AttrCreationOrder::Indexed).attr_phase_change(2, 1)
+                })
+                .create("g")
+                .unwrap();
+            for name in ["c", "a", "b"] {
+                group.new_attr::<u32>().create(name).unwrap();
+            }
+
+            let gcpl = group.gcpl().unwrap();
+            assert_eq!(gcpl.attr_creation_order(), AttrCreationOrder::Indexed);
+            assert_eq!(gcpl.attr_phase_change(), AttrPhaseChange { max_compact: 2, min_dense: 1 });
+            assert_eq!(group.attr_names().unwrap(), ["a", "b", "c"]);
+
+            let gcpl = file.create_group("untracked").unwrap().gcpl().unwrap();
+            assert_eq!(gcpl.attr_creation_order(), AttrCreationOrder::Untracked);
+            assert_eq!(gcpl.attr_phase_change(), AttrPhaseChange::default());
         })
     }
 
