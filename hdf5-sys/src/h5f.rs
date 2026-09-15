@@ -105,21 +105,13 @@ pub enum H5F_mem_t {
     H5FD_MEM_NTYPES = 7,
 }
 
-#[cfg(not(feature = "1.10.2"))]
-#[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
-pub enum H5F_libver_t {
-    H5F_LIBVER_EARLIEST = 0,
-    H5F_LIBVER_LATEST = 1,
-}
-
-#[cfg(feature = "1.10.2")]
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
 pub enum H5F_libver_t {
     H5F_LIBVER_ERROR = -1,
     H5F_LIBVER_EARLIEST = 0,
     H5F_LIBVER_V18 = 1,
+    #[cfg(feature = "1.10.2")]
     H5F_LIBVER_V110 = 2,
     #[cfg(feature = "1.12.0")]
     H5F_LIBVER_V112 = 3,
@@ -130,6 +122,8 @@ pub enum H5F_libver_t {
     H5F_LIBVER_NBOUNDS,
 }
 
+#[cfg(not(feature = "1.10.2"))]
+pub const H5F_LIBVER_LATEST: H5F_libver_t = H5F_LIBVER_V18;
 #[cfg(all(feature = "1.10.2", not(feature = "1.12.0")))]
 pub const H5F_LIBVER_LATEST: H5F_libver_t = H5F_LIBVER_V110;
 #[cfg(all(feature = "1.12.0", not(feature = "1.14.0")))]

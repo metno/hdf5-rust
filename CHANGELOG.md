@@ -20,10 +20,12 @@
 - Added `Location::attr_by_index` and `Location::attr_info`
 - Added `Group::info` with `GroupInfo` and `GroupStorageType`, exposing `H5Gget_info`
 - Changed `AttributeBuilder::empty_as` and `AttributeBuilder::with_data_as` to accept an existing `Datatype` or `CommittedDatatype` as well as a `TypeDescriptor`, through the new `DatasetType`, so an attribute can be created with a committed datatype.
+- Added library version functionality for hdf5 < 1.10.2
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
 - Rerun the build script when `HDF5_DIR` or `HDF5_VERSION` changes after a bundled build
+- Reworked export of `H5F_libver_t` for hdf5 versions < 1.10.2
 ## hdf5-src unreleased
 
 ## hdf5-sys 0.12.3
