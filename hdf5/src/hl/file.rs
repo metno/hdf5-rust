@@ -257,8 +257,6 @@ impl FileBuilder {
             OpenMode::ReadWrite => H5F_ACC_RDWR,
             OpenMode::Create => H5F_ACC_TRUNC,
             OpenMode::CreateExcl | OpenMode::Append => H5F_ACC_EXCL,
-            #[cfg(not(feature = "1.10.0"))]
-            _ => unreachable!(),
         };
         let fname_ptr = filename.as_ptr();
         h5lock!({

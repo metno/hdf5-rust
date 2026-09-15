@@ -2,7 +2,6 @@ use std::fmt::{self, Debug};
 use std::ops::Deref;
 
 use hdf5_sys::h5a::{H5A_info_t, H5Acreate2, H5Adelete, H5Aget_create_plist, H5Aget_name};
-use hdf5_types::TypeDescriptor;
 use ndarray::ArrayView;
 
 use crate::hl::plist::attribute_create::{AttributeCreate, AttributeCreateBuilder, CharEncoding};
