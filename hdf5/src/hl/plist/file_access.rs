@@ -365,7 +365,7 @@ pub struct MultiDriver {
 
 impl Default for MultiDriver {
     fn default() -> Self {
-        let m = u64::max_value() / 6;
+        let m = u64::MAX / 6;
         let files = vec![
             MultiFile::new("%s-s.h5", 0 * m),
             MultiFile::new("%s-b.h5", 1 * m),
@@ -431,7 +431,7 @@ impl SplitDriver {
             && drv.layout == layout
             && drv.files.len() == 2
             && drv.files[0].addr == 0
-            && drv.files[1].addr == u64::max_value() / 2
+            && drv.files[1].addr == u64::MAX / 2
             && drv.files[0].name.starts_with("%s")
             && drv.files[1].name.starts_with("%s");
         if is_split {

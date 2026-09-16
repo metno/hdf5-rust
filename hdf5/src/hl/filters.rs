@@ -469,18 +469,10 @@ impl Filter {
         ensure!(cdata.len() >= 2, "expected cdata.len() >= 2 for scaleoffset filter");
         let scale_type = cdata[0];
         let mode = if scale_type == (H5Z_SO_INT as c_uint) {
-            ensure!(
-                cdata[1] <= c_uint::from(u16::max_value()),
-                "invalid int scale-offset: {}",
-                cdata[1]
-            );
+            ensure!(cdata[1] <= c_uint::from(u16::MAX), "invalid int scale-offset: {}", cdata[1]);
             ScaleOffset::Integer(cdata[1] as _)
         } else if scale_type == (H5Z_SO_FLOAT_DSCALE as c_uint) {
-            ensure!(
-                cdata[1] <= c_uint::from(u8::max_value()),
-                "invalid float scale-offset: {}",
-                cdata[1]
-            );
+            ensure!(cdata[1] <= c_uint::from(u8::MAX), "invalid float scale-offset: {}", cdata[1]);
             ScaleOffset::FloatDScale(cdata[1] as _)
         } else {
             fail!("invalid scale type for scaleoffset filter: {}", cdata[0])

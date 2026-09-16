@@ -10,7 +10,6 @@ authors.workspace = true
 keywords.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 edition.workspace = true
 
 [features]
