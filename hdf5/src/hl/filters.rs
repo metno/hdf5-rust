@@ -469,18 +469,10 @@ impl Filter {
         ensure!(cdata.len() >= 2, "expected cdata.len() >= 2 for scaleoffset filter");
         let scale_type = cdata[0];
         let mode = if scale_type == (H5Z_SO_INT as c_uint) {
-            ensure!(
-                cdata[1] <= c_uint::from(u16::max_value()),
-                "invalid int scale-offset: {}",
-                cdata[1]
-            );
+            ensure!(cdata[1] <= c_uint::from(u16::MAX), "invalid int scale-offset: {}", cdata[1]);
             ScaleOffset::Integer(cdata[1] as _)
         } else if scale_type == (H5Z_SO_FLOAT_DSCALE as c_uint) {
-            ensure!(
-                cdata[1] <= c_uint::from(u8::max_value()),
-                "invalid float scale-offset: {}",
-                cdata[1]
-            );
+            ensure!(cdata[1] <= c_uint::from(u8::MAX), "invalid float scale-offset: {}", cdata[1]);
             ScaleOffset::FloatDScale(cdata[1] as _)
         } else {
             fail!("invalid scale type for scaleoffset filter: {}", cdata[0])
@@ -834,13 +826,14 @@ pub(crate) fn validate_filters(filters: &[Filter], type_class: H5T_class_t) -> R
 #[cfg(test)]
 mod tests {
     use hdf5_sys::h5t::H5T_class_t;
-    use ndarray::{Array2, Axis};
-    use std::io::{Seek, SeekFrom};
 
+    #[cfg(feature = "blosc-all")]
+    use super::blosc_available;
     use super::{
-        Filter, FilterInfo, SZip, ScaleOffset, blosc_available, deflate_available, lzf_available,
-        szip_available, validate_filters,
+        Filter, FilterInfo, SZip, ScaleOffset, deflate_available, lzf_available, szip_available,
+        validate_filters,
     };
+    #[cfg(feature = "zfp")]
     use crate::hl::filters::zfp_available;
     use crate::test::with_tmp_file;
     use crate::{Result, plist::DatasetCreate};

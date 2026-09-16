@@ -12,7 +12,6 @@ authors = [
 keywords = ["hdf5"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/metno/hdf5-rust"
-homepage = "https://github.com/metno/hdf5-rust"
 edition = "2024"
 
 [workspace.dependencies]

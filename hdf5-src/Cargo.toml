@@ -4,7 +4,6 @@ license-file = "ext/hdf5/LICENSE"
 build = "build.rs"
 description = "Build script for compiling HDF5 C library from source."
 links = "hdf5src"
-readme = "README.md"
 categories = ["development-tools::ffi"]
 include = [
     "Cargo.toml",
@@ -53,7 +52,6 @@ rust-version.workspace = true
 authors.workspace = true
 keywords.workspace = true
 repository.workspace = true
-homepage.workspace = true
 edition.workspace = true
 
 [features]

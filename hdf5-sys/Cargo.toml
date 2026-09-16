@@ -3,7 +3,6 @@ name = "hdf5-metno-sys"
 build = "build.rs"
 description = "Native bindings to the HDF5 library."
 links = "hdf5"
-readme = "README.md"
 categories = ["development-tools::ffi", "filesystem", "science"]
 version = "0.12.3"  # !V
 rust-version.workspace = true
@@ -11,7 +10,6 @@ authors.workspace = true
 keywords.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 edition.workspace = true
 
 [dependencies]

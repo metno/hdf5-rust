@@ -49,7 +49,6 @@ use hdf5_sys::h5p::{H5Pget_fapl_mpio, H5Pset_fapl_mpio};
 
 #[cfg(feature = "1.10.1")]
 use hdf5_sys::h5ac::{H5AC__CACHE_IMAGE__ENTRY_AGEOUT__NONE, H5AC_cache_image_config_t};
-#[cfg(feature = "1.10.2")]
 use hdf5_sys::h5f::H5F_libver_t;
 #[cfg(all(feature = "1.10.0", feature = "have-parallel"))]
 use hdf5_sys::h5p::{
@@ -67,7 +66,6 @@ use hdf5_sys::h5p::{
 };
 #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
 use hdf5_sys::h5p::{H5Pget_file_locking, H5Pset_file_locking};
-#[cfg(feature = "1.10.2")]
 use hdf5_sys::h5p::{H5Pget_libver_bounds, H5Pset_libver_bounds};
 #[cfg(feature = "1.10.0")]
 use hdf5_sys::h5p::{
@@ -120,7 +118,6 @@ impl Debug for FileAccess {
         formatter.field("small_data_block_size", &self.small_data_block_size());
         #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
         formatter.field("file_locking", &self.file_locking());
-        #[cfg(feature = "1.10.2")]
         formatter.field("libver_bounds", &self.libver_bounds());
         #[cfg(feature = "1.8.7")]
         formatter.field("elink_file_cache_size", &self.elink_file_cache_size());
@@ -368,7 +365,7 @@ pub struct MultiDriver {
 
 impl Default for MultiDriver {
     fn default() -> Self {
-        let m = u64::max_value() / 6;
+        let m = u64::MAX / 6;
         let files = vec![
             MultiFile::new("%s-s.h5", 0 * m),
             MultiFile::new("%s-b.h5", 1 * m),
@@ -434,7 +431,7 @@ impl SplitDriver {
             && drv.layout == layout
             && drv.files.len() == 2
             && drv.files[0].addr == 0
-            && drv.files[1].addr == u64::max_value() / 2
+            && drv.files[1].addr == u64::MAX / 2
             && drv.files[0].name.starts_with("%s")
             && drv.files[1].name.starts_with("%s");
         if is_split {
@@ -1031,125 +1028,118 @@ pub struct CacheLogOptions {
     pub start_on_access: bool,
 }
 
-#[cfg(feature = "1.10.2")]
-mod libver {
-    use super::*;
+/// Options for which library format version to use when storing objects.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
+pub enum LibraryVersion {
+    /// Use the earliest possible format.
+    Earliest = 0,
+    /// Use the v18 format.
+    V18 = 1,
+    /// Use the v110 format.
+    #[cfg(feature = "1.10.2")]
+    V110 = 2,
+    /// Use the v112 format.
+    #[cfg(feature = "1.12.0")]
+    V112 = 3,
+    /// Use the v114 format.
+    #[cfg(feature = "1.14.0")]
+    V114 = 4,
+    /// Use the v200 format.
+    #[cfg(feature = "2.0.0")]
+    V200 = 5,
+}
 
-    /// Options for which library format version to use when storing objects.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-    pub enum LibraryVersion {
-        /// Use the earliest possible format.
-        Earliest = 0,
-        /// Use the v18 format.
-        V18 = 1,
-        /// Use the v110 format.
-        #[cfg(feature = "1.10.2")]
-        V110 = 2,
-        /// Use the v112 format.
-        #[cfg(feature = "1.12.0")]
-        V112 = 3,
-        /// Use the v114 format.
-        #[cfg(feature = "1.14.0")]
-        V114 = 4,
-        /// Use the v200 format.
+impl LibraryVersion {
+    /// Returns `true` if the version is set to `Earliest`.
+    pub fn is_earliest(self) -> bool {
+        self == Self::Earliest
+    }
+
+    /// Returns the latest library version.
+    #[allow(unreachable_code)]
+    pub const fn latest() -> Self {
         #[cfg(feature = "2.0.0")]
-        V200 = 5,
-    }
-
-    impl LibraryVersion {
-        /// Returns `true` if the version is set to `Earliest`.
-        pub fn is_earliest(self) -> bool {
-            self == Self::Earliest
+        {
+            return Self::V200;
+        }
+        #[cfg(feature = "1.14.0")]
+        {
+            return Self::V114;
+        }
+        #[cfg(feature = "1.12.0")]
+        {
+            return Self::V112;
+        }
+        #[cfg(feature = "1.10.2")]
+        {
+            return Self::V110;
         }
 
-        /// Returns the latest library version.
-        #[allow(unreachable_code)]
-        pub const fn latest() -> Self {
-            #[cfg(feature = "2.0.0")]
-            {
-                return Self::V200;
-            }
-            #[cfg(feature = "1.14.0")]
-            {
-                return Self::V114;
-            }
-            #[cfg(feature = "1.12.0")]
-            {
-                return Self::V112;
-            }
+        Self::V18
+    }
+}
+
+impl From<LibraryVersion> for H5F_libver_t {
+    fn from(v: LibraryVersion) -> Self {
+        match v {
+            LibraryVersion::V18 => Self::H5F_LIBVER_V18,
             #[cfg(feature = "1.10.2")]
-            {
-                return Self::V110;
-            }
-
-            Self::V18
-        }
-    }
-
-    impl From<LibraryVersion> for H5F_libver_t {
-        fn from(v: LibraryVersion) -> Self {
-            match v {
-                LibraryVersion::V18 => Self::H5F_LIBVER_V18,
-                #[cfg(feature = "1.10.2")]
-                LibraryVersion::V110 => Self::H5F_LIBVER_V110,
-                #[cfg(feature = "1.12.0")]
-                LibraryVersion::V112 => Self::H5F_LIBVER_V112,
-                #[cfg(feature = "1.14.0")]
-                LibraryVersion::V114 => Self::H5F_LIBVER_V114,
-                #[cfg(feature = "2.0.0")]
-                LibraryVersion::V200 => Self::H5F_LIBVER_V200,
-                LibraryVersion::Earliest => Self::H5F_LIBVER_EARLIEST,
-            }
-        }
-    }
-
-    impl From<H5F_libver_t> for LibraryVersion {
-        fn from(libver: H5F_libver_t) -> Self {
-            match libver {
-                H5F_libver_t::H5F_LIBVER_V18 => Self::V18,
-                #[cfg(feature = "1.10.2")]
-                H5F_libver_t::H5F_LIBVER_V110 => Self::V110,
-                #[cfg(feature = "1.12.0")]
-                H5F_libver_t::H5F_LIBVER_V112 => Self::V112,
-                #[cfg(feature = "1.14.0")]
-                H5F_libver_t::H5F_LIBVER_V114 => Self::V114,
-                #[cfg(feature = "2.0.0")]
-                H5F_libver_t::H5F_LIBVER_V200 => Self::V200,
-                _ => Self::Earliest,
-            }
-        }
-    }
-
-    /// Library format version bounds for writing objects to a file.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-    pub struct LibVerBounds {
-        /// The earliest version to use for writing objects.
-        pub low: LibraryVersion,
-        /// The latest version to use for writing objects.
-        pub high: LibraryVersion,
-    }
-
-    impl LibVerBounds {
-        pub const fn new(low: LibraryVersion, high: LibraryVersion) -> Self {
-            Self { low, high }
-        }
-    }
-
-    impl Default for LibVerBounds {
-        fn default() -> Self {
-            Self { low: LibraryVersion::Earliest, high: LibraryVersion::latest() }
-        }
-    }
-
-    impl From<LibraryVersion> for LibVerBounds {
-        fn from(version: LibraryVersion) -> Self {
-            Self { low: version, high: LibraryVersion::latest() }
+            LibraryVersion::V110 => Self::H5F_LIBVER_V110,
+            #[cfg(feature = "1.12.0")]
+            LibraryVersion::V112 => Self::H5F_LIBVER_V112,
+            #[cfg(feature = "1.14.0")]
+            LibraryVersion::V114 => Self::H5F_LIBVER_V114,
+            #[cfg(feature = "2.0.0")]
+            LibraryVersion::V200 => Self::H5F_LIBVER_V200,
+            LibraryVersion::Earliest => Self::H5F_LIBVER_EARLIEST,
         }
     }
 }
 
-#[cfg(feature = "1.10.2")]
-pub use self::libver::*;
+impl From<H5F_libver_t> for LibraryVersion {
+    fn from(libver: H5F_libver_t) -> Self {
+        match libver {
+            H5F_libver_t::H5F_LIBVER_V18 => Self::V18,
+            #[cfg(feature = "1.10.2")]
+            H5F_libver_t::H5F_LIBVER_V110 => Self::V110,
+            #[cfg(feature = "1.12.0")]
+            H5F_libver_t::H5F_LIBVER_V112 => Self::V112,
+            #[cfg(feature = "1.14.0")]
+            H5F_libver_t::H5F_LIBVER_V114 => Self::V114,
+            #[cfg(feature = "2.0.0")]
+            H5F_libver_t::H5F_LIBVER_V200 => Self::V200,
+            _ => Self::Earliest,
+        }
+    }
+}
+
+/// Library format version bounds for writing objects to a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LibVerBounds {
+    /// The earliest version to use for writing objects.
+    pub low: LibraryVersion,
+    /// The latest version to use for writing objects.
+    pub high: LibraryVersion,
+}
+
+impl LibVerBounds {
+    pub const fn new(low: LibraryVersion, high: LibraryVersion) -> Self {
+        Self { low, high }
+    }
+}
+
+impl Default for LibVerBounds {
+    fn default() -> Self {
+        Self { low: LibraryVersion::Earliest, high: LibraryVersion::latest() }
+    }
+}
+
+impl From<LibraryVersion> for LibVerBounds {
+    fn from(version: LibraryVersion) -> Self {
+        Self { low: version, high: LibraryVersion::latest() }
+    }
+}
 
 /// Builder used to create file access property list.
 #[derive(Clone, Debug, Default)]
@@ -1182,7 +1172,6 @@ pub struct FileAccessBuilder {
     coll_metadata_write: Option<bool>,
     gc_references: Option<bool>,
     small_data_block_size: Option<u64>,
-    #[cfg(feature = "1.10.2")]
     libver_bounds: Option<LibVerBounds>,
     #[cfg(any(all(feature = "1.10.7", not(feature = "1.12.0")), feature = "1.12.1"))]
     file_locking: Option<bool>,
@@ -1206,11 +1195,8 @@ impl FileAccessBuilder {
         builder.driver(&drv);
         builder.gc_references(plist.get_gc_references()?);
         builder.small_data_block_size(plist.get_small_data_block_size()?);
-        #[cfg(feature = "1.10.2")]
-        {
-            let v = plist.get_libver_bounds()?;
-            builder.libver_bounds(v.low, v.high);
-        }
+        let v = plist.get_libver_bounds()?;
+        builder.libver_bounds(v.low, v.high);
         #[cfg(feature = "1.8.7")]
         {
             builder.elink_file_cache_size(plist.get_elink_file_cache_size()?);
@@ -1375,20 +1361,17 @@ impl FileAccessBuilder {
     }
 
     /// Sets the range of library versions to use when writing objects.
-    #[cfg(feature = "1.10.2")]
     pub fn libver_bounds(&mut self, low: LibraryVersion, high: LibraryVersion) -> &mut Self {
         self.libver_bounds = Some(LibVerBounds { low, high });
         self
     }
 
     /// Allows use of the earliest library version when writing objects.
-    #[cfg(feature = "1.10.2")]
     pub fn libver_earliest(&mut self) -> &mut Self {
         self.libver_bounds(LibraryVersion::Earliest, LibraryVersion::latest())
     }
 
     /// Sets the earliest library version for writing objects to v18.
-    #[cfg(feature = "1.10.2")]
     pub fn libver_v18(&mut self) -> &mut Self {
         self.libver_bounds(LibraryVersion::V18, LibraryVersion::latest())
     }
@@ -1399,8 +1382,25 @@ impl FileAccessBuilder {
         self.libver_bounds(LibraryVersion::V110, LibraryVersion::latest())
     }
 
+    /// Sets the earliest library version for writing objects to v112.
+    #[cfg(feature = "1.12.0")]
+    pub fn libver_v112(&mut self) -> &mut Self {
+        self.libver_bounds(LibraryVersion::V112, LibraryVersion::latest())
+    }
+
+    /// Sets the earliest library version for writing objects to v114.
+    #[cfg(feature = "1.14.0")]
+    pub fn libver_v114(&mut self) -> &mut Self {
+        self.libver_bounds(LibraryVersion::V114, LibraryVersion::latest())
+    }
+
+    /// Sets the earliest library version for writing objects to v200.
+    #[cfg(feature = "2.0.0")]
+    pub fn libver_v200(&mut self) -> &mut Self {
+        self.libver_bounds(LibraryVersion::V200, LibraryVersion::latest())
+    }
+
     /// Allows only the latest library version when writing objects.
-    #[cfg(feature = "1.10.2")]
     pub fn libver_latest(&mut self) -> &mut Self {
         self.libver_bounds(LibraryVersion::latest(), LibraryVersion::latest())
     }
@@ -1683,11 +1683,8 @@ impl FileAccessBuilder {
         if let Some(v) = self.small_data_block_size {
             h5try!(H5Pset_small_data_block_size(id, v as _));
         }
-        #[cfg(feature = "1.10.2")]
-        {
-            if let Some(v) = self.libver_bounds {
-                h5try!(H5Pset_libver_bounds(id, v.low.into(), v.high.into()));
-            }
+        if let Some(v) = self.libver_bounds {
+            h5try!(H5Pset_libver_bounds(id, v.low.into(), v.high.into()));
         }
         #[cfg(feature = "1.8.7")]
         {
@@ -2142,7 +2139,6 @@ impl FileAccess {
         self.get_small_data_block_size().unwrap_or(2048)
     }
 
-    #[cfg(feature = "1.10.2")]
     #[doc(hidden)]
     pub fn get_libver_bounds(&self) -> Result<LibVerBounds> {
         h5get!(H5Pget_libver_bounds(self.id()): H5F_libver_t, H5F_libver_t)
@@ -2150,13 +2146,11 @@ impl FileAccess {
     }
 
     /// Returns the library format version bounds for writing objects to a file.
-    #[cfg(feature = "1.10.2")]
     pub fn libver_bounds(&self) -> LibVerBounds {
         self.get_libver_bounds().ok().unwrap_or_default()
     }
 
     /// Returns the lower library format version bound for writing objects to a file.
-    #[cfg(feature = "1.10.2")]
     pub fn libver(&self) -> LibraryVersion {
         self.get_libver_bounds().ok().unwrap_or_default().low
     }
