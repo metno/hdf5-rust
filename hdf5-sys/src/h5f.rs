@@ -107,6 +107,7 @@ pub enum H5F_mem_t {
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[non_exhaustive]
 pub enum H5F_libver_t {
     H5F_LIBVER_ERROR = -1,
     H5F_LIBVER_EARLIEST = 0,

@@ -1,6 +1,13 @@
 # Changelog
 
 ## hdf5 unreleased
+## hdf5-derive unreleased
+## hdf5-types unreleased
+## hdf5-sys unreleased
+## hdf5-src unreleased
+
+## hdf5 0.15.0
+Release date: Sep 18, 2026
 - Added `AttributeBuilder::char_encoding` to set the character encoding of the attribute name
 - Added `AttributeCreate` and `AttributeCreateBuilder` property lists, and `Attribute::create_plist` / `Attribute::acpl`
 - Added `Datatype::is_committed`
@@ -22,12 +29,12 @@
 - Changed `AttributeBuilder::empty_as` and `AttributeBuilder::with_data_as` to accept an existing `Datatype` or `CommittedDatatype` as well as a `TypeDescriptor`, through the new `DatasetType`, so an attribute can be created with a committed datatype.
 - Added library version functionality for hdf5 < 1.10.2
 - Fixed compilation error for parallel builds
-## hdf5-derive unreleased
-## hdf5-types unreleased
-## hdf5-sys unreleased
+
+## hdf5-sys 0.12.4
+Release date: Sep 18, 2026
 - Rerun the build script when `HDF5_DIR` or `HDF5_VERSION` changes after a bundled build
 - Reworked export of `H5F_libver_t` for hdf5 versions < 1.10.2
-## hdf5-src unreleased
+- Marked `H5F_libver_t` `non_exhaustive`
 
 ## hdf5-sys 0.12.3
 Release date: Aug 29, 2026
