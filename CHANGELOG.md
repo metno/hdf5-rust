@@ -21,6 +21,7 @@
 - Added `Group::info` with `GroupInfo` and `GroupStorageType`, exposing `H5Gget_info`
 - Changed `AttributeBuilder::empty_as` and `AttributeBuilder::with_data_as` to accept an existing `Datatype` or `CommittedDatatype` as well as a `TypeDescriptor`, through the new `DatasetType`, so an attribute can be created with a committed datatype.
 - Added library version functionality for hdf5 < 1.10.2
+- Fixed compilation error for parallel builds
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
