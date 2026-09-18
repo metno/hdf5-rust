@@ -27,6 +27,7 @@
 ## hdf5-sys unreleased
 - Rerun the build script when `HDF5_DIR` or `HDF5_VERSION` changes after a bundled build
 - Reworked export of `H5F_libver_t` for hdf5 versions < 1.10.2
+- Marked `H5F_libver_t` `non_exhaustive`
 ## hdf5-src unreleased
 
 ## hdf5-sys 0.12.3
