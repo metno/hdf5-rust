@@ -1,6 +1,7 @@
 # Changelog
 
 ## hdf5 unreleased
+- Added `GroupCreateBuilder::link_phase_change` with the matching `GroupCreate` getters and `LinkPhaseChange`
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased

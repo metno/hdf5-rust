@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 use hdf5::dataset::*;
 use hdf5::file::*;
+use hdf5::plist::group_create::LinkPhaseChange;
 use hdf5::plist::*;
 use hdf5::{MajorErrorCode, MinorErrorCode};
 use hdf5_metno as hdf5;
@@ -675,6 +676,22 @@ fn test_gcpl_attr_phase_change() -> hdf5::Result<()> {
     assert_eq!(pl.attr_phase_change(), expected);
     assert_eq!(GCB::from_plist(&pl)?.finish()?.get_attr_phase_change()?, expected);
     let err = GCB::new().attr_phase_change(12, 34).finish().unwrap_err();
+    assert!(err.contains_major(MajorErrorCode::Args), "{err:?}");
+    assert!(err.contains_minor(MinorErrorCode::BadRange), "{err:?}");
+    Ok(())
+}
+
+#[test]
+fn test_gcpl_link_phase_change() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_link_phase_change()?, LinkPhaseChange::default());
+    assert_eq!(GC::try_new()?.link_phase_change(), LinkPhaseChange::default());
+    let expected = LinkPhaseChange { max_compact: 34, min_dense: 21 };
+    let pl = GCB::new().link_phase_change(expected).finish()?;
+    assert_eq!(pl.get_link_phase_change()?, expected);
+    assert_eq!(pl.link_phase_change(), expected);
+    assert_eq!(GCB::from_plist(&pl)?.finish()?.get_link_phase_change()?, expected);
+    let invalid = LinkPhaseChange { max_compact: 12, min_dense: 34 };
+    let err = GCB::new().link_phase_change(invalid).finish().unwrap_err();
     assert!(err.contains_major(MajorErrorCode::Args), "{err:?}");
     assert!(err.contains_minor(MinorErrorCode::BadRange), "{err:?}");
     Ok(())

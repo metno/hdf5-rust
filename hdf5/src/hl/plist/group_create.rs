@@ -5,12 +5,15 @@ use std::ops::Deref;
 
 use hdf5_sys::h5p::{
     H5Pcreate, H5Pget_attr_creation_order, H5Pget_attr_phase_change, H5Pget_link_creation_order,
-    H5Pget_obj_track_times, H5Pset_attr_creation_order, H5Pset_attr_phase_change,
-    H5Pset_link_creation_order, H5Pset_obj_track_times,
+    H5Pget_link_phase_change, H5Pget_obj_track_times, H5Pset_attr_creation_order,
+    H5Pset_attr_phase_change, H5Pset_link_creation_order, H5Pset_link_phase_change,
+    H5Pset_obj_track_times,
 };
 
 use crate::globals::H5P_GROUP_CREATE;
-pub use crate::hl::plist::common::{AttrCreationOrder, AttrPhaseChange, LinkCreationOrder};
+pub use crate::hl::plist::common::{
+    AttrCreationOrder, AttrPhaseChange, LinkCreationOrder, LinkPhaseChange,
+};
 use crate::internal_prelude::*;
 
 /// Group creation properties.
@@ -50,6 +53,7 @@ impl Debug for GroupCreate {
         let mut formatter = f.debug_struct("GroupCreate");
         formatter.field("obj_track_times", &self.obj_track_times());
         formatter.field("link_creation_order", &self.link_creation_order());
+        formatter.field("link_phase_change", &self.link_phase_change());
         formatter.field("attr_phase_change", &self.attr_phase_change());
         formatter.field("attr_creation_order", &self.attr_creation_order());
         formatter.finish()
@@ -77,6 +81,7 @@ impl Eq for GroupCreate {}
 pub struct GroupCreateBuilder {
     obj_track_times: Option<bool>,
     link_creation_order: Option<LinkCreationOrder>,
+    link_phase_change: Option<LinkPhaseChange>,
     attr_phase_change: Option<AttrPhaseChange>,
     attr_creation_order: Option<AttrCreationOrder>,
 }
@@ -92,6 +97,7 @@ impl GroupCreateBuilder {
         let mut builder = Self::default();
         builder.obj_track_times(plist.get_obj_track_times()?);
         builder.link_creation_order(plist.get_link_creation_order()?);
+        builder.link_phase_change(plist.get_link_phase_change()?);
         let apc = plist.get_attr_phase_change()?;
         builder.attr_phase_change(apc.max_compact, apc.min_dense);
         builder.attr_creation_order(plist.get_attr_creation_order()?);
@@ -111,6 +117,14 @@ impl GroupCreateBuilder {
     /// See [`LinkCreationOrder`] for the available settings.
     pub fn link_creation_order(&mut self, link_creation_order: LinkCreationOrder) -> &mut Self {
         self.link_creation_order = Some(link_creation_order);
+        self
+    }
+
+    /// Sets the group's link storage phase change thresholds.
+    ///
+    /// See [`LinkPhaseChange`] for the meaning of the thresholds.
+    pub fn link_phase_change(&mut self, link_phase_change: LinkPhaseChange) -> &mut Self {
+        self.link_phase_change = Some(link_phase_change);
         self
     }
 
@@ -136,6 +150,9 @@ impl GroupCreateBuilder {
         }
         if let Some(v) = self.link_creation_order {
             h5try!(H5Pset_link_creation_order(id, v.into()));
+        }
+        if let Some(v) = self.link_phase_change {
+            h5try!(H5Pset_link_phase_change(id, v.max_compact as _, v.min_dense as _));
         }
         if let Some(v) = self.attr_phase_change {
             h5try!(H5Pset_attr_phase_change(id, v.max_compact as _, v.min_dense as _));
@@ -197,6 +214,19 @@ impl GroupCreate {
     /// Returns [`LinkCreationOrder::Untracked`] if the property cannot be read.
     pub fn link_creation_order(&self) -> LinkCreationOrder {
         self.get_link_creation_order().unwrap_or_default()
+    }
+
+    #[doc(hidden)]
+    pub fn get_link_phase_change(&self) -> Result<LinkPhaseChange> {
+        h5get!(H5Pget_link_phase_change(self.id()): c_uint, c_uint)
+            .map(|(mc, md)| LinkPhaseChange { max_compact: mc as _, min_dense: md as _ })
+    }
+
+    /// Returns the group's link storage phase change thresholds.
+    ///
+    /// Returns the HDF5 defaults if the property cannot be read.
+    pub fn link_phase_change(&self) -> LinkPhaseChange {
+        self.get_link_phase_change().unwrap_or_default()
     }
 
     #[doc(hidden)]
