@@ -12,7 +12,7 @@ fn main() -> Result<()> {
 
     let ds = file
         .new_dataset::<f32>()
-        .chunk((1, ny, nx))  // each chunk contains ny * nx elements
+        .chunk((1, ny, nx)) // each chunk contains ny * nx elements
         .shape((1.., ny, nx)) // first axis is unlimited with initial size of 1
         .deflate(3)
         .create("variable")?;

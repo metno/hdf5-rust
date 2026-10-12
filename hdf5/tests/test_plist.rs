@@ -4,6 +4,8 @@ use std::str::FromStr;
 
 use hdf5::dataset::*;
 use hdf5::file::*;
+use hdf5::filters::Filter;
+use hdf5::plist::group_create::LinkPhaseChange;
 use hdf5::plist::*;
 use hdf5::{MajorErrorCode, MinorErrorCode};
 use hdf5_metno as hdf5;
@@ -653,6 +655,40 @@ fn test_gcpl_common() -> hdf5::Result<()> {
 }
 
 #[test]
+fn test_gcpl_filters() -> hdf5::Result<()> {
+    let pl = GC::try_new()?;
+    assert_eq!(pl.get_filters()?, vec![]);
+    assert!(!pl.has_filters());
+    assert!(pl.all_filters_avail());
+
+    let mut expected = vec![Filter::fletcher32()];
+    let mut b = GCB::new();
+    if hdf5::filters::deflate_available() {
+        expected.insert(0, Filter::deflate(7));
+        b.deflate(7);
+    }
+    let pl = b.fletcher32().finish()?;
+    assert_eq!(pl.get_filters()?, expected);
+    assert_eq!(pl.filters(), expected);
+    assert!(pl.has_filters());
+    assert!(pl.all_filters_avail());
+    assert_eq!(GCB::from_plist(&pl)?.finish()?.get_filters()?, expected);
+    assert_eq!(GCB::from_plist(&pl)?.clear_filters().finish()?.get_filters()?, vec![]);
+
+    let pl = GCB::new().set_filters(&expected).finish()?;
+    assert_eq!(pl.filters(), expected);
+
+    // HDF5 tries to load a plugin for an unregistered filter in H5Pset_filter, which
+    // fails on some versions, so add a built-in filter by its identifier
+    let pl = GCB::new().add_filter(Filter::fletcher32().id(), &[]).finish()?;
+    assert_eq!(pl.filters(), vec![Filter::fletcher32()]);
+
+    // Shuffle only applies to datasets
+    assert!(GCB::new().set_filters(&[Filter::shuffle()]).finish().is_err());
+    Ok(())
+}
+
+#[test]
 fn test_gcpl_obj_track_times() -> hdf5::Result<()> {
     assert_eq!(GC::try_new()?.get_obj_track_times()?, true);
     assert_eq!(GC::try_new()?.obj_track_times(), true);
@@ -675,6 +711,22 @@ fn test_gcpl_attr_phase_change() -> hdf5::Result<()> {
     assert_eq!(pl.attr_phase_change(), expected);
     assert_eq!(GCB::from_plist(&pl)?.finish()?.get_attr_phase_change()?, expected);
     let err = GCB::new().attr_phase_change(12, 34).finish().unwrap_err();
+    assert!(err.contains_major(MajorErrorCode::Args), "{err:?}");
+    assert!(err.contains_minor(MinorErrorCode::BadRange), "{err:?}");
+    Ok(())
+}
+
+#[test]
+fn test_gcpl_link_phase_change() -> hdf5::Result<()> {
+    assert_eq!(GC::try_new()?.get_link_phase_change()?, LinkPhaseChange::default());
+    assert_eq!(GC::try_new()?.link_phase_change(), LinkPhaseChange::default());
+    let expected = LinkPhaseChange { max_compact: 34, min_dense: 21 };
+    let pl = GCB::new().link_phase_change(expected).finish()?;
+    assert_eq!(pl.get_link_phase_change()?, expected);
+    assert_eq!(pl.link_phase_change(), expected);
+    assert_eq!(GCB::from_plist(&pl)?.finish()?.get_link_phase_change()?, expected);
+    let invalid = LinkPhaseChange { max_compact: 12, min_dense: 34 };
+    let err = GCB::new().link_phase_change(invalid).finish().unwrap_err();
     assert!(err.contains_major(MajorErrorCode::Args), "{err:?}");
     assert!(err.contains_minor(MinorErrorCode::BadRange), "{err:?}");
     Ok(())

@@ -28,6 +28,31 @@ impl Default for AttrPhaseChange {
     }
 }
 
+/// Link storage phase change thresholds.
+///
+/// These thresholds determine the point at which link storage in a group changes
+/// from compact storage (i.e., storage in the object header) to dense storage
+/// (i.e., storage in a fractal heap and indexed with a B-tree).
+///
+/// Links are initially kept in compact storage. When the number of links exceeds
+/// `max_compact`, link storage switches to dense storage. If the number of links
+/// subsequently falls below `min_dense`, the links are returned to compact storage.
+///
+/// If `max_compact` is set to 0 (zero), dense storage is always used.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LinkPhaseChange {
+    /// Maximum number of links to be stored in compact storage (default: 8).
+    pub max_compact: u32,
+    /// Minimum number of links to be stored in dense storage (default: 6).
+    pub min_dense: u32,
+}
+
+impl Default for LinkPhaseChange {
+    fn default() -> Self {
+        Self { max_compact: 8, min_dense: 6 }
+    }
+}
+
 /// Tracking of attribute creation order on an object.
 ///
 /// By default attribute creation order is not recorded. `Tracked` records the order

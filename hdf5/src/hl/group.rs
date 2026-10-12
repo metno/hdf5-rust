@@ -780,7 +780,10 @@ impl Group {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::hl::plist::common::{AttrCreationOrder, AttrPhaseChange, LinkCreationOrder};
+    use crate::hl::filters::Filter;
+    use crate::hl::plist::common::{
+        AttrCreationOrder, AttrPhaseChange, LinkCreationOrder, LinkPhaseChange,
+    };
     use crate::hl::plist::file_access::FileCloseDegree;
     #[cfg(feature = "1.10.2")]
     use crate::hl::plist::file_access::LibraryVersion;
@@ -1011,6 +1014,73 @@ pub mod tests {
             let gcpl = file.create_group("untracked").unwrap().gcpl().unwrap();
             assert_eq!(gcpl.attr_creation_order(), AttrCreationOrder::Untracked);
             assert_eq!(gcpl.attr_phase_change(), AttrPhaseChange::default());
+        })
+    }
+
+    #[test]
+    pub fn test_group_filters() {
+        with_tmp_path(|path| {
+            let mut filters = vec![Filter::fletcher32()];
+            if crate::filters::deflate_available() {
+                filters.insert(0, Filter::deflate(6));
+            }
+            let always_dense = LinkPhaseChange { max_compact: 0, min_dense: 0 };
+            {
+                let file = File::create(&path).unwrap();
+                // A filter pipeline makes HDF5 create a new-style group and a zero
+                // compact limit keeps its links in the filtered dense storage
+                let group = file
+                    .create_group_builder()
+                    .with_gcpl(|gcpl| gcpl.set_filters(&filters).link_phase_change(always_dense))
+                    .create("g")
+                    .unwrap();
+                for name in ["a", "b", "c"] {
+                    group.create_group(name).unwrap();
+                }
+                assert_eq!(group.info().unwrap().storage_type, GroupStorageType::Dense);
+            }
+
+            let file = File::open(&path).unwrap();
+            let group = file.group("g").unwrap();
+            // Dense storage lists links in name hash order
+            let mut names = group.member_names().unwrap();
+            names.sort();
+            assert_eq!(names, ["a", "b", "c"]);
+            assert_eq!(group.gcpl().unwrap().filters(), filters);
+            assert!(!file.group("g/a").unwrap().gcpl().unwrap().has_filters());
+        })
+    }
+
+    #[test]
+    pub fn test_group_link_phase_change() {
+        with_tmp_file(|file| {
+            // Phase change thresholds only matter for new-style groups, which tracking
+            // link creation order enforces
+            let phase_change = LinkPhaseChange { max_compact: 2, min_dense: 1 };
+            let group = file
+                .create_group_builder()
+                .with_gcpl(|gcpl| {
+                    gcpl.link_creation_order(LinkCreationOrder::Tracked)
+                        .link_phase_change(phase_change)
+                })
+                .create("g")
+                .unwrap();
+            assert_eq!(group.gcpl().unwrap().link_phase_change(), phase_change);
+
+            for name in ["a", "b"] {
+                group.create_group(name).unwrap();
+            }
+            assert_eq!(group.info().unwrap().storage_type, GroupStorageType::Compact);
+            group.create_group("c").unwrap();
+            assert_eq!(group.info().unwrap().storage_type, GroupStorageType::Dense);
+            group.unlink("c").unwrap();
+            group.unlink("b").unwrap();
+            assert_eq!(group.info().unwrap().storage_type, GroupStorageType::Dense);
+            group.unlink("a").unwrap();
+            assert_eq!(group.info().unwrap().storage_type, GroupStorageType::Compact);
+
+            let gcpl = file.create_group("untracked").unwrap().gcpl().unwrap();
+            assert_eq!(gcpl.link_phase_change(), LinkPhaseChange::default());
         })
     }
 
