@@ -1,13 +1,16 @@
 # Changelog
 
 ## hdf5 unreleased
-- Added `GroupCreateBuilder::link_phase_change` with the matching `GroupCreate` getters and `LinkPhaseChange`
-- Added `GroupCreateBuilder::set_filters`, `deflate`, `fletcher32`, `add_filter` and `clear_filters` with `GroupCreate::filters`, `has_filters` and `all_filters_avail`, to filter a group's dense link storage
-- Fixed linking to hdf5_hl when this feature is requested
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
 ## hdf5-src unreleased
+
+## hdf5 0.15.1
+Release date: Oct 26, 2026
+- Added `GroupCreateBuilder::link_phase_change` with the matching `GroupCreate` getters and `LinkPhaseChange`
+- Added `GroupCreateBuilder::set_filters`, `deflate`, `fletcher32`, `add_filter` and `clear_filters` with `GroupCreate::filters`, `has_filters` and `all_filters_avail`, to filter a group's dense link storage
+- Fixed linking to hdf5_hl when this feature is requested
 
 ## hdf5 0.15.0
 Release date: Sep 18, 2026
