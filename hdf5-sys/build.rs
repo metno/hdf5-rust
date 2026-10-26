@@ -698,6 +698,7 @@ impl Config {
         println!("cargo::metadata=library=hdf5");
 
         if feature_enabled("HL") {
+            println!("cargo::rustc-link-lib=dylib=hdf5_hl");
             println!("cargo::metadata=hl_library=hdf5_hl");
         }
     }
