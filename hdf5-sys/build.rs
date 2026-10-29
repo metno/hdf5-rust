@@ -744,7 +744,9 @@ impl Config {
             println!("cargo::metadata=have_filter_deflate=1");
         }
 
-        if cfg!(windows) && version >= Version::new(1, 14, 0) {
+        if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows"
+            && version >= Version::new(1, 14, 0)
+        {
             println!("cargo::rustc-link-lib=shlwapi");
         }
     }
