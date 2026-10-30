@@ -9,7 +9,9 @@ use hdf5_sys::h5f::{
     H5Fget_freespace, H5Fget_intent, H5Fget_obj_count, H5Fget_obj_ids, H5Fopen,
 };
 #[cfg(feature = "1.10.0")]
-use hdf5_sys::h5f::{H5F_ACC_SWMR_READ, H5Fstart_swmr_write};
+use hdf5_sys::h5f::{
+    H5F_ACC_SWMR_READ, H5F_sect_info_t, H5FD_MEM_DEFAULT, H5Fget_free_sections, H5Fstart_swmr_write,
+};
 
 use crate::hl::plist::{
     file_access::{FileAccess, FileAccessBuilder},
@@ -34,6 +36,18 @@ pub enum OpenMode {
     CreateExcl,
     /// Open a file as read/write if exists, create otherwise.
     Append,
+}
+
+/// A free-space section tracked by HDF5.
+///
+/// Returned by [`File::free_sections`].
+#[cfg(feature = "1.10.0")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FreeSection {
+    /// The start address of the section in the HDF5 file, in bytes.
+    pub addr: u64,
+    /// The size of the section, in bytes.
+    pub size: u64,
 }
 
 /// HDF5 file object.
@@ -121,6 +135,62 @@ impl File {
     /// Returns the free space in the file in bytes (or 0 if the file handle is invalid).
     pub fn free_space(&self) -> u64 {
         h5lock!(H5Fget_freespace(self.id())).max(0) as _
+    }
+
+    /// Returns the free-space sections tracked by all free-space managers in the file.
+    ///
+    /// Returns an empty vector if no sections are tracked. The sections are returned
+    /// in an unspecified order and describe the file at the time of the query.
+    ///
+    /// Only sections tracked by HDF5 are included, not other padding or unaccounted
+    /// space. Tracking and persistence across closing and reopening the file depend
+    /// on the file's free-space management strategy. An empty result does not imply
+    /// that the file contains no unused bytes.
+    ///
+    /// Requires HDF5 1.10.0 or later.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file handle is invalid, HDF5 cannot retrieve the
+    /// sections, or the section count increases during retrieval.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::File;
+    ///
+    /// let file = File::with_options()
+    ///     .with_fapl(|p| p.core_filebacked(false))
+    ///     .create("free_sections.h5")?;
+    ///
+    /// for section in file.free_sections()? {
+    ///     println!("{}: {} bytes", section.addr, section.size);
+    /// }
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    #[cfg(feature = "1.10.0")]
+    pub fn free_sections(&self) -> Result<Vec<FreeSection>> {
+        h5lock!({
+            let count =
+                h5try!(H5Fget_free_sections(self.id(), H5FD_MEM_DEFAULT, 0, std::ptr::null_mut()))
+                    as usize;
+            if count == 0 {
+                return Ok(Vec::new());
+            }
+            let mut sections = vec![H5F_sect_info_t::default(); count];
+            let actual = h5try!(H5Fget_free_sections(
+                self.id(),
+                H5FD_MEM_DEFAULT,
+                count,
+                sections.as_mut_ptr()
+            )) as usize;
+            ensure!(actual <= count, "Free-space section count increased during retrieval");
+            sections.truncate(actual);
+            Ok(sections
+                .into_iter()
+                .map(|section| FreeSection { addr: section.addr, size: section.size })
+                .collect())
+        })
     }
 
     /// Returns true if the file was opened in a read-only mode.
@@ -362,10 +432,174 @@ impl FileBuilder {
 
 #[cfg(test)]
 pub mod tests {
+    #[cfg(feature = "1.10.0")]
+    use hdf5_sys::h5f::{H5F_sect_info_t, H5FD_MEM_DEFAULT, H5Fget_free_sections};
+    #[cfg(all(feature = "1.10.0", not(feature = "1.10.1")))]
+    use hdf5_sys::{h5f::H5F_FILE_SPACE_ALL, h5p::H5Pset_file_space};
+
+    #[cfg(feature = "1.10.1")]
+    use crate::file::FileSpaceStrategy;
+    #[cfg(feature = "1.10.0")]
+    use crate::file::FreeSection;
     use crate::file::{FileCreate, Sizeof, SizeofInfo};
     use crate::internal_prelude::*;
     use std::fs;
     use std::io::{Read, Write};
+
+    #[cfg(feature = "1.10.0")]
+    fn create_free_sections(file: &File, count: usize) -> Vec<FreeSection> {
+        let data = [1_u8; 8192];
+        let mut sections = Vec::new();
+        for i in 0..count {
+            let deleted_name = format!("deleted_{i}");
+            let retained_name = format!("retained_{i}");
+            let deleted = file
+                .new_dataset_builder()
+                .with_data(&data)
+                .no_chunk()
+                .create(deleted_name.as_str())
+                .unwrap();
+            sections.push(FreeSection { addr: deleted.offset().unwrap(), size: data.len() as u64 });
+            file.new_dataset_builder()
+                .with_data(&data)
+                .no_chunk()
+                .create(retained_name.as_str())
+                .unwrap();
+            drop(deleted);
+        }
+        for i in 0..count {
+            file.unlink(&format!("deleted_{i}")).unwrap();
+        }
+        file.flush().unwrap();
+        sections
+    }
+
+    #[cfg(feature = "1.10.0")]
+    fn assert_free_sections_match_native(file: &File) -> Vec<FreeSection> {
+        h5lock!({
+            let sections = file.free_sections().unwrap();
+            // Spare capacity lets the native call expose an omitted section too.
+            let mut native = vec![H5F_sect_info_t::default(); sections.len() + 1];
+            let count = h5call!(H5Fget_free_sections(
+                file.id(),
+                H5FD_MEM_DEFAULT,
+                native.len(),
+                native.as_mut_ptr()
+            ))
+            .unwrap() as usize;
+            assert_eq!(count, sections.len());
+            native.truncate(count);
+
+            let mut expected: Vec<_> = native.iter().map(|s| (s.addr, s.size)).collect();
+            let mut actual: Vec<_> = sections.iter().map(|s| (s.addr, s.size)).collect();
+            expected.sort_unstable();
+            actual.sort_unstable();
+            assert_eq!(actual, expected);
+            sections
+        })
+    }
+
+    #[cfg(feature = "1.10.1")]
+    #[test]
+    fn test_free_sections_empty() {
+        for strategy in [FileSpaceStrategy::None, FileSpaceStrategy::PageAggregation] {
+            with_tmp_path(|path| {
+                let file = File::with_options()
+                    .with_fcpl(|p| p.file_space_strategy(strategy))
+                    .create(&path)
+                    .unwrap();
+                create_free_sections(&file, 1);
+
+                assert_eq!(assert_free_sections_match_native(&file), Vec::<FreeSection>::new());
+            });
+        }
+    }
+
+    #[cfg(feature = "1.10.0")]
+    #[test]
+    fn test_free_sections_deleted_dataset() {
+        with_tmp_path(|path| {
+            let mut builder = File::with_options();
+            #[cfg(feature = "1.10.1")]
+            builder.with_fcpl(|p| {
+                p.file_space_strategy(FileSpaceStrategy::FreeSpaceManager {
+                    paged: false,
+                    persist: false,
+                    threshold: 8192,
+                })
+            });
+            #[cfg(not(feature = "1.10.1"))]
+            {
+                let fcpl = FileCreate::build().finish().unwrap();
+                h5call!(H5Pset_file_space(fcpl.id(), H5F_FILE_SPACE_ALL, 8192)).unwrap();
+                builder.set_fcpl(&fcpl).unwrap();
+            }
+            let file = builder.create(&path).unwrap();
+            let freed = create_free_sections(&file, 1);
+            let sections = assert_free_sections_match_native(&file);
+
+            assert!(sections.contains(&freed[0]));
+            assert_eq!(
+                file.dataset("retained_0").unwrap().read_raw::<u8>().unwrap(),
+                vec![1; 8192]
+            );
+        });
+    }
+
+    #[cfg(feature = "1.10.1")]
+    #[test]
+    fn test_free_sections_persisted() {
+        for paged in [false, true] {
+            with_tmp_path(|path| {
+                let file = File::with_options()
+                    .with_fcpl(|p| {
+                        p.file_space_page_size(4096).file_space_strategy(
+                            FileSpaceStrategy::FreeSpaceManager {
+                                paged,
+                                persist: true,
+                                threshold: 8192,
+                            },
+                        )
+                    })
+                    .create(&path)
+                    .unwrap();
+                let freed = create_free_sections(&file, 2);
+                let sections = assert_free_sections_match_native(&file);
+                for section in &freed {
+                    assert!(sections.contains(section));
+                }
+                file.close().unwrap();
+
+                let file = File::open(&path).unwrap();
+                let sections = assert_free_sections_match_native(&file);
+                for (i, section) in freed.iter().enumerate() {
+                    assert!(sections.contains(section));
+                    assert_eq!(
+                        file.dataset(&format!("retained_{i}")).unwrap().read_raw::<u8>().unwrap(),
+                        vec![1; 8192]
+                    );
+                }
+            });
+        }
+    }
+
+    #[cfg(feature = "1.10.0")]
+    #[test]
+    fn test_free_sections_invalid_file() {
+        let file = File::from_handle(Handle::invalid());
+        let error = file.free_sections().unwrap_err();
+        let stack = error.stack().unwrap();
+        let frame = stack.top().unwrap();
+        assert_eq!(frame.major_code(), MajorErrorCode::Args);
+        assert_eq!(
+            frame.minor_code(),
+            if cfg!(feature = "1.10.7") {
+                MinorErrorCode::BadType
+            } else {
+                MinorErrorCode::BadValue
+            }
+        );
+    }
 
     #[test]
     pub fn test_is_read_only() {

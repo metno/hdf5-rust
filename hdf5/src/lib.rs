@@ -71,6 +71,9 @@ mod export {
         },
     };
 
+    #[cfg(feature = "1.10.0")]
+    pub use crate::hl::FreeSection;
+
     #[cfg(feature = "1.12.1")]
     pub use crate::hl::references::ObjectReference2;
 
@@ -104,6 +107,8 @@ mod export {
 
     /// HDF5 file objects.
     pub mod file {
+        #[cfg(feature = "1.10.0")]
+        pub use crate::hl::file::FreeSection;
         pub use crate::hl::file::{File, FileBuilder, OpenMode};
         pub use crate::hl::plist::file_access::*;
         pub use crate::hl::plist::file_create::*;

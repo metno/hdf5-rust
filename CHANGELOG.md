@@ -1,6 +1,7 @@
 # Changelog
 
 ## hdf5 unreleased
+- Added `File::free_sections` and `FreeSection` to enumerate HDF5-tracked free-space sections (HDF5 1.10.0+)
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased

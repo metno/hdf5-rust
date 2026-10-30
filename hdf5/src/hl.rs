@@ -16,6 +16,9 @@ pub mod plist;
 pub mod references;
 pub mod selection;
 
+#[cfg(feature = "1.10.0")]
+pub use self::file::FreeSection;
+
 pub use self::{
     attribute::{
         AttrInfo, Attribute, AttributeBuilder, AttributeBuilderData, AttributeBuilderEmpty,
