@@ -32,8 +32,9 @@ fn configure_cmake_cross_run_advanced_cache_vars(cfg: &mut cmake::Config) {
 fn main() {
     println!("cargo::rerun-if-changed=build.rs");
     let mut cfg = cmake::Config::new("ext/hdf5");
+    let target_is_msvc = std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc");
 
-    if cfg!(target_env = "msvc") {
+    if target_is_msvc {
         cfg.define("CMAKE_POLICY_DEFAULT_CMP0091", "NEW");
         if let Ok(var) = env::var("CMAKE_MSVC_RUNTIME_LIBRARY") {
             cfg.define("CMAKE_MSVC_RUNTIME_LIBRARY", var);
@@ -101,8 +102,7 @@ fn main() {
 
     if feature_enabled("HL") {
         cfg.define("HDF5_BUILD_HL_LIB", "ON");
-        let hdf5_hl_lib =
-            if cfg!(target_env = "msvc") { "libhdf5_hl" } else { "hdf5_hl" }.to_owned();
+        let hdf5_hl_lib = if target_is_msvc { "libhdf5_hl" } else { "hdf5_hl" }.to_owned();
         println!("cargo::metadata=hl_library={}", hdf5_hl_lib);
     }
 
@@ -120,7 +120,7 @@ fn main() {
     let hdf5_incdir = format!("{}/include", dst.display());
     println!("cargo::metadata=include={}", hdf5_incdir);
 
-    let hdf5_lib = if cfg!(target_env = "msvc") { "libhdf5" } else { "hdf5" }.to_owned();
+    let hdf5_lib = if target_is_msvc { "libhdf5" } else { "hdf5" }.to_owned();
 
     println!("cargo::metadata=library={}", hdf5_lib);
 }
