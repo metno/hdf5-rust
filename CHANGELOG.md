@@ -4,7 +4,9 @@
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
+- Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs
 ## hdf5-src unreleased
+- Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs
 
 ## hdf5 0.15.1
 Release date: Oct 26, 2026
