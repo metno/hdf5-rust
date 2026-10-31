@@ -5,13 +5,13 @@ use std::ops::Deref;
 use std::ptr::{addr_of, addr_of_mut};
 
 use hdf5_sys::h5t::{
-    H5T_VARIABLE, H5T_cdata_t, H5T_class_t, H5T_cset_t, H5T_order_t, H5T_sign_t, H5T_str_t,
-    H5Tarray_create2, H5Tcommitted, H5Tcompiler_conv, H5Tcopy, H5Tcreate, H5Tdetect_class,
-    H5Tenum_create, H5Tenum_insert, H5Tequal, H5Tfind, H5Tget_array_dims2, H5Tget_array_ndims,
-    H5Tget_class, H5Tget_cset, H5Tget_member_name, H5Tget_member_offset, H5Tget_member_type,
-    H5Tget_member_value, H5Tget_nmembers, H5Tget_order, H5Tget_sign, H5Tget_size, H5Tget_super,
-    H5Tinsert, H5Tis_variable_str, H5Tset_cset, H5Tset_order, H5Tset_size, H5Tset_strpad,
-    H5Tvlen_create,
+    H5T_VARIABLE, H5T_cdata_t, H5T_class_t, H5T_cset_t, H5T_order_t, H5T_pad_t, H5T_sign_t,
+    H5T_str_t, H5Tarray_create2, H5Tcommitted, H5Tcompiler_conv, H5Tcopy, H5Tcreate,
+    H5Tdetect_class, H5Tenum_create, H5Tenum_insert, H5Tequal, H5Tfind, H5Tget_array_dims2,
+    H5Tget_array_ndims, H5Tget_class, H5Tget_cset, H5Tget_member_name, H5Tget_member_offset,
+    H5Tget_member_type, H5Tget_member_value, H5Tget_nmembers, H5Tget_order, H5Tget_sign,
+    H5Tget_size, H5Tget_super, H5Tinsert, H5Tis_variable_str, H5Tset_cset, H5Tset_order,
+    H5Tset_size, H5Tset_strpad, H5Tvlen_create,
 };
 use hdf5_types::{
     CompoundField, CompoundType, EnumMember, EnumType, FloatSize, H5Type, IntSize, TypeDescriptor,
@@ -19,6 +19,10 @@ use hdf5_types::{
 
 use crate::globals::{H5T_C_S1, H5T_NATIVE_INT, H5T_NATIVE_INT8};
 use crate::internal_prelude::*;
+
+mod integer;
+
+pub use self::integer::{IntegerLayout, IntegerLayoutBuilder};
 
 enum EnumMembers<'a> {
     Bool,
@@ -228,6 +232,57 @@ impl From<H5T_order_t> for ByteOrder {
     }
 }
 
+impl TryFrom<ByteOrder> for H5T_order_t {
+    type Error = Error;
+
+    fn try_from(order: ByteOrder) -> Result<Self> {
+        Ok(match order {
+            ByteOrder::LittleEndian => Self::H5T_ORDER_LE,
+            ByteOrder::BigEndian => Self::H5T_ORDER_BE,
+            ByteOrder::Vax => Self::H5T_ORDER_VAX,
+            #[cfg(feature = "1.8.6")]
+            ByteOrder::Mixed => Self::H5T_ORDER_MIXED,
+            #[cfg(not(feature = "1.8.6"))]
+            ByteOrder::Mixed => fail!("Mixed byte order requires HDF5 1.8.6 or later"),
+            ByteOrder::None => Self::H5T_ORDER_NONE,
+        })
+    }
+}
+
+/// The padding of bits outside a datatype's significant-bit range.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Padding {
+    /// Sets padding bits to zero.
+    Zero,
+    /// Sets padding bits to one.
+    One,
+    /// Leaves padding bits unchanged in the conversion's background buffer.
+    Background,
+}
+
+impl From<Padding> for H5T_pad_t {
+    fn from(padding: Padding) -> Self {
+        match padding {
+            Padding::Zero => Self::H5T_PAD_ZERO,
+            Padding::One => Self::H5T_PAD_ONE,
+            Padding::Background => Self::H5T_PAD_BACKGROUND,
+        }
+    }
+}
+
+impl TryFrom<H5T_pad_t> for Padding {
+    type Error = Error;
+
+    fn try_from(padding: H5T_pad_t) -> Result<Self> {
+        match padding {
+            H5T_pad_t::H5T_PAD_ZERO => Ok(Self::Zero),
+            H5T_pad_t::H5T_PAD_ONE => Ok(Self::One),
+            H5T_pad_t::H5T_PAD_BACKGROUND => Ok(Self::Background),
+            _ => fail!("Invalid datatype padding"),
+        }
+    }
+}
+
 impl Datatype {
     /// Get the total size of the datatype in bytes.
     #[allow(clippy::unnecessary_cast)]
@@ -259,16 +314,7 @@ impl Datatype {
     /// # Ok::<(), hdf5_metno::Error>(())
     /// ```
     pub fn with_byte_order(&self, order: ByteOrder) -> Result<Self> {
-        let order = match order {
-            ByteOrder::LittleEndian => H5T_order_t::H5T_ORDER_LE,
-            ByteOrder::BigEndian => H5T_order_t::H5T_ORDER_BE,
-            ByteOrder::Vax => H5T_order_t::H5T_ORDER_VAX,
-            #[cfg(feature = "1.8.6")]
-            ByteOrder::Mixed => H5T_order_t::H5T_ORDER_MIXED,
-            #[cfg(not(feature = "1.8.6"))]
-            ByteOrder::Mixed => fail!("Mixed byte order requires HDF5 1.8.6 or later"),
-            ByteOrder::None => H5T_order_t::H5T_ORDER_NONE,
-        };
+        let order = order.try_into()?;
         h5lock!({
             let datatype = Self::from_id(h5try!(H5Tcopy(self.id())))?;
             h5try!(H5Tset_order(datatype.id(), order));
