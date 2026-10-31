@@ -6,7 +6,10 @@ use ndarray::{Array1, Array2, ArrayD, IxDyn, SliceInfo, s};
 use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 
 use hdf5_metno as hdf5;
-use hdf5_metno::{H5Type, datatype::ByteOrder};
+use hdf5_metno::{
+    H5Type,
+    datatype::{ByteOrder, IntegerLayout, Padding},
+};
 use hdf5_types::{TypeDescriptor, VarLenUnicode};
 use tempfile::tempdir;
 
@@ -831,6 +834,29 @@ fn test_empty_as_datatype_with_byte_order() -> hdf5::Result<()> {
 
     assert_eq!(dataset.dtype()?.byte_order(), order);
     assert_eq!(dataset.read_raw::<i32>()?, values);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_preserves_integer_layout() -> hdf5::Result<()> {
+    let layout = IntegerLayout::builder()
+        .size(3)
+        .byte_order(ByteOrder::BigEndian)
+        .signed(false)
+        .bit_precision(20)
+        .bit_offset(2)
+        .low_padding(Padding::One)
+        .high_padding(Padding::Zero)
+        .build()?;
+    let dtype = hdf5::Datatype::from_integer_layout(&layout)?;
+    let file = new_in_memory_file()?;
+    let values = [0_u32, 1, 0xabcde];
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(values.len()).create("data")?;
+    dataset.write(&values)?;
+
+    assert_eq!(dataset.dtype()?.integer_layout()?, layout);
+    assert_eq!(dataset.read_raw::<u32>()?, values);
     Ok(())
 }
 
