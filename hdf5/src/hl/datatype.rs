@@ -505,6 +505,29 @@ impl Datatype {
         })
     }
 
+    /// Creates an opaque datatype with the specified size in bytes.
+    ///
+    /// An opaque datatype stores uninterpreted bytes. It has a distinct HDF5
+    /// datatype class from an array of bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `size` is zero or HDF5 cannot create the datatype.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::Datatype;
+    ///
+    /// let datatype = Datatype::opaque(16)?;
+    /// assert_eq!(datatype.size(), 16);
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn opaque(size: usize) -> Result<Self> {
+        ensure!(size > 0, "Opaque datatype size must be positive");
+        h5lock!(Self::from_id(h5try!(H5Tcreate(H5T_class_t::H5T_OPAQUE, size))))
+    }
+
     /// Creates a datatype from a concrete type.
     pub fn from_type<T: H5Type>() -> Result<Self> {
         Self::from_descriptor(&<T as H5Type>::type_descriptor())
