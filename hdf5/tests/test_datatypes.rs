@@ -6,6 +6,7 @@ use hdf5::types::{TypeDescriptor as TD, *};
 use hdf5::{Datatype, H5Type, MajorErrorCode, MinorErrorCode, from_id};
 use hdf5_metno as hdf5;
 use hdf5_sys::h5i::H5I_INVALID_HID;
+use hdf5_sys::h5t::{H5T_class_t, H5Tget_class};
 use pretty_assertions::{assert_eq, assert_str_eq};
 
 use self::common::util::new_in_memory_file;
@@ -199,6 +200,26 @@ pub fn test_with_byte_order_committed_datatype() -> hdf5::Result<()> {
     assert!(committed.as_datatype().is_committed());
     assert_eq!(committed.as_datatype().byte_order(), ByteOrder::LittleEndian);
     Ok(())
+}
+
+#[test]
+pub fn test_opaque_datatype_class() -> hdf5::Result<()> {
+    let datatype = Datatype::opaque(16)?;
+
+    let class = hdf5::h5lock!(H5Tget_class(datatype.id()));
+
+    assert_eq!(class, H5T_class_t::H5T_OPAQUE);
+    Ok(())
+}
+
+#[test]
+pub fn test_opaque_datatype_rejects_zero_size() {
+    let error = Datatype::opaque(0).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a size validation error, got {error:?}");
+    };
+    assert_str_eq!(message, "Opaque datatype size must be positive");
 }
 
 #[test]
