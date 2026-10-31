@@ -102,7 +102,9 @@ mod export {
     /// Datatype objects for defining the layout of a data element.
     pub mod datatype {
         pub use crate::hl::committed_datatype::CommittedDatatype;
-        pub use crate::hl::datatype::{ByteOrder, Conversion, Datatype};
+        pub use crate::hl::datatype::{
+            ByteOrder, Conversion, Datatype, IntegerLayout, IntegerLayoutBuilder, Padding,
+        };
     }
 
     /// HDF5 file objects.

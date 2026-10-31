@@ -2,6 +2,7 @@
 
 ## hdf5 unreleased
 - Added `Datatype::opaque` to construct an opaque datatype with a specified size
+- Added `IntegerLayout`, `IntegerLayoutBuilder`, and `Padding` with `Datatype::integer_layout`, `from_integer_layout`, and `with_integer_layout` for integer storage representation inspection and configuration
 - Added `Datatype::with_byte_order` to return a copy with the requested byte order
 - Added `File::free_sections` and `FreeSection` to enumerate HDF5-tracked free-space sections (HDF5 1.10.0+)
 ## hdf5-derive unreleased
