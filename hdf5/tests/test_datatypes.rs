@@ -1,8 +1,9 @@
 #[macro_use]
 mod common;
 
+use hdf5::datatype::ByteOrder;
 use hdf5::types::{TypeDescriptor as TD, *};
-use hdf5::{Datatype, H5Type, from_id};
+use hdf5::{Datatype, H5Type, MajorErrorCode, MinorErrorCode, from_id};
 use hdf5_metno as hdf5;
 use hdf5_sys::h5i::H5I_INVALID_HID;
 use pretty_assertions::{assert_eq, assert_str_eq};
@@ -136,6 +137,68 @@ pub fn test_datatype_roundtrip() {
         size: 16,
     });
     check_roundtrip!(E, e_desc);
+}
+
+#[test]
+pub fn test_with_byte_order_numeric_types() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<i32>()?;
+    let float = Datatype::from_type::<f64>()?;
+
+    let little_integer = integer.with_byte_order(ByteOrder::LittleEndian)?;
+    let big_integer = integer.with_byte_order(ByteOrder::BigEndian)?;
+    let little_float = float.with_byte_order(ByteOrder::LittleEndian)?;
+    let big_float = float.with_byte_order(ByteOrder::BigEndian)?;
+
+    assert_eq!(little_integer.byte_order(), ByteOrder::LittleEndian);
+    assert_eq!(big_integer.byte_order(), ByteOrder::BigEndian);
+    assert_eq!(little_float.byte_order(), ByteOrder::LittleEndian);
+    assert_eq!(big_float.byte_order(), ByteOrder::BigEndian);
+
+    assert_eq!(little_integer.to_descriptor()?, integer.to_descriptor()?);
+    assert_eq!(big_integer.to_descriptor()?, integer.to_descriptor()?);
+    assert_eq!(little_float.to_descriptor()?, float.to_descriptor()?);
+    assert_eq!(big_float.to_descriptor()?, float.to_descriptor()?);
+    Ok(())
+}
+
+#[test]
+pub fn test_with_byte_order_preserves_original_and_clone() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<u32>()?;
+    let alias = original.clone();
+    let original_order = original.byte_order();
+    let other_order = if original_order == ByteOrder::LittleEndian {
+        ByteOrder::BigEndian
+    } else {
+        ByteOrder::LittleEndian
+    };
+
+    let configured = alias.with_byte_order(other_order)?;
+    assert_eq!(configured.byte_order(), other_order);
+    assert_eq!(original.byte_order(), original_order);
+    assert_eq!(alias.byte_order(), original_order);
+
+    let error = alias.with_byte_order(ByteOrder::None).unwrap_err();
+    assert!(error.contains_major(MajorErrorCode::Datatype), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::BadValue), "{error:?}");
+    assert_eq!(original.byte_order(), original_order);
+    assert_eq!(alias.byte_order(), original_order);
+    Ok(())
+}
+
+#[test]
+pub fn test_with_byte_order_committed_datatype() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let original = Datatype::from_type::<u32>()?.with_byte_order(ByteOrder::LittleEndian)?;
+    file.commit_datatype("little_endian", &original)?;
+    let committed = file.committed_datatype("little_endian")?;
+
+    let configured = committed.as_datatype().with_byte_order(ByteOrder::BigEndian)?;
+
+    assert!(!configured.is_committed());
+    assert_eq!(configured.byte_order(), ByteOrder::BigEndian);
+    assert!(committed.as_datatype().is_committed());
+    assert_eq!(committed.as_datatype().byte_order(), ByteOrder::LittleEndian);
+    Ok(())
 }
 
 #[test]

@@ -6,7 +6,7 @@ use ndarray::{Array1, Array2, ArrayD, IxDyn, SliceInfo, s};
 use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 
 use hdf5_metno as hdf5;
-use hdf5_metno::H5Type;
+use hdf5_metno::{H5Type, datatype::ByteOrder};
 use hdf5_types::{TypeDescriptor, VarLenUnicode};
 use tempfile::tempdir;
 
@@ -815,6 +815,22 @@ fn test_empty_as_datatype_converts_on_write() -> hdf5::Result<()> {
     let ds = file.new_dataset_builder().empty_as(&dtype).shape(3).create("ds")?;
     ds.write(&[1_i32, -2, 3])?;
     assert_eq!(ds.read_1d::<i64>()?.to_vec(), vec![1, -2, 3]);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_with_byte_order() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let order =
+        if cfg!(target_endian = "little") { ByteOrder::BigEndian } else { ByteOrder::LittleEndian };
+    let dtype = hdf5::Datatype::from_type::<i32>()?.with_byte_order(order)?;
+    let values = [0x0102_0304_i32, -7, i32::MIN];
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(values.len()).create("data")?;
+    dataset.write(&values)?;
+
+    assert_eq!(dataset.dtype()?.byte_order(), order);
+    assert_eq!(dataset.read_raw::<i32>()?, values);
     Ok(())
 }
 

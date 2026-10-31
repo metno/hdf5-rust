@@ -10,7 +10,8 @@ use hdf5_sys::h5t::{
     H5Tenum_create, H5Tenum_insert, H5Tequal, H5Tfind, H5Tget_array_dims2, H5Tget_array_ndims,
     H5Tget_class, H5Tget_cset, H5Tget_member_name, H5Tget_member_offset, H5Tget_member_type,
     H5Tget_member_value, H5Tget_nmembers, H5Tget_order, H5Tget_sign, H5Tget_size, H5Tget_super,
-    H5Tinsert, H5Tis_variable_str, H5Tset_cset, H5Tset_size, H5Tset_strpad, H5Tvlen_create,
+    H5Tinsert, H5Tis_variable_str, H5Tset_cset, H5Tset_order, H5Tset_size, H5Tset_strpad,
+    H5Tvlen_create,
 };
 use hdf5_types::{
     CompoundField, CompoundType, EnumMember, EnumType, FloatSize, H5Type, IntSize, TypeDescriptor,
@@ -237,6 +238,42 @@ impl Datatype {
     /// Get the byte order of the datatype.
     pub fn byte_order(&self) -> ByteOrder {
         h5lock!(H5Tget_order(self.id())).into()
+    }
+
+    /// Returns a copy of this datatype with the specified byte order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the datatype cannot be copied or HDF5 does not support
+    /// the requested byte order for the datatype.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{Datatype, datatype::ByteOrder};
+    ///
+    /// let original = Datatype::from_type::<u32>()?;
+    /// let big_endian = original.with_byte_order(ByteOrder::BigEndian)?;
+    ///
+    /// assert_eq!(big_endian.byte_order(), ByteOrder::BigEndian);
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn with_byte_order(&self, order: ByteOrder) -> Result<Self> {
+        let order = match order {
+            ByteOrder::LittleEndian => H5T_order_t::H5T_ORDER_LE,
+            ByteOrder::BigEndian => H5T_order_t::H5T_ORDER_BE,
+            ByteOrder::Vax => H5T_order_t::H5T_ORDER_VAX,
+            #[cfg(feature = "1.8.6")]
+            ByteOrder::Mixed => H5T_order_t::H5T_ORDER_MIXED,
+            #[cfg(not(feature = "1.8.6"))]
+            ByteOrder::Mixed => fail!("Mixed byte order requires HDF5 1.8.6 or later"),
+            ByteOrder::None => H5T_order_t::H5T_ORDER_NONE,
+        };
+        h5lock!({
+            let datatype = Self::from_id(h5try!(H5Tcopy(self.id())))?;
+            h5try!(H5Tset_order(datatype.id(), order));
+            Ok(datatype)
+        })
     }
 
     /// Whether this datatype is a committed datatype stored in a file.
