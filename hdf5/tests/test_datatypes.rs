@@ -1,7 +1,7 @@
 #[macro_use]
 mod common;
 
-use hdf5::datatype::ByteOrder;
+use hdf5::datatype::{ByteOrder, IntegerLayout};
 use hdf5::types::{TypeDescriptor as TD, *};
 use hdf5::{Datatype, H5Type, MajorErrorCode, MinorErrorCode, from_id};
 use hdf5_metno as hdf5;
@@ -198,6 +198,48 @@ pub fn test_with_byte_order_committed_datatype() -> hdf5::Result<()> {
     assert_eq!(configured.byte_order(), ByteOrder::BigEndian);
     assert!(committed.as_datatype().is_committed());
     assert_eq!(committed.as_datatype().byte_order(), ByteOrder::LittleEndian);
+    Ok(())
+}
+
+#[test]
+pub fn test_integer_layout_rejects_bits_beyond_storage() {
+    let error = IntegerLayout::builder()
+        .size(3)
+        .byte_order(ByteOrder::BigEndian)
+        .signed(false)
+        .bit_precision(20)
+        .bit_offset(5)
+        .build()
+        .unwrap_err();
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a layout validation error, got {error:?}");
+    };
+    assert_str_eq!(message, "Integer significant bits exceed the storage size");
+}
+
+#[test]
+pub fn test_with_integer_layout_does_not_modify_original() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<i32>()?;
+    let alias = original.clone();
+    let original_layout = original.integer_layout()?;
+    let layout = original_layout.to_builder().signed(false).build()?;
+
+    let configured = alias.with_integer_layout(&layout)?;
+
+    assert!(!configured.integer_layout()?.signed());
+    assert_eq!(original.integer_layout()?, original_layout);
+    assert_eq!(alias.integer_layout()?, original_layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_with_integer_layout_shrinks_storage() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<u64>()?;
+    let layout = original.integer_layout()?.to_builder().size(3).bit_precision(24).build()?;
+
+    let configured = original.with_integer_layout(&layout)?;
+
+    assert_eq!(configured.integer_layout()?, layout);
     Ok(())
 }
 
