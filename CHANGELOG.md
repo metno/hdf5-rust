@@ -1,7 +1,7 @@
 # Changelog
 
 ## hdf5 unreleased
-- Added `Datatype::with_byte_order` to return a transient copy with the requested byte order
+- Added `Datatype::with_byte_order` to return a copy with the requested byte order
 - Added `File::free_sections` and `FreeSection` to enumerate HDF5-tracked free-space sections (HDF5 1.10.0+)
 ## hdf5-derive unreleased
 ## hdf5-types unreleased

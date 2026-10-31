@@ -242,9 +242,6 @@ impl Datatype {
 
     /// Returns a copy of this datatype with the specified byte order.
     ///
-    /// The original datatype is not modified. The returned datatype is transient,
-    /// even if `self` is committed.
-    ///
     /// # Errors
     ///
     /// Returns an error if the datatype cannot be copied or HDF5 does not support
