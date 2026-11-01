@@ -7,6 +7,7 @@ use std::ptr::{self, addr_of_mut};
 #[cfg(feature = "1.10.0")]
 use bitflags::bitflags;
 
+use hdf5_sys::h5::HDoff_t;
 use hdf5_sys::h5d::{H5D_alloc_time_t, H5D_fill_time_t, H5D_fill_value_t, H5D_layout_t};
 use hdf5_sys::h5f::H5F_UNLIMITED;
 use hdf5_sys::h5p::{
@@ -914,7 +915,8 @@ impl DatasetCreate {
             let count = h5try!(H5Pget_external_count(self.id()));
             let mut name: Vec<c_char> = vec![0; NAME_LEN + 1];
             for idx in 0..count {
-                let mut offset: libc::off_t = 0;
+                // Reserve the full HDF5 offset width for the getter's output.
+                let mut offset: HDoff_t = 0;
                 let mut size: hsize_t = 0;
                 h5try!(H5Pget_external(
                     self.id(),

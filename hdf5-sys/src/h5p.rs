@@ -388,11 +388,11 @@ unsafe extern "C" {
     pub unsafe fn H5Pset_chunk(plist_id: hid_t, ndims: c_int, dim: *const hsize_t) -> herr_t;
     pub unsafe fn H5Pget_chunk(plist_id: hid_t, max_ndims: c_int, dim: *mut hsize_t) -> c_int;
     pub unsafe fn H5Pset_external(
-        plist_id: hid_t, name: *const c_char, offset: off_t, size: hsize_t,
+        plist_id: hid_t, name: *const c_char, offset: HDoff_t, size: hsize_t,
     ) -> herr_t;
     pub unsafe fn H5Pget_external_count(plist_id: hid_t) -> c_int;
     pub unsafe fn H5Pget_external(
-        plist_id: hid_t, idx: c_uint, name_size: size_t, name: *mut c_char, offset: *mut off_t,
+        plist_id: hid_t, idx: c_uint, name_size: size_t, name: *mut c_char, offset: *mut HDoff_t,
         size: *mut hsize_t,
     ) -> herr_t;
     pub unsafe fn H5Pset_szip(
