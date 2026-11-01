@@ -66,8 +66,8 @@ fn known_hdf5_versions() -> Vec<Version> {
     vs.extend((0..=1).map(|v| Version::new(2, 1, v))); // 2.1.[0-1]
     vs.extend((0..=0).map(|v| Version::new(2, 0, v))); // 2.0.[0]
     vs.extend((5..=23).map(|v| Version::new(1, 8, v))); // 1.8.[5-23]
-    vs.extend((0..=10).map(|v| Version::new(1, 10, v))); // 1.10.[0-10]
-    vs.extend((0..=2).map(|v| Version::new(1, 12, v))); // 1.12.[0-2]
+    vs.extend((0..=11).map(|v| Version::new(1, 10, v))); // 1.10.[0-11]
+    vs.extend((0..=3).map(|v| Version::new(1, 12, v))); // 1.12.[0-3]
     vs.extend((0..=6).map(|v| Version::new(1, 14, v))); // 1.14.[0-6]
     vs
 }
@@ -184,11 +184,13 @@ fn validate_runtime_version(config: &Config) {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Header {
     pub have_stdbool_h: bool,
+    pub have_win32_api: bool,
     pub have_direct: bool,
     pub have_parallel: bool,
     pub have_threadsafe: bool,
     pub have_no_deprecated: bool,
     pub have_filter_deflate: bool,
+    pub sizeof_off_t: usize,
     pub version: Version,
 }
 
@@ -208,6 +210,10 @@ impl Header {
             let value = captures.get(2).unwrap().as_str().parse::<i64>().unwrap();
             if name == "H5_HAVE_STDBOOL_H" {
                 hdr.have_stdbool_h = value > 0;
+            } else if name == "H5_HAVE_WIN32_API" {
+                hdr.have_win32_api = value > 0;
+            } else if name == "H5_SIZEOF_OFF_T" {
+                hdr.sizeof_off_t = value.try_into().expect("Invalid H5_SIZEOF_OFF_T");
             } else if name == "H5_HAVE_DIRECT" {
                 hdr.have_direct = value > 0;
             } else if name == "H5_HAVE_PARALLEL" {
@@ -717,6 +723,16 @@ impl Config {
             println!("cargo::rustc-cfg=feature=\"{}.{}.{}\"", v.major, v.minor, v.micro);
             println!("cargo::metadata=version_{}_{}_{}=1", v.major, v.minor, v.micro);
         }
+
+        // HDF5 can enable 64-bit file offsets independently of Rust's libc configuration.
+        let mut offset_size = self.header.sizeof_off_t;
+        // HDF5 2.x uses int64_t for HDoff_t on Windows, where off_t remains 32-bit.
+        if self.header.have_win32_api && version >= Version::new(2, 0, 0) {
+            offset_size = 8;
+        }
+        assert!(matches!(offset_size, 4 | 8), "Unsupported HDF5 offset size: {offset_size}");
+        println!("cargo::rustc-check-cfg=cfg(hdf5_off_t_size, values(\"4\", \"8\"))");
+        println!("cargo::rustc-cfg=hdf5_off_t_size=\"{offset_size}\"");
 
         println!("cargo::rustc-check-cfg=cfg(have_stdbool_h)");
         if self.header.have_stdbool_h {

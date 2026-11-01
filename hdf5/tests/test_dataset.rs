@@ -634,6 +634,58 @@ fn test_create_on_databuilder() {
     let _ds = file.new_dataset::<i32>().shape(2).create("ds4").unwrap();
 }
 
+#[test]
+fn test_external_storage_roundtrip() -> hdf5::Result<()> {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("external.h5");
+    let external_path = dir.path().join("payload.bin");
+    let values = [1_i32, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+    // Close both handles so readback uses the external storage metadata saved on disk.
+    {
+        let file = hdf5::File::create(&path)?;
+        let ds = file
+            .new_dataset::<i32>()
+            .external(external_path.to_str().unwrap(), 0, 64)
+            .shape([16])
+            .create("d")?;
+        ds.write(&values)?;
+    }
+
+    assert_eq!(std::fs::metadata(&external_path).unwrap().len(), 64);
+    let file = hdf5::File::open(&path)?;
+    assert_eq!(file.dataset("d")?.read_raw::<i32>()?, values);
+    Ok(())
+}
+
+#[test]
+fn test_external_storage_nonzero_offset_roundtrip() -> hdf5::Result<()> {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("external.h5");
+    let external_path = dir.path().join("payload.bin");
+    let values = [1_i32, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    // The external offset must leave existing bytes before the dataset untouched.
+    let prefix = b"external data prefix";
+    std::fs::write(&external_path, prefix).unwrap();
+
+    {
+        let file = hdf5::File::create(&path)?;
+        let ds = file
+            .new_dataset::<i32>()
+            .external(external_path.to_str().unwrap(), prefix.len(), 64)
+            .shape([16])
+            .create("d")?;
+        ds.write(&values)?;
+    }
+
+    assert_eq!(std::fs::metadata(&external_path).unwrap().len(), prefix.len() as u64 + 64);
+    let bytes = std::fs::read(&external_path).unwrap();
+    assert_eq!(&bytes[..prefix.len()], prefix);
+    let file = hdf5::File::open(&path)?;
+    assert_eq!(file.dataset("d")?.read_raw::<i32>()?, values);
+    Ok(())
+}
+
 #[derive(H5Type, Clone, Debug, PartialEq)]
 #[repr(C)]
 struct Point {

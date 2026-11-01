@@ -180,6 +180,40 @@ jobs:
         env:
           FEATURES: hdf5-sys/static,hdf5-sys/zlib,lzf,blosc-all
 
+  cross:
+    name: i686 / HDF5 ${{matrix.hdf5}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {hdf5: 1.8.23, tag: hdf5-1_8_23}
+          - {hdf5: 1.10.11, tag: hdf5-1_10_11}
+          - {hdf5: 1.12.3, tag: hdf5-1_12_3}
+          - {hdf5: 1.14.6, tag: hdf5_1.14.6}
+          - {hdf5: 2.0.0, tag: 2.0.0}
+          - {hdf5: 2.2.0, tag: 2.2.0}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with: {submodules: true}
+      - name: Select HDF5 release
+        env:
+          HDF5_TAG: ${{matrix.tag}}
+        run: |
+          git -C hdf5-src/ext/hdf5 fetch --depth 1 origin "$HDF5_TAG"
+          git -C hdf5-src/ext/hdf5 checkout --detach FETCH_HEAD
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with: {targets: i686-unknown-linux-gnu}
+      - name: Install cross
+        run: cargo install cross --version 0.2.5 --locked
+      - name: Build and test all crates
+        run: >-
+          cross test --workspace --target i686-unknown-linux-gnu
+          --features hdf5-sys/static,hdf5-sys/zlib
+          --exclude hdf5-metno-derive --no-fail-fast
+
   apt:
     name: apt
     runs-on: ubuntu-22.04
