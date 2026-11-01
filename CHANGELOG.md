@@ -1,6 +1,7 @@
 # Changelog
 
 ## hdf5 unreleased
+- Recognized HDF5 1.10.11 and 1.12.3 version features
 - Added `Datatype::opaque` to construct an opaque datatype with a specified size
 - Added `IntegerLayout`, `IntegerLayoutBuilder`, and `Padding` with `Datatype::integer_layout`, `from_integer_layout`, and `with_integer_layout` for integer storage representation inspection and configuration
 - Added `Datatype::with_byte_order` to return a copy with the requested byte order
@@ -8,6 +9,7 @@
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
+- Recognized HDF5 1.10.11 and 1.12.3 version features
 - Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs
 ## hdf5-src unreleased
 - Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs
