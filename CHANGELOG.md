@@ -12,6 +12,7 @@
 - Recognized HDF5 1.10.11 and 1.12.3 version features
 - Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs
 ## hdf5-src unreleased
+- Fixed static library discovery for bundled HDF5 Debug builds, including the high-level library
 - Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs
 
 ## hdf5 0.15.1

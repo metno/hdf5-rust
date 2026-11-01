@@ -1,7 +1,45 @@
 use std::env;
+use std::path::PathBuf;
 
 fn feature_enabled(feature: &str) -> bool {
     env::var(format!("CARGO_FEATURE_{}", feature)).is_ok()
+}
+
+struct Hdf5Libraries {
+    root: PathBuf,
+    target_is_msvc: bool,
+}
+
+impl Hdf5Libraries {
+    fn library_name(&self, name: &str) -> String {
+        let lib_dir = self.root.join("lib");
+
+        // Unix and GNU toolchains use lib-prefixed .a archives.
+        let mut prefix = "lib";
+        let mut extension = "a";
+        let mut base_name = name.to_owned();
+
+        // MSVC uses .lib archives, and HDF5 includes "lib" in the library's link name.
+        if self.target_is_msvc {
+            prefix = "";
+            extension = "lib";
+            base_name = format!("lib{name}");
+        }
+
+        // Try the unsuffixed name first, then the Unix and Windows suffixes used by older Debug builds.
+        for suffix in ["", "_debug", "_D"] {
+            let link_name = format!("{base_name}{suffix}");
+            let archive = lib_dir.join(format!("{prefix}{link_name}.{extension}"));
+
+            // Return the link name only if the corresponding archive was installed.
+            if archive.is_file() {
+                return link_name;
+            }
+        }
+
+        // Report a missing archive here instead of emitting an unusable linker name.
+        panic!("HDF5 static library {name} not found in {}", lib_dir.display());
+    }
 }
 
 // Fix for: CMake Error: TRY_RUN() invoked in cross-compiling mode, please set the following cache variables appropriately
@@ -102,8 +140,6 @@ fn main() {
 
     if feature_enabled("HL") {
         cfg.define("HDF5_BUILD_HL_LIB", "ON");
-        let hdf5_hl_lib = if target_is_msvc { "libhdf5_hl" } else { "hdf5_hl" }.to_owned();
-        println!("cargo::metadata=hl_library={}", hdf5_hl_lib);
     }
 
     if cfg!(unix) && targeting_windows {
@@ -120,7 +156,14 @@ fn main() {
     let hdf5_incdir = format!("{}/include", dst.display());
     println!("cargo::metadata=include={}", hdf5_incdir);
 
-    let hdf5_lib = if target_is_msvc { "libhdf5" } else { "hdf5" }.to_owned();
-
+    // Archive names can vary with the HDF5 release and build type, so inspect them after installation.
+    let libraries = Hdf5Libraries { root: dst, target_is_msvc };
+    let hdf5_lib = libraries.library_name("hdf5");
     println!("cargo::metadata=library={}", hdf5_lib);
+
+    // The high-level archive is installed only when its feature is enabled.
+    if feature_enabled("HL") {
+        let hdf5_hl_lib = libraries.library_name("hdf5_hl");
+        println!("cargo::metadata=hl_library={}", hdf5_hl_lib);
+    }
 }
