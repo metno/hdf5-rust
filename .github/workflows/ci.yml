@@ -201,6 +201,8 @@ jobs:
         env:
           HDF5_TAG: ${{matrix.tag}}
         run: |
+          # We don't support this "installation" method, but need it for regression testing
+          # as there's no other reliable way to install latest patched versions on 32-bit hosts
           git -C hdf5-src/ext/hdf5 fetch --depth 1 origin "$HDF5_TAG"
           git -C hdf5-src/ext/hdf5 checkout --detach FETCH_HEAD
       - name: Install Rust

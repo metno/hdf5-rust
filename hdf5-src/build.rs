@@ -14,16 +14,17 @@ impl Hdf5Libraries {
     fn library_name(&self, name: &str) -> String {
         let lib_dir = self.root.join("lib");
 
-        // Unix and GNU toolchains use lib-prefixed .a archives.
-        let mut prefix = "lib";
-        let mut extension = "a";
-        let mut base_name = name.to_owned();
-
-        // MSVC uses .lib archives, and HDF5 includes "lib" in the library's link name.
+        let (prefix, extension, base_name);
         if self.target_is_msvc {
+            // MSVC uses .lib archives, and HDF5 includes "lib" in the library's link name.
             prefix = "";
             extension = "lib";
             base_name = format!("lib{name}");
+        } else {
+            // Unix and GNU toolchains use lib-prefixed .a archives.
+            prefix = "lib";
+            extension = "a";
+            base_name = name.to_owned();
         }
 
         // Try the unsuffixed name first, then the Unix and Windows suffixes used by older Debug builds.

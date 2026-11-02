@@ -915,7 +915,6 @@ impl DatasetCreate {
             let count = h5try!(H5Pget_external_count(self.id()));
             let mut name: Vec<c_char> = vec![0; NAME_LEN + 1];
             for idx in 0..count {
-                // Reserve the full HDF5 offset width for the getter's output.
                 let mut offset: HDoff_t = 0;
                 let mut size: hsize_t = 0;
                 h5try!(H5Pget_external(

@@ -672,7 +672,11 @@ fn test_external_storage_nonzero_offset_roundtrip() -> hdf5::Result<()> {
         let file = hdf5::File::create(&path)?;
         let ds = file
             .new_dataset::<i32>()
-            .external(external_path.to_str().unwrap(), prefix.len(), 64)
+            .external(
+                external_path.to_str().unwrap(),
+                prefix.len(),
+                16 * std::mem::size_of::<i32>(),
+            )
             .shape([16])
             .create("d")?;
         ds.write(&values)?;

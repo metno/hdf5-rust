@@ -726,7 +726,7 @@ impl Config {
 
         // HDF5 can enable 64-bit file offsets independently of Rust's libc configuration.
         let mut offset_size = self.header.sizeof_off_t;
-        // HDF5 2.x uses int64_t for HDoff_t on Windows, where off_t remains 32-bit.
+        // HDF5 2.x uses int64_t for HDoff_t on Windows even with off_t being 32-bit.
         if self.header.have_win32_api && version >= Version::new(2, 0, 0) {
             offset_size = 8;
         }
