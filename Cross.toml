@@ -1,0 +1,13 @@
+[target.i686-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/i686-unknown-linux-gnu:main"
+# Bundled HDF5 2.x needs CMake >=3.26; the stock image has 3.23.
+# Use CMake 3.x to retain compatibility with older supported HDF5 releases.
+pre-build = [
+    """curl -fsSL \
+        https://github.com/Kitware/CMake/releases/download/v3.31.10/cmake-3.31.10-linux-x86_64.tar.gz \
+        -o /tmp/cmake.tar.gz""",
+    """echo '3cb3dd247b6a1de2d0f4b20c6fd4326c9024e894cebc9dc8699758887e566ca7 /tmp/cmake.tar.gz' \
+        | sha256sum --check -""",
+    "tar -xzf /tmp/cmake.tar.gz --strip-components=1 -C /usr/local",
+    "rm /tmp/cmake.tar.gz",
+]

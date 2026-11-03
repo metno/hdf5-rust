@@ -9,6 +9,13 @@ use crate::internal_prelude::*;
 pub type herr_t = c_int;
 pub type htri_t = c_int;
 
+#[cfg(hdf5_off_t_size = "4")]
+/// Signed external-file offset matching the linked HDF5 library's ABI.
+pub type HDoff_t = i32;
+#[cfg(hdf5_off_t_size = "8")]
+/// Signed external-file offset matching the linked HDF5 library's ABI.
+pub type HDoff_t = i64;
+
 #[cfg(not(feature = "1.14.0"))]
 pub type hsize_t = c_ulonglong;
 #[cfg(feature = "1.14.0")]

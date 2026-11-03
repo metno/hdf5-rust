@@ -869,6 +869,7 @@ impl Display for OwnedDynValue {
 
 #[cfg(test)]
 mod tests {
+    use std::mem::{offset_of, size_of};
     use std::str::FromStr;
 
     use unindent::unindent;
@@ -931,13 +932,13 @@ mod tests {
         TD::Compound(CompoundType {
             fields: Vec::from(
                 [
-                    CompoundField::new("coords", coords, 0, 0),
-                    CompoundField::new("color", td_color(), 8, 1),
-                    CompoundField::new("nice", TD::Boolean, 10, 2),
+                    CompoundField::new("coords", coords, offset_of!(Point, coords), 0),
+                    CompoundField::new("color", td_color(), offset_of!(Point, color), 1),
+                    CompoundField::new("nice", TD::Boolean, offset_of!(Point, nice), 2),
                 ]
                 .as_ref(),
             ),
-            size: 12,
+            size: size_of::<Point>(),
         })
     }
 
@@ -946,15 +947,15 @@ mod tests {
         TD::Compound(CompoundType {
             fields: Vec::from(
                 [
-                    CompoundField::new("points", points, 0, 0),
-                    CompoundField::new("fa", TD::FixedAscii(5), 16, 1),
-                    CompoundField::new("fu", TD::FixedUnicode(5), 21, 2),
-                    CompoundField::new("va", TD::VarLenAscii, 32, 3),
-                    CompoundField::new("vu", TD::VarLenUnicode, 40, 4),
+                    CompoundField::new("points", points, offset_of!(Data, points), 0),
+                    CompoundField::new("fa", TD::FixedAscii(5), offset_of!(Data, fa), 1),
+                    CompoundField::new("fu", TD::FixedUnicode(5), offset_of!(Data, fu), 2),
+                    CompoundField::new("va", TD::VarLenAscii, offset_of!(Data, va), 3),
+                    CompoundField::new("vu", TD::VarLenUnicode, offset_of!(Data, vu), 4),
                 ]
                 .as_ref(),
             ),
-            size: 48,
+            size: size_of::<Data>(),
         })
     }
 
@@ -962,45 +963,48 @@ mod tests {
         let ints = TD::Compound(CompoundType {
             fields: Vec::from(
                 [
-                    CompoundField::typed::<i32>("2", 0, 2),
-                    CompoundField::typed::<i16>("1", 4, 1),
-                    CompoundField::typed::<i8>("0", 6, 0),
-                    CompoundField::typed::<i64>("3", 8, 3),
+                    CompoundField::typed::<i32>("2", offset_of!((i8, i16, i32, i64), 2), 2),
+                    CompoundField::typed::<i16>("1", offset_of!((i8, i16, i32, i64), 1), 1),
+                    CompoundField::typed::<i8>("0", offset_of!((i8, i16, i32, i64), 0), 0),
+                    CompoundField::typed::<i64>("3", offset_of!((i8, i16, i32, i64), 3), 3),
                 ]
                 .as_ref(),
             ),
-            size: 16,
+            size: size_of::<(i8, i16, i32, i64)>(),
         });
         let uints = TD::Compound(CompoundType {
             fields: Vec::from(
                 [
-                    CompoundField::typed::<u32>("2", 0, 2),
-                    CompoundField::typed::<u16>("1", 4, 1),
-                    CompoundField::typed::<u8>("0", 6, 0),
-                    CompoundField::typed::<u64>("3", 8, 3),
+                    CompoundField::typed::<u32>("2", offset_of!((u8, u16, u32, u64), 2), 2),
+                    CompoundField::typed::<u16>("1", offset_of!((u8, u16, u32, u64), 1), 1),
+                    CompoundField::typed::<u8>("0", offset_of!((u8, u16, u32, u64), 0), 0),
+                    CompoundField::typed::<u64>("3", offset_of!((u8, u16, u32, u64), 3), 3),
                 ]
                 .as_ref(),
             ),
-            size: 16,
+            size: size_of::<(u8, u16, u32, u64)>(),
         });
         let floats = TD::Compound(CompoundType {
             fields: Vec::from(
-                [CompoundField::typed::<f32>("0", 0, 0), CompoundField::typed::<f64>("1", 8, 1)]
-                    .as_ref(),
+                [
+                    CompoundField::typed::<f32>("0", offset_of!((f32, f64), 0), 0),
+                    CompoundField::typed::<f64>("1", offset_of!((f32, f64), 1), 1),
+                ]
+                .as_ref(),
             ),
-            size: 16,
+            size: size_of::<(f32, f64)>(),
         });
         TD::Compound(CompoundType {
             fields: Vec::from(
                 [
-                    CompoundField::new("ints", ints, 0, 0),
-                    CompoundField::new("uints", uints, 16, 1),
-                    CompoundField::new("floats", floats, 32, 2),
-                    CompoundField::new("data", td_data(), 48, 3),
+                    CompoundField::new("ints", ints, offset_of!(BigStruct, ints), 0),
+                    CompoundField::new("uints", uints, offset_of!(BigStruct, uints), 1),
+                    CompoundField::new("floats", floats, offset_of!(BigStruct, floats), 2),
+                    CompoundField::new("data", td_data(), offset_of!(BigStruct, data), 3),
                 ]
                 .as_ref(),
             ),
-            size: 96,
+            size: size_of::<BigStruct>(),
         })
     }
 
