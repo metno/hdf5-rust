@@ -103,7 +103,8 @@ mod export {
     pub mod datatype {
         pub use crate::hl::committed_datatype::CommittedDatatype;
         pub use crate::hl::datatype::{
-            ByteOrder, Conversion, Datatype, IntegerLayout, IntegerLayoutBuilder, Padding,
+            BitfieldLayout, BitfieldLayoutBuilder, ByteOrder, Conversion, Datatype, IntegerLayout,
+            IntegerLayoutBuilder, Padding,
         };
     }
 

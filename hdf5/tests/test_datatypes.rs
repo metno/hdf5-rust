@@ -1,12 +1,12 @@
 #[macro_use]
 mod common;
 
-use hdf5::datatype::{ByteOrder, IntegerLayout};
+use hdf5::datatype::{BitfieldLayout, ByteOrder, IntegerLayout, Padding};
 use hdf5::types::{TypeDescriptor as TD, *};
 use hdf5::{Datatype, H5Type, MajorErrorCode, MinorErrorCode, from_id};
 use hdf5_metno as hdf5;
 use hdf5_sys::h5i::H5I_INVALID_HID;
-use hdf5_sys::h5t::{H5T_class_t, H5Tget_class};
+use hdf5_sys::h5t::{H5T_class_t, H5Tget_class, H5Tset_offset, H5Tset_precision};
 use pretty_assertions::{assert_eq, assert_str_eq};
 
 use self::common::util::new_in_memory_file;
@@ -261,6 +261,178 @@ pub fn test_with_integer_layout_shrinks_storage() -> hdf5::Result<()> {
     let configured = original.with_integer_layout(&layout)?;
 
     assert_eq!(configured.integer_layout()?, layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_bitfield_layout_rejects_bits_beyond_storage() {
+    let error = BitfieldLayout::builder()
+        .size(3)
+        .byte_order(ByteOrder::BigEndian)
+        .bit_precision(20)
+        .bit_offset(5)
+        .build()
+        .unwrap_err();
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a layout validation error, got {error:?}");
+    };
+    assert_str_eq!(message, "Bitfield significant bits exceed the storage size");
+}
+
+#[test]
+pub fn test_bitfield_layout_requires_bit_precision() {
+    let error =
+        BitfieldLayout::builder().size(2).byte_order(ByteOrder::LittleEndian).build().unwrap_err();
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a layout validation error, got {error:?}");
+    };
+    assert_str_eq!(message, "Bitfield bit precision is required");
+}
+
+#[test]
+pub fn test_bitfield_layout_rejects_integer_datatype() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<u16>()?;
+
+    let error = integer.bitfield_layout().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected a bitfield datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_with_bitfield_layout_rejects_integer_datatype() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<u16>()?;
+    let layout = BitfieldLayout::builder()
+        .size(2)
+        .byte_order(ByteOrder::LittleEndian)
+        .bit_precision(16)
+        .build()?;
+
+    let error = integer.with_bitfield_layout(&layout).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected a bitfield datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_with_bitfield_layout_does_not_modify_original() -> hdf5::Result<()> {
+    let original_layout = BitfieldLayout::builder()
+        .size(2)
+        .byte_order(ByteOrder::LittleEndian)
+        .bit_precision(16)
+        .build()?;
+    let original = Datatype::from_bitfield_layout(&original_layout)?;
+    let alias = original.clone();
+    let layout = original_layout
+        .to_builder()
+        .byte_order(ByteOrder::BigEndian)
+        .high_padding(Padding::One)
+        .build()?;
+
+    let configured = alias.with_bitfield_layout(&layout)?;
+
+    assert_eq!(configured.bitfield_layout()?, layout);
+    assert_eq!(original.bitfield_layout()?, original_layout);
+    assert_eq!(alias.bitfield_layout()?, original_layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_with_bitfield_layout_shrinks_storage() -> hdf5::Result<()> {
+    let wide = BitfieldLayout::builder()
+        .size(8)
+        .byte_order(ByteOrder::LittleEndian)
+        .bit_precision(64)
+        .build()?;
+    let original = Datatype::from_bitfield_layout(&wide)?;
+    let layout = wide.to_builder().size(3).bit_precision(24).build()?;
+
+    let configured = original.with_bitfield_layout(&layout)?;
+
+    assert_eq!(configured.bitfield_layout()?, layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_with_bitfield_layout_rejects_none_byte_order() -> hdf5::Result<()> {
+    let original_layout = BitfieldLayout::builder()
+        .size(2)
+        .byte_order(ByteOrder::LittleEndian)
+        .bit_precision(16)
+        .build()?;
+    let original = Datatype::from_bitfield_layout(&original_layout)?;
+    let layout = original_layout.to_builder().byte_order(ByteOrder::None).build()?;
+
+    let error = original.with_bitfield_layout(&layout).unwrap_err();
+
+    assert!(error.contains_major(MajorErrorCode::Datatype), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::BadValue), "{error:?}");
+    assert_eq!(original.bitfield_layout()?, original_layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_with_bitfield_layout_committed_datatype() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let little_endian = BitfieldLayout::builder()
+        .size(2)
+        .byte_order(ByteOrder::LittleEndian)
+        .bit_precision(16)
+        .build()?;
+    file.commit_datatype("bitfield", &Datatype::from_bitfield_layout(&little_endian)?)?;
+    let committed = file.committed_datatype("bitfield")?;
+    let big_endian = little_endian.to_builder().byte_order(ByteOrder::BigEndian).build()?;
+
+    let configured = committed.as_datatype().with_bitfield_layout(&big_endian)?;
+
+    assert!(!configured.is_committed());
+    assert_eq!(configured.bitfield_layout()?, big_endian);
+    assert!(committed.as_datatype().is_committed());
+    assert_eq!(committed.as_datatype().bitfield_layout()?, little_endian);
+    Ok(())
+}
+
+#[test]
+pub fn test_bitfield_layout_rejects_offset_beyond_file_format() -> hdf5::Result<()> {
+    let layout = BitfieldLayout::builder()
+        .size(1)
+        .byte_order(ByteOrder::LittleEndian)
+        .bit_precision(8)
+        .build()?;
+    let datatype = Datatype::from_bitfield_layout(&layout)?;
+    hdf5::h5call!(H5Tset_offset(datatype.id(), 70_000))?;
+
+    let error = datatype.bitfield_layout().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a file format limit error, got {error:?}");
+    };
+    assert_str_eq!(message, "Bitfield bit offset exceeds the file format limit");
+    Ok(())
+}
+
+#[test]
+pub fn test_bitfield_layout_rejects_precision_beyond_file_format() -> hdf5::Result<()> {
+    let layout = BitfieldLayout::builder()
+        .size(1)
+        .byte_order(ByteOrder::LittleEndian)
+        .bit_precision(8)
+        .build()?;
+    let datatype = Datatype::from_bitfield_layout(&layout)?;
+    hdf5::h5call!(H5Tset_precision(datatype.id(), 70_000))?;
+
+    let error = datatype.bitfield_layout().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a file format limit error, got {error:?}");
+    };
+    assert_str_eq!(message, "Bitfield bit precision exceeds the file format limit");
     Ok(())
 }
 
