@@ -437,6 +437,34 @@ pub fn test_bitfield_layout_rejects_precision_beyond_file_format() -> hdf5::Resu
 }
 
 #[test]
+pub fn test_integer_layout_rejects_offset_beyond_file_format() -> hdf5::Result<()> {
+    let datatype = Datatype::from_type::<u8>()?;
+    hdf5::h5call!(H5Tset_offset(datatype.id(), 70_000))?;
+
+    let error = datatype.integer_layout().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a file format limit error, got {error:?}");
+    };
+    assert_str_eq!(message, "Integer bit offset exceeds the file format limit");
+    Ok(())
+}
+
+#[test]
+pub fn test_integer_layout_rejects_precision_beyond_file_format() -> hdf5::Result<()> {
+    let datatype = Datatype::from_type::<u8>()?;
+    hdf5::h5call!(H5Tset_precision(datatype.id(), 70_000))?;
+
+    let error = datatype.integer_layout().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a file format limit error, got {error:?}");
+    };
+    assert_str_eq!(message, "Integer bit precision exceeds the file format limit");
+    Ok(())
+}
+
+#[test]
 pub fn test_invalid_datatype() {
     assert_err!(from_id::<Datatype>(H5I_INVALID_HID), "Invalid handle id");
 }
