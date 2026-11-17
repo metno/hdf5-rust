@@ -2,7 +2,7 @@
 mod common;
 
 use hdf5::datatype::{
-    BitfieldLayout, ByteOrder, FloatLayout, IntegerLayout, Normalization, Padding,
+    BitfieldLayout, ByteOrder, FloatLayout, IntegerLayout, Normalization, Padding, StringPadding,
 };
 use hdf5::types::{TypeDescriptor as TD, *};
 use hdf5::{Datatype, H5Type, MajorErrorCode, MinorErrorCode, from_id};
@@ -935,4 +935,93 @@ fn test_print_display_debug_datatype_fixed_len_unicode() {
     assert_str_eq!(format!("{dt}"), "unicode (len 10)");
     assert_str_eq!(format!("{dt:?}"), "<HDF5 datatype: unicode (len 10)>");
     assert_str_eq!(format!("{dt:#?}"), "<HDF5 datatype: unicode (len 10)>");
+}
+
+#[test]
+pub fn test_string_padding_fixed_ascii() -> hdf5::Result<()> {
+    let datatype = Datatype::from_type::<FixedAscii<8>>()?;
+
+    assert_eq!(datatype.string_padding()?, StringPadding::NullPadded);
+    Ok(())
+}
+
+#[test]
+pub fn test_string_padding_varlen_unicode() -> hdf5::Result<()> {
+    let datatype = Datatype::from_type::<VarLenUnicode>()?;
+
+    assert_eq!(datatype.string_padding()?, StringPadding::NullTerminated);
+    Ok(())
+}
+
+#[test]
+pub fn test_string_padding_rejects_integer_datatype() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<u16>()?;
+
+    let error = integer.string_padding().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected a string datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_with_string_padding_fixed_ascii() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<FixedAscii<8>>()?;
+
+    let configured = original.with_string_padding(StringPadding::SpacePadded)?;
+
+    assert_eq!(configured.string_padding()?, StringPadding::SpacePadded);
+    Ok(())
+}
+
+#[test]
+pub fn test_with_string_padding_varlen_unicode() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<VarLenUnicode>()?;
+
+    let configured = original.with_string_padding(StringPadding::NullPadded)?;
+
+    assert_eq!(configured.string_padding()?, StringPadding::NullPadded);
+    Ok(())
+}
+
+#[test]
+pub fn test_with_string_padding_does_not_modify_original() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<FixedAscii<8>>()?;
+
+    let configured = original.with_string_padding(StringPadding::SpacePadded)?;
+
+    assert_eq!(original.string_padding()?, StringPadding::NullPadded);
+    assert_eq!(configured.to_descriptor()?, TD::FixedAscii(8));
+    Ok(())
+}
+
+#[test]
+pub fn test_with_string_padding_rejects_integer_datatype() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<u16>()?;
+
+    let error = integer.with_string_padding(StringPadding::SpacePadded).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected a string datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_with_string_padding_committed_datatype() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let original = Datatype::from_type::<FixedAscii<8>>()?;
+    file.commit_datatype("text", &original)?;
+    let committed = file.committed_datatype("text")?;
+
+    let configured = committed.as_datatype().with_string_padding(StringPadding::SpacePadded)?;
+
+    assert!(!configured.is_committed());
+    assert_eq!(configured.string_padding()?, StringPadding::SpacePadded);
+    assert!(committed.as_datatype().is_committed());
+    assert_eq!(committed.as_datatype().string_padding()?, StringPadding::NullPadded);
+    Ok(())
 }
