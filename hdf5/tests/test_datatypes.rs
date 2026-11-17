@@ -1580,3 +1580,249 @@ pub fn test_vlen_committed_base() -> hdf5::Result<()> {
     assert!(committed.as_datatype().is_committed());
     Ok(())
 }
+
+#[test]
+pub fn test_compound_size_is_furthest_member_end() -> hdf5::Result<()> {
+    let members = [
+        CompoundMember { name: "value".into(), offset: 0, datatype: Datatype::from_type::<f64>()? },
+        CompoundMember { name: "id".into(), offset: 8, datatype: Datatype::from_type::<u16>()? },
+    ];
+
+    let compound = Datatype::compound(&members)?;
+
+    assert_eq!(compound.size(), 10);
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_preserves_member_layouts() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<u16>()?;
+    let integer_layout = original
+        .integer_layout()?
+        .to_builder()
+        .byte_order(ByteOrder::BigEndian)
+        .bit_offset(2)
+        .bit_precision(12)
+        .build()?;
+    let bitfield_layout = BitfieldLayout::builder()
+        .size(3)
+        .byte_order(ByteOrder::BigEndian)
+        .bit_precision(20)
+        .high_padding(Padding::One)
+        .build()?;
+    let members = [
+        CompoundMember {
+            name: "id".into(),
+            offset: 0,
+            datatype: original.with_integer_layout(&integer_layout)?,
+        },
+        CompoundMember {
+            name: "flags".into(),
+            offset: 2,
+            datatype: Datatype::from_bitfield_layout(&bitfield_layout)?,
+        },
+    ];
+
+    let compound = Datatype::compound(&members)?;
+
+    let stored = compound.compound_members()?;
+    assert_eq!(stored, members);
+    assert_eq!(stored[0].datatype.integer_layout()?, integer_layout);
+    assert_eq!(stored[1].datatype.bitfield_layout()?, bitfield_layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_nested() -> hdf5::Result<()> {
+    let inner_members = [
+        CompoundMember { name: "x".into(), offset: 0, datatype: Datatype::from_type::<i8>()? },
+        CompoundMember { name: "y".into(), offset: 1, datatype: Datatype::from_type::<i8>()? },
+    ];
+    let inner = Datatype::compound(&inner_members)?;
+
+    let outer =
+        Datatype::compound(&[CompoundMember { name: "point".into(), offset: 0, datatype: inner }])?;
+
+    assert_eq!(outer.compound_members()?[0].datatype.compound_members()?, inner_members);
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_members_outlive_inputs() -> hdf5::Result<()> {
+    let big_endian = Datatype::from_type::<u16>()?.with_byte_order(ByteOrder::BigEndian)?;
+    let members =
+        vec![CompoundMember { name: "id".into(), offset: 0, datatype: big_endian.clone() }];
+
+    let compound = Datatype::compound(&members)?;
+    drop(members);
+    drop(big_endian);
+
+    let expected = Datatype::from_type::<u16>()?.with_byte_order(ByteOrder::BigEndian)?;
+    assert_eq!(
+        compound.compound_members()?,
+        vec![CompoundMember { name: "id".into(), offset: 0, datatype: expected }]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_rejects_empty_members() {
+    let error = Datatype::compound(&[]).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a compound size error, got {error:?}");
+    };
+    assert_str_eq!(message, "Compound datatype size must be positive");
+}
+
+#[test]
+pub fn test_compound_rejects_offset_overflow() -> hdf5::Result<()> {
+    let members = [CompoundMember {
+        name: "a".into(),
+        offset: usize::MAX,
+        datatype: Datatype::from_type::<u16>()?,
+    }];
+
+    let error = Datatype::compound(&members).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a compound bounds error, got {error:?}");
+    };
+    assert_str_eq!(message, "Compound member \"a\" extends past the maximum size");
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_with_size_trailing_padding() -> hdf5::Result<()> {
+    let members = [
+        CompoundMember { name: "value".into(), offset: 0, datatype: Datatype::from_type::<f64>()? },
+        CompoundMember { name: "id".into(), offset: 8, datatype: Datatype::from_type::<u16>()? },
+    ];
+
+    let compound = Datatype::compound_with_size(16, &members)?;
+
+    assert_eq!(compound.size(), 16);
+    assert_eq!(compound.compound_members()?, members);
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_with_size_roundtrip() -> hdf5::Result<()> {
+    let original = Datatype::from_descriptor(&TD::Compound(CompoundType {
+        fields: vec![
+            CompoundField::typed::<f64>("value", 0, 0),
+            CompoundField::typed::<u16>("id", 8, 1),
+        ],
+        size: 16,
+    }))?;
+
+    let rebuilt = Datatype::compound_with_size(original.size(), &original.compound_members()?)?;
+
+    assert_eq!(rebuilt, original);
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_with_size_rejects_zero_size() -> hdf5::Result<()> {
+    let members =
+        [CompoundMember { name: "id".into(), offset: 0, datatype: Datatype::from_type::<u16>()? }];
+
+    let error = Datatype::compound_with_size(0, &members).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a compound size error, got {error:?}");
+    };
+    assert_str_eq!(message, "Compound datatype size must be positive");
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_with_size_rejects_member_past_end() -> hdf5::Result<()> {
+    let members =
+        [CompoundMember { name: "id".into(), offset: 8, datatype: Datatype::from_type::<u16>()? }];
+
+    let error = Datatype::compound_with_size(9, &members).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a compound bounds error, got {error:?}");
+    };
+    assert_str_eq!(message, "Compound member \"id\" extends past the compound size");
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_with_size_rejects_offset_overflow() -> hdf5::Result<()> {
+    let members = [CompoundMember {
+        name: "a".into(),
+        offset: usize::MAX,
+        datatype: Datatype::from_type::<u16>()?,
+    }];
+
+    let error = Datatype::compound_with_size(4, &members).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a compound bounds error, got {error:?}");
+    };
+    assert_str_eq!(message, "Compound member \"a\" extends past the compound size");
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_rejects_overlapping_members() -> hdf5::Result<()> {
+    let members = [
+        CompoundMember { name: "a".into(), offset: 0, datatype: Datatype::from_type::<u16>()? },
+        CompoundMember { name: "b".into(), offset: 1, datatype: Datatype::from_type::<u16>()? },
+    ];
+
+    let error = Datatype::compound(&members).unwrap_err();
+
+    assert!(error.contains_major(MajorErrorCode::Datatype), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::CantInsert), "{error:?}");
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_rejects_duplicate_names() -> hdf5::Result<()> {
+    let members = [
+        CompoundMember { name: "a".into(), offset: 0, datatype: Datatype::from_type::<u16>()? },
+        CompoundMember { name: "a".into(), offset: 2, datatype: Datatype::from_type::<u16>()? },
+    ];
+
+    let error = Datatype::compound(&members).unwrap_err();
+
+    assert!(error.contains_major(MajorErrorCode::Datatype), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::CantInsert), "{error:?}");
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_rejects_empty_name() -> hdf5::Result<()> {
+    let members = [CompoundMember {
+        name: String::new(),
+        offset: 0,
+        datatype: Datatype::from_type::<u16>()?,
+    }];
+
+    let error = Datatype::compound(&members).unwrap_err();
+
+    assert!(error.contains_major(MajorErrorCode::Args), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::BadValue), "{error:?}");
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_rejects_null_byte_in_name() -> hdf5::Result<()> {
+    let members = [CompoundMember {
+        name: "a\0b".into(),
+        offset: 0,
+        datatype: Datatype::from_type::<u16>()?,
+    }];
+
+    let error = Datatype::compound(&members).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a member name error, got {error:?}");
+    };
+    assert_str_eq!(message, "null byte in string: \"a\\0b\"");
+    Ok(())
+}
