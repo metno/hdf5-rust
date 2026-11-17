@@ -979,6 +979,25 @@ fn test_empty_as_datatype_preserves_string_padding() -> hdf5::Result<()> {
 }
 
 #[test]
+fn test_empty_as_datatype_preserves_vlen_base_layout() -> hdf5::Result<()> {
+    let original = hdf5::Datatype::from_type::<u16>()?;
+    let layout = original
+        .integer_layout()?
+        .to_builder()
+        .byte_order(ByteOrder::BigEndian)
+        .bit_offset(2)
+        .bit_precision(12)
+        .build()?;
+    let dtype = hdf5::Datatype::vlen(&original.with_integer_layout(&layout)?)?;
+    let file = new_in_memory_file()?;
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(3).create("data")?;
+
+    assert_eq!(dataset.dtype()?.base()?.integer_layout()?, layout);
+    Ok(())
+}
+
+#[test]
 fn test_empty_as_datatype_varlen_string() -> hdf5::Result<()> {
     let file = new_in_memory_file()?;
     let dtype = hdf5::Datatype::from_type::<VarLenUnicode>()?;
