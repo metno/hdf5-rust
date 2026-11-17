@@ -8,7 +8,10 @@ use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 use hdf5_metno as hdf5;
 use hdf5_metno::{
     H5Type,
-    datatype::{BitfieldLayout, ByteOrder, CompoundMember, IntegerLayout, Padding, StringPadding},
+    datatype::{
+        BitfieldLayout, ByteOrder, CompoundMember, EnumVariant, IntegerLayout, Padding,
+        StringPadding,
+    },
 };
 use hdf5_sys::h5t::{H5T_class_t, H5Tget_class};
 use hdf5_types::{TypeDescriptor, VarLenUnicode};
@@ -1051,6 +1054,22 @@ fn test_compound_with_size_matches_repr_c_layout() -> hdf5::Result<()> {
 
     assert_eq!(dataset.dtype()?, hdf5::Datatype::from_type::<Point>()?);
     assert_eq!(dataset.read_raw::<Point>()?, values);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_preserves_enum_encoding() -> hdf5::Result<()> {
+    let base = hdf5::Datatype::from_type::<i16>()?.with_byte_order(ByteOrder::BigEndian)?;
+    let variants = [
+        EnumVariant { name: "Low".into(), value: -2 },
+        EnumVariant { name: "High".into(), value: 258 },
+    ];
+    let dtype = hdf5::Datatype::enumeration(&base, &variants)?;
+    let file = new_in_memory_file()?;
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(3).create("data")?;
+
+    assert_eq!(dataset.dtype()?.encoded_enum_variants()?, dtype.encoded_enum_variants()?);
     Ok(())
 }
 
