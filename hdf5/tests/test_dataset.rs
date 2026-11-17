@@ -8,7 +8,7 @@ use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 use hdf5_metno as hdf5;
 use hdf5_metno::{
     H5Type,
-    datatype::{BitfieldLayout, ByteOrder, IntegerLayout, Padding},
+    datatype::{BitfieldLayout, ByteOrder, IntegerLayout, Padding, StringPadding},
 };
 use hdf5_sys::h5t::{H5T_class_t, H5Tget_class};
 use hdf5_types::{TypeDescriptor, VarLenUnicode};
@@ -963,6 +963,18 @@ fn test_empty_as_datatype_preserves_float_layout() -> hdf5::Result<()> {
 
     assert_eq!(dataset.dtype()?.float_layout()?, layout);
     assert_eq!(dataset.read_raw::<f32>()?, values);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_preserves_string_padding() -> hdf5::Result<()> {
+    let original = hdf5::Datatype::from_type::<hdf5::types::FixedAscii<8>>()?;
+    let dtype = original.with_string_padding(StringPadding::SpacePadded)?;
+    let file = new_in_memory_file()?;
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(3).create("data")?;
+
+    assert_eq!(dataset.dtype()?.string_padding()?, StringPadding::SpacePadded);
     Ok(())
 }
 

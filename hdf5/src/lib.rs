@@ -105,6 +105,7 @@ mod export {
         pub use crate::hl::datatype::{
             BitfieldLayout, BitfieldLayoutBuilder, ByteOrder, Conversion, Datatype, FloatLayout,
             FloatLayoutBuilder, IntegerLayout, IntegerLayoutBuilder, Normalization, Padding,
+            StringPadding,
         };
     }
 

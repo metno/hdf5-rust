@@ -23,10 +23,12 @@ use crate::internal_prelude::*;
 mod bitfield;
 mod float;
 mod integer;
+mod string;
 
 pub use self::bitfield::{BitfieldLayout, BitfieldLayoutBuilder};
 pub use self::float::{FloatLayout, FloatLayoutBuilder, Normalization};
 pub use self::integer::{IntegerLayout, IntegerLayoutBuilder};
+pub use self::string::StringPadding;
 
 enum EnumMembers<'a> {
     Bool,
