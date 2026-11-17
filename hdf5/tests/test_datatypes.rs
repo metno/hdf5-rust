@@ -1826,3 +1826,376 @@ pub fn test_compound_rejects_null_byte_in_name() -> hdf5::Result<()> {
     assert_str_eq!(message, "null byte in string: \"a\\0b\"");
     Ok(())
 }
+
+#[test]
+pub fn test_enumeration_roundtrip() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<i16>()?;
+    let variants = [
+        EnumVariant { name: "Low".into(), value: -2 },
+        EnumVariant { name: "High".into(), value: 258 },
+    ];
+
+    let enum_type = Datatype::enumeration(&base, &variants)?;
+
+    assert_eq!(enum_type.enum_variants()?, variants);
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_matches_descriptor() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<i16>()?;
+    let variants = [
+        EnumVariant { name: "Low".into(), value: -2 },
+        EnumVariant { name: "High".into(), value: 258 },
+    ];
+
+    let enum_type = Datatype::enumeration(&base, &variants)?;
+
+    let expected = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U2,
+        signed: true,
+        members: vec![
+            EnumMember { name: "Low".into(), value: -2_i64 as u64 },
+            EnumMember { name: "High".into(), value: 258 },
+        ],
+    }))?;
+    assert_eq!(enum_type, expected);
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_preserves_base() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<i16>()?.with_byte_order(ByteOrder::BigEndian)?;
+
+    let enum_type = Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: 1 }])?;
+
+    assert_eq!(enum_type.base()?.integer_layout()?, base.integer_layout()?);
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_base_outlives() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<i16>()?.with_byte_order(ByteOrder::BigEndian)?;
+    let variants = [EnumVariant { name: "A".into(), value: -2 }];
+
+    let enum_type = Datatype::enumeration(&base, &variants)?;
+    drop(base);
+
+    assert_eq!(enum_type.enum_variants()?, variants);
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_empty() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u8>()?;
+
+    let enum_type = Datatype::enumeration(&base, &[])?;
+
+    assert_eq!(enum_type.enum_variants()?, Vec::new());
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_unsigned_64_maximum() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u64>()?;
+    let variants = [EnumVariant { name: "Max".into(), value: u64::MAX.into() }];
+
+    let enum_type = Datatype::enumeration(&base, &variants)?;
+
+    assert_eq!(enum_type.enum_variants()?, variants);
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_big_endian_encoding() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<i16>()?.with_byte_order(ByteOrder::BigEndian)?;
+    let variants = [
+        EnumVariant { name: "High".into(), value: 258 },
+        EnumVariant { name: "Low".into(), value: -2 },
+    ];
+
+    let enum_type = Datatype::enumeration(&base, &variants)?;
+
+    assert_eq!(
+        enum_type.encoded_enum_variants()?,
+        vec![
+            EncodedEnumVariant { name: "High".into(), value: [0x01, 0x02].into() },
+            EncodedEnumVariant { name: "Low".into(), value: [0xff, 0xfe].into() },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_bit_offset_encoding() -> hdf5::Result<()> {
+    let layout = IntegerLayout::builder()
+        .size(2)
+        .byte_order(ByteOrder::LittleEndian)
+        .signed(false)
+        .bit_offset(4)
+        .bit_precision(8)
+        .build()?;
+    let base = Datatype::from_integer_layout(&layout)?;
+
+    let enum_type = Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: 175 }])?;
+
+    assert_eq!(
+        enum_type.encoded_enum_variants()?,
+        vec![EncodedEnumVariant { name: "A".into(), value: [0xf0, 0x0a].into() }]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_signed_bit_offset_encoding() -> hdf5::Result<()> {
+    let layout = IntegerLayout::builder()
+        .size(2)
+        .byte_order(ByteOrder::LittleEndian)
+        .signed(true)
+        .bit_offset(4)
+        .bit_precision(8)
+        .build()?;
+    let base = Datatype::from_integer_layout(&layout)?;
+    let variants = [
+        EnumVariant { name: "MinusOne".into(), value: -1 },
+        EnumVariant { name: "Min".into(), value: -128 },
+    ];
+
+    let enum_type = Datatype::enumeration(&base, &variants)?;
+
+    assert_eq!(
+        enum_type.encoded_enum_variants()?,
+        vec![
+            EncodedEnumVariant { name: "MinusOne".into(), value: [0xf0, 0x0f].into() },
+            EncodedEnumVariant { name: "Min".into(), value: [0x00, 0x08].into() },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_padding_encoding() -> hdf5::Result<()> {
+    let layout = IntegerLayout::builder()
+        .size(2)
+        .byte_order(ByteOrder::LittleEndian)
+        .signed(false)
+        .bit_offset(4)
+        .bit_precision(8)
+        .low_padding(Padding::One)
+        .high_padding(Padding::One)
+        .build()?;
+    let base = Datatype::from_integer_layout(&layout)?;
+
+    let enum_type = Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: 200 }])?;
+
+    assert_eq!(
+        enum_type.encoded_enum_variants()?,
+        vec![EncodedEnumVariant { name: "A".into(), value: [0x8f, 0xfc].into() }]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_wide_base_encoding() -> hdf5::Result<()> {
+    let layout = IntegerLayout::builder()
+        .size(16)
+        .byte_order(ByteOrder::BigEndian)
+        .signed(true)
+        .bit_precision(128)
+        .build()?;
+    let base = Datatype::from_integer_layout(&layout)?;
+
+    let enum_type = Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: -5 }])?;
+
+    assert_eq!(
+        enum_type.encoded_enum_variants()?,
+        vec![EncodedEnumVariant { name: "A".into(), value: (-5_i128).to_be_bytes().into() }]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_wide_base_roundtrip() -> hdf5::Result<()> {
+    let layout = IntegerLayout::builder()
+        .size(16)
+        .byte_order(ByteOrder::LittleEndian)
+        .signed(true)
+        .bit_precision(128)
+        .build()?;
+    let base = Datatype::from_integer_layout(&layout)?;
+    let variants = [
+        EnumVariant { name: "Min".into(), value: i128::MIN },
+        EnumVariant { name: "MinusOne".into(), value: -1 },
+        EnumVariant { name: "U64Max".into(), value: u64::MAX.into() },
+        EnumVariant { name: "Max".into(), value: i128::MAX },
+    ];
+
+    let enum_type = Datatype::enumeration(&base, &variants)?;
+
+    assert_eq!(enum_type.enum_variants()?, variants);
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_wider_than_i128_roundtrip() -> hdf5::Result<()> {
+    let layout = IntegerLayout::builder()
+        .size(32)
+        .byte_order(ByteOrder::BigEndian)
+        .signed(false)
+        .bit_precision(256)
+        .build()?;
+    let base = Datatype::from_integer_layout(&layout)?;
+    let variants = [
+        EnumVariant { name: "Zero".into(), value: 0 },
+        EnumVariant { name: "Max".into(), value: i128::MAX },
+    ];
+
+    let enum_type = Datatype::enumeration(&base, &variants)?;
+
+    assert_eq!(enum_type.enum_variants()?, variants);
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_value_above_range() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<i8>()?;
+
+    let error =
+        Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: 128 }]).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected an enum value range error, got {error:?}");
+    };
+    assert_str_eq!(message, "Enum variant \"A\" value 128 is out of range for the base datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_value_below_range() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<i8>()?;
+
+    let error =
+        Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: -129 }]).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected an enum value range error, got {error:?}");
+    };
+    assert_str_eq!(message, "Enum variant \"A\" value -129 is out of range for the base datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_negative_unsigned() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u16>()?;
+
+    let error =
+        Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: -1 }]).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected an enum value range error, got {error:?}");
+    };
+    assert_str_eq!(message, "Enum variant \"A\" value -1 is out of range for the base datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_value_beyond_precision() -> hdf5::Result<()> {
+    let layout = IntegerLayout::builder()
+        .size(2)
+        .byte_order(ByteOrder::LittleEndian)
+        .signed(false)
+        .bit_offset(4)
+        .bit_precision(8)
+        .build()?;
+    let base = Datatype::from_integer_layout(&layout)?;
+
+    let error =
+        Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: 256 }]).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected an enum value range error, got {error:?}");
+    };
+    assert_str_eq!(message, "Enum variant \"A\" value 256 is out of range for the base datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_value_out_of_range_after_valid() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u8>()?;
+    let variants = [
+        EnumVariant { name: "A".into(), value: 255 },
+        EnumVariant { name: "B".into(), value: 256 },
+    ];
+
+    let error = Datatype::enumeration(&base, &variants).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected an enum value range error, got {error:?}");
+    };
+    assert_str_eq!(message, "Enum variant \"B\" value 256 is out of range for the base datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_float_base() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<f32>()?;
+
+    let error =
+        Datatype::enumeration(&base, &[EnumVariant { name: "A".into(), value: 1 }]).unwrap_err();
+
+    assert!(error.contains_major(MajorErrorCode::Args), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::BadType), "{error:?}");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_duplicate_name() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u8>()?;
+    let variants =
+        [EnumVariant { name: "A".into(), value: 1 }, EnumVariant { name: "A".into(), value: 2 }];
+
+    let error = Datatype::enumeration(&base, &variants).unwrap_err();
+
+    assert!(error.contains_major(MajorErrorCode::Datatype), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::CantInit), "{error:?}");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_duplicate_value() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u8>()?;
+    let variants =
+        [EnumVariant { name: "A".into(), value: 1 }, EnumVariant { name: "B".into(), value: 1 }];
+
+    let error = Datatype::enumeration(&base, &variants).unwrap_err();
+
+    assert!(error.contains_major(MajorErrorCode::Datatype), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::CantInit), "{error:?}");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_empty_name() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u8>()?;
+
+    let error =
+        Datatype::enumeration(&base, &[EnumVariant { name: String::new(), value: 1 }]).unwrap_err();
+
+    assert!(error.contains_major(MajorErrorCode::Args), "{error:?}");
+    assert!(error.contains_minor(MinorErrorCode::BadValue), "{error:?}");
+    Ok(())
+}
+
+#[test]
+pub fn test_enumeration_rejects_null_byte_in_name() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u8>()?;
+
+    let error =
+        Datatype::enumeration(&base, &[EnumVariant { name: "a\0b".into(), value: 1 }]).unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a variant name error, got {error:?}");
+    };
+    assert_str_eq!(message, "null byte in string: \"a\\0b\"");
+    Ok(())
+}
