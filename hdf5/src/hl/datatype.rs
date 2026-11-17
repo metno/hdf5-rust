@@ -21,11 +21,13 @@ use crate::globals::{H5T_C_S1, H5T_NATIVE_INT, H5T_NATIVE_INT8};
 use crate::internal_prelude::*;
 
 mod bitfield;
+mod compound;
 mod float;
 mod integer;
 mod string;
 
 pub use self::bitfield::{BitfieldLayout, BitfieldLayoutBuilder};
+pub use self::compound::CompoundMember;
 pub use self::float::{FloatLayout, FloatLayoutBuilder, Normalization};
 pub use self::integer::{IntegerLayout, IntegerLayoutBuilder};
 pub use self::string::StringPadding;
