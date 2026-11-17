@@ -3,6 +3,7 @@
 ## hdf5 unreleased
 - Fixed external dataset storage when HDF5 uses a different file-offset width from Rust's libc
 - Recognized HDF5 1.10.11 and 1.12.3 version features
+- Added `Datatype::compound` and `compound_with_size` to construct compound datatypes from existing datatypes
 - Added `Datatype::vlen` to construct a variable-length sequence from an existing datatype
 - Added `Datatype::base` to inspect the base datatype of array, enum, and variable-length sequence datatypes
 - Added `CompoundMember` with `Datatype::compound_members` to inspect compound datatype members
