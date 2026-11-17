@@ -37,11 +37,11 @@ use crate::internal_prelude::*;
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct IntegerLayout {
-    size: usize,
+    size: u32,
     byte_order: ByteOrder,
     signed: bool,
-    bit_offset: usize,
-    bit_precision: usize,
+    bit_offset: u16,
+    bit_precision: u16,
     low_padding: Padding,
     high_padding: Padding,
 }
@@ -66,7 +66,7 @@ impl IntegerLayout {
     }
 
     /// Returns the storage size in bytes.
-    pub const fn size(&self) -> usize {
+    pub const fn size(&self) -> u32 {
         self.size
     }
 
@@ -81,12 +81,12 @@ impl IntegerLayout {
     }
 
     /// Returns the number of bits preceding the significant-bit range.
-    pub const fn bit_offset(&self) -> usize {
+    pub const fn bit_offset(&self) -> u16 {
         self.bit_offset
     }
 
     /// Returns the number of significant bits.
-    pub const fn bit_precision(&self) -> usize {
+    pub const fn bit_precision(&self) -> u16 {
         self.bit_precision
     }
 
@@ -110,11 +110,11 @@ impl IntegerLayout {
 /// requested representation when the layout is applied to a datatype.
 #[derive(Clone, Debug)]
 pub struct IntegerLayoutBuilder {
-    size: Option<usize>,
+    size: Option<u32>,
     byte_order: Option<ByteOrder>,
     signed: Option<bool>,
-    bit_offset: usize,
-    bit_precision: Option<usize>,
+    bit_offset: u16,
+    bit_precision: Option<u16>,
     low_padding: Padding,
     high_padding: Padding,
 }
@@ -142,7 +142,7 @@ impl IntegerLayoutBuilder {
     }
 
     /// Sets the storage size in bytes.
-    pub const fn size(&mut self, size: usize) -> &mut Self {
+    pub const fn size(&mut self, size: u32) -> &mut Self {
         self.size = Some(size);
         self
     }
@@ -160,13 +160,13 @@ impl IntegerLayoutBuilder {
     }
 
     /// Sets the number of bits preceding the significant-bit range.
-    pub const fn bit_offset(&mut self, bit_offset: usize) -> &mut Self {
+    pub const fn bit_offset(&mut self, bit_offset: u16) -> &mut Self {
         self.bit_offset = bit_offset;
         self
     }
 
     /// Sets the number of significant bits.
-    pub const fn bit_precision(&mut self, bit_precision: usize) -> &mut Self {
+    pub const fn bit_precision(&mut self, bit_precision: u16) -> &mut Self {
         self.bit_precision = Some(bit_precision);
         self
     }
@@ -188,8 +188,7 @@ impl IntegerLayoutBuilder {
     /// # Errors
     ///
     /// Returns an error if a required property is missing, size or precision is
-    /// zero, the significant-bit range exceeds the storage size, or computing
-    /// the bit range or storage size in bits overflows.
+    /// zero, or the significant-bit range exceeds the storage size.
     pub fn build(&self) -> Result<IntegerLayout> {
         let size = self.size.ok_or("Integer storage size is required")?;
         let byte_order = self.byte_order.ok_or("Integer byte order is required")?;
@@ -197,12 +196,8 @@ impl IntegerLayoutBuilder {
         let bit_precision = self.bit_precision.ok_or("Integer bit precision is required")?;
         ensure!(size > 0, "Integer storage size must be positive");
         ensure!(bit_precision > 0, "Integer bit precision must be positive");
-        let storage_bits = size.checked_mul(8).ok_or("Integer storage size overflows")?;
-        let end = self
-            .bit_offset
-            .checked_add(bit_precision)
-            .ok_or("Integer significant-bit range overflows")?;
-        ensure!(end <= storage_bits, "Integer significant bits exceed the storage size");
+        let end = u64::from(self.bit_offset) + u64::from(bit_precision);
+        ensure!(end <= u64::from(size) * 8, "Integer significant bits exceed the storage size");
         Ok(IntegerLayout {
             size,
             byte_order,
@@ -225,15 +220,18 @@ impl Datatype {
     /// # Errors
     ///
     /// Returns an error if this is not an integer datatype, a property cannot be
-    /// read, or the reported layout fails the storage-bound checks.
+    /// read or exceeds the HDF5 file format limits, or the reported layout fails
+    /// the storage-bound checks.
     pub fn integer_layout(&self) -> Result<IntegerLayout> {
         h5lock!({
             ensure!(
                 h5try!(H5Tget_class(self.id()) as i32) == H5T_class_t::H5T_INTEGER as i32,
                 "Expected an integer datatype"
             );
-            let size = h5try!(H5Tget_size(self.id()) as hsize_t) as usize;
-            let bit_precision = h5try!(H5Tget_precision(self.id()) as hsize_t) as usize;
+            let size = u32::try_from(h5try!(H5Tget_size(self.id()) as hsize_t))
+                .map_err(|_| "Integer storage size exceeds the file format limit")?;
+            let bit_precision = u16::try_from(h5try!(H5Tget_precision(self.id()) as hsize_t))
+                .map_err(|_| "Integer bit precision exceeds the file format limit")?;
             let order = H5Tget_order(self.id());
             h5try!(order as i32);
             let byte_order = order.into();
@@ -244,7 +242,8 @@ impl Datatype {
                 H5T_sign_t::H5T_SGN_2 => true,
                 _ => fail!("Invalid integer signedness"),
             };
-            let bit_offset = h5try!(H5Tget_offset(self.id())) as usize;
+            let bit_offset = u16::try_from(h5try!(H5Tget_offset(self.id())))
+                .map_err(|_| "Integer bit offset exceeds the file format limit")?;
             let mut low_padding = H5T_pad_t::H5T_PAD_ZERO;
             let mut high_padding = H5T_pad_t::H5T_PAD_ZERO;
             h5try!(H5Tget_pad(self.id(), &mut low_padding, &mut high_padding));
@@ -309,9 +308,9 @@ impl Datatype {
             let datatype = Self::from_id(h5try!(H5Tcopy(id)))?;
             h5try!(H5Tset_offset(datatype.id(), 0));
             h5try!(H5Tset_precision(datatype.id(), 1));
-            h5try!(H5Tset_size(datatype.id(), layout.size));
-            h5try!(H5Tset_precision(datatype.id(), layout.bit_precision));
-            h5try!(H5Tset_offset(datatype.id(), layout.bit_offset));
+            h5try!(H5Tset_size(datatype.id(), layout.size as usize));
+            h5try!(H5Tset_precision(datatype.id(), layout.bit_precision.into()));
+            h5try!(H5Tset_offset(datatype.id(), layout.bit_offset.into()));
             h5try!(H5Tset_order(datatype.id(), order));
             let sign = if layout.signed { H5T_sign_t::H5T_SGN_2 } else { H5T_sign_t::H5T_SGN_NONE };
             h5try!(H5Tset_sign(datatype.id(), sign));
