@@ -3,6 +3,13 @@
 ## hdf5 unreleased
 - Fixed external dataset storage when HDF5 uses a different file-offset width from Rust's libc
 - Recognized HDF5 1.10.11 and 1.12.3 version features
+- Added `Datatype::enumeration` to construct enum datatypes from an existing integer base datatype
+- Added `Datatype::compound` and `compound_with_size` to construct compound datatypes from existing datatypes
+- Added `Datatype::vlen` to construct a variable-length sequence from an existing datatype
+- Added `Datatype::base` to inspect the base datatype of array, enum, and variable-length sequence datatypes
+- Added `CompoundMember` with `Datatype::compound_members` to inspect compound datatype members
+- Added `EncodedEnumVariant` with `Datatype::encoded_enum_variants` to inspect stored enum values
+- Added `EnumVariant` with `Datatype::enum_variants` to inspect enum datatype variants
 - Added `StringPadding` with `Datatype::string_padding` and `with_string_padding` for string datatypes
 - Added `FloatLayout` and `Normalization` with `Datatype::float_layout`, `from_float_layout`, `with_float_layout`, `vax_f32`, and `vax_f64` for floating-point datatypes
 - Added `BitfieldLayout` with `Datatype::bitfield_layout`, `from_bitfield_layout`, and `with_bitfield_layout` for bitfield datatypes

@@ -8,7 +8,10 @@ use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 use hdf5_metno as hdf5;
 use hdf5_metno::{
     H5Type,
-    datatype::{BitfieldLayout, ByteOrder, IntegerLayout, Padding, StringPadding},
+    datatype::{
+        BitfieldLayout, ByteOrder, CompoundMember, EnumVariant, IntegerLayout, Padding,
+        StringPadding,
+    },
 };
 use hdf5_sys::h5t::{H5T_class_t, H5Tget_class};
 use hdf5_types::{TypeDescriptor, VarLenUnicode};
@@ -975,6 +978,98 @@ fn test_empty_as_datatype_preserves_string_padding() -> hdf5::Result<()> {
     let dataset = file.new_dataset_builder().empty_as(&dtype).shape(3).create("data")?;
 
     assert_eq!(dataset.dtype()?.string_padding()?, StringPadding::SpacePadded);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_preserves_vlen_base_layout() -> hdf5::Result<()> {
+    let original = hdf5::Datatype::from_type::<u16>()?;
+    let layout = original
+        .integer_layout()?
+        .to_builder()
+        .byte_order(ByteOrder::BigEndian)
+        .bit_offset(2)
+        .bit_precision(12)
+        .build()?;
+    let dtype = hdf5::Datatype::vlen(&original.with_integer_layout(&layout)?)?;
+    let file = new_in_memory_file()?;
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(3).create("data")?;
+
+    assert_eq!(dataset.dtype()?.base()?.integer_layout()?, layout);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_preserves_compound_member_layouts() -> hdf5::Result<()> {
+    let original = hdf5::Datatype::from_type::<u16>()?;
+    let layout = original
+        .integer_layout()?
+        .to_builder()
+        .byte_order(ByteOrder::BigEndian)
+        .bit_offset(2)
+        .bit_precision(12)
+        .build()?;
+    let members = [
+        CompoundMember {
+            name: "id".into(),
+            offset: 0,
+            datatype: original.with_integer_layout(&layout)?,
+        },
+        CompoundMember {
+            name: "value".into(),
+            offset: 2,
+            datatype: hdf5::Datatype::from_type::<f64>()?,
+        },
+    ];
+    let dtype = hdf5::Datatype::compound(&members)?;
+    let file = new_in_memory_file()?;
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(3).create("data")?;
+
+    assert_eq!(dataset.dtype()?.compound_members()?, members);
+    Ok(())
+}
+
+#[test]
+fn test_compound_with_size_matches_repr_c_layout() -> hdf5::Result<()> {
+    let members = [
+        CompoundMember {
+            name: "x".into(),
+            offset: std::mem::offset_of!(Point, x),
+            datatype: hdf5::Datatype::from_type::<f64>()?,
+        },
+        CompoundMember {
+            name: "tag".into(),
+            offset: std::mem::offset_of!(Point, tag),
+            datatype: hdf5::Datatype::from_type::<i32>()?,
+        },
+    ];
+    let dtype = hdf5::Datatype::compound_with_size(size_of::<Point>(), &members)?;
+    let file = new_in_memory_file()?;
+    let values = [Point { x: 1.5, tag: 7 }, Point { x: -2.0, tag: -1 }];
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(values.len()).create("data")?;
+    dataset.write(&values)?;
+
+    assert_eq!(dataset.dtype()?, hdf5::Datatype::from_type::<Point>()?);
+    assert_eq!(dataset.read_raw::<Point>()?, values);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_preserves_enum_encoding() -> hdf5::Result<()> {
+    let base = hdf5::Datatype::from_type::<i16>()?.with_byte_order(ByteOrder::BigEndian)?;
+    let variants = [
+        EnumVariant { name: "Low".into(), value: -2 },
+        EnumVariant { name: "High".into(), value: 258 },
+    ];
+    let dtype = hdf5::Datatype::enumeration(&base, &variants)?;
+    let file = new_in_memory_file()?;
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(3).create("data")?;
+
+    assert_eq!(dataset.dtype()?.encoded_enum_variants()?, dtype.encoded_enum_variants()?);
     Ok(())
 }
 
