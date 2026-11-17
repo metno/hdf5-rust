@@ -951,6 +951,22 @@ fn test_empty_as_datatype_preserves_bitfield_layout() -> hdf5::Result<()> {
 }
 
 #[test]
+fn test_empty_as_datatype_preserves_float_layout() -> hdf5::Result<()> {
+    let original = hdf5::Datatype::from_type::<f32>()?;
+    let layout = original.float_layout()?.to_builder().exponent_bias(126).build()?;
+    let dtype = original.with_float_layout(&layout)?;
+    let file = new_in_memory_file()?;
+    let values = [0.0_f32, 1.5, -2.0];
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(values.len()).create("data")?;
+    dataset.write(&values)?;
+
+    assert_eq!(dataset.dtype()?.float_layout()?, layout);
+    assert_eq!(dataset.read_raw::<f32>()?, values);
+    Ok(())
+}
+
+#[test]
 fn test_empty_as_datatype_varlen_string() -> hdf5::Result<()> {
     let file = new_in_memory_file()?;
     let dtype = hdf5::Datatype::from_type::<VarLenUnicode>()?;
