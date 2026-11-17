@@ -8,7 +8,7 @@ use rand::prelude::{Rng, RngExt, SeedableRng, SmallRng};
 use hdf5_metno as hdf5;
 use hdf5_metno::{
     H5Type,
-    datatype::{ByteOrder, IntegerLayout, Padding},
+    datatype::{BitfieldLayout, ByteOrder, IntegerLayout, Padding},
 };
 use hdf5_sys::h5t::{H5T_class_t, H5Tget_class};
 use hdf5_types::{TypeDescriptor, VarLenUnicode};
@@ -927,6 +927,26 @@ fn test_empty_as_datatype_preserves_integer_layout() -> hdf5::Result<()> {
 
     assert_eq!(dataset.dtype()?.integer_layout()?, layout);
     assert_eq!(dataset.read_raw::<u32>()?, values);
+    Ok(())
+}
+
+#[test]
+fn test_empty_as_datatype_preserves_bitfield_layout() -> hdf5::Result<()> {
+    let layout = BitfieldLayout::builder()
+        .size(3)
+        .byte_order(ByteOrder::BigEndian)
+        .bit_precision(20)
+        .bit_offset(2)
+        .high_padding(Padding::One)
+        .build()?;
+    let dtype = hdf5::Datatype::from_bitfield_layout(&layout)?;
+    let file = new_in_memory_file()?;
+
+    let dataset = file.new_dataset_builder().empty_as(&dtype).shape(3).create("data")?;
+    let stored_type = dataset.dtype()?;
+
+    assert_eq!(hdf5::h5lock!(H5Tget_class(stored_type.id())), H5T_class_t::H5T_BITFIELD);
+    assert_eq!(stored_type.bitfield_layout()?, layout);
     Ok(())
 }
 
