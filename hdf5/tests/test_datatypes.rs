@@ -2,8 +2,8 @@
 mod common;
 
 use hdf5::datatype::{
-    BitfieldLayout, ByteOrder, EncodedEnumVariant, EnumVariant, FloatLayout, IntegerLayout,
-    Normalization, Padding, StringPadding,
+    BitfieldLayout, ByteOrder, CompoundMember, EncodedEnumVariant, EnumVariant, FloatLayout,
+    IntegerLayout, Normalization, Padding, StringPadding,
 };
 use hdf5::types::{TypeDescriptor as TD, *};
 use hdf5::{Datatype, H5Type, MajorErrorCode, MinorErrorCode, from_id};
@@ -1286,5 +1286,121 @@ pub fn test_encoded_enum_variants_rejects_integer_datatype() -> hdf5::Result<()>
         panic!("Expected a datatype class error, got {error:?}");
     };
     assert_str_eq!(message, "Expected an enum datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_members() -> hdf5::Result<()> {
+    let compound = Datatype::from_descriptor(&TD::Compound(CompoundType {
+        fields: vec![
+            CompoundField::typed::<u16>("id", 0, 0),
+            CompoundField::typed::<f64>("value", 8, 1),
+        ],
+        size: 16,
+    }))?;
+
+    let members = compound.compound_members()?;
+
+    assert_eq!(
+        members,
+        vec![
+            CompoundMember {
+                name: "id".into(),
+                offset: 0,
+                datatype: Datatype::from_type::<u16>()?
+            },
+            CompoundMember {
+                name: "value".into(),
+                offset: 8,
+                datatype: Datatype::from_type::<f64>()?,
+            },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_members_nested_compound() -> hdf5::Result<()> {
+    let inner = TD::Compound(CompoundType {
+        fields: vec![CompoundField::typed::<i8>("x", 0, 0), CompoundField::typed::<i8>("y", 1, 1)],
+        size: 2,
+    });
+    let outer = Datatype::from_descriptor(&TD::Compound(CompoundType {
+        fields: vec![CompoundField::new("point", inner, 0, 0)],
+        size: 2,
+    }))?;
+
+    let members = outer.compound_members()?[0].datatype.compound_members()?;
+
+    assert_eq!(
+        members,
+        vec![
+            CompoundMember { name: "x".into(), offset: 0, datatype: Datatype::from_type::<i8>()? },
+            CompoundMember { name: "y".into(), offset: 1, datatype: Datatype::from_type::<i8>()? },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_members_string_member() -> hdf5::Result<()> {
+    let compound = Datatype::from_descriptor(&TD::Compound(CompoundType {
+        fields: vec![CompoundField::typed::<VarLenUnicode>("text", 0, 0)],
+        size: VarLenUnicode::type_descriptor().size(),
+    }))?;
+
+    let members = compound.compound_members()?;
+
+    assert_eq!(
+        members,
+        vec![CompoundMember {
+            name: "text".into(),
+            offset: 0,
+            datatype: Datatype::from_type::<VarLenUnicode>()?,
+        }]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_members_empty() -> hdf5::Result<()> {
+    let compound =
+        Datatype::from_descriptor(&TD::Compound(CompoundType { fields: vec![], size: 4 }))?;
+
+    let members = compound.compound_members()?;
+
+    assert_eq!(members, Vec::new());
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_members_committed_datatype() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let original = Datatype::from_descriptor(&TD::Compound(CompoundType {
+        fields: vec![
+            CompoundField::typed::<u16>("id", 0, 0),
+            CompoundField::typed::<f64>("value", 8, 1),
+        ],
+        size: 16,
+    }))?;
+    file.commit_datatype("record", &original)?;
+    let committed = file.committed_datatype("record")?;
+
+    let members = committed.as_datatype().compound_members()?;
+
+    assert_eq!(members, original.compound_members()?);
+    Ok(())
+}
+
+#[test]
+pub fn test_compound_members_rejects_integer_datatype() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<u16>()?;
+
+    let error = integer.compound_members().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected a compound datatype");
     Ok(())
 }
