@@ -1404,3 +1404,96 @@ pub fn test_compound_members_rejects_integer_datatype() -> hdf5::Result<()> {
     assert_str_eq!(message, "Expected a compound datatype");
     Ok(())
 }
+
+#[test]
+pub fn test_base_varlen_array() -> hdf5::Result<()> {
+    let sequence = Datatype::from_type::<VarLenArray<u16>>()?;
+
+    let base = sequence.base()?;
+
+    assert_eq!(base.to_descriptor()?, TD::Unsigned(IntSize::U2));
+    Ok(())
+}
+
+#[test]
+pub fn test_base_fixed_array() -> hdf5::Result<()> {
+    let array = Datatype::from_type::<[i8; 4]>()?;
+
+    let base = array.base()?;
+
+    assert_eq!(base.to_descriptor()?, TD::Integer(IntSize::U1));
+    Ok(())
+}
+
+#[test]
+pub fn test_base_enum() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U2,
+        signed: true,
+        members: vec![
+            EnumMember { name: "A".into(), value: 1 },
+            EnumMember { name: "B".into(), value: -2i64 as _ },
+        ],
+    }))?;
+
+    let base = enum_type.base()?;
+
+    assert_eq!(base.to_descriptor()?, TD::Integer(IntSize::U2));
+    Ok(())
+}
+
+#[test]
+pub fn test_base_nested_varlen_array() -> hdf5::Result<()> {
+    let element = TD::VarLenArray(Box::new(TD::Unsigned(IntSize::U1)));
+    let sequence = Datatype::from_descriptor(&TD::VarLenArray(Box::new(element.clone())))?;
+
+    let base = sequence.base()?;
+
+    assert_eq!(base.to_descriptor()?, element);
+    Ok(())
+}
+
+#[test]
+pub fn test_base_rejects_integer_datatype() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<u16>()?;
+
+    let error = integer.base().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected an array, enum, or variable-length datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_base_rejects_varlen_string() -> hdf5::Result<()> {
+    let string = Datatype::from_type::<VarLenUnicode>()?;
+
+    let error = string.base().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected an array, enum, or variable-length datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_base_rejects_compound_datatype() -> hdf5::Result<()> {
+    let compound = Datatype::from_descriptor(&TD::Compound(CompoundType {
+        fields: vec![
+            CompoundField::typed::<i64>("a", 0, 0),
+            CompoundField::typed::<u64>("b", 8, 1),
+        ],
+        size: 16,
+    }))?;
+
+    let error = compound.base().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected an array, enum, or variable-length datatype");
+    Ok(())
+}
