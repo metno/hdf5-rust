@@ -1497,3 +1497,86 @@ pub fn test_encoded_enum_variants_rejects_integer_datatype() -> hdf5::Result<()>
     assert_str_eq!(message, "Expected an enum datatype");
     Ok(())
 }
+
+#[test]
+pub fn test_vlen_datatype_class() -> hdf5::Result<()> {
+    let base = Datatype::from_type::<u16>()?;
+
+    let sequence = Datatype::vlen(&base)?;
+
+    assert_eq!(hdf5::h5lock!(H5Tget_class(sequence.id())), H5T_class_t::H5T_VLEN);
+    Ok(())
+}
+
+#[test]
+pub fn test_vlen_preserves_integer_layout() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<u16>()?;
+    let layout = original
+        .integer_layout()?
+        .to_builder()
+        .byte_order(ByteOrder::BigEndian)
+        .bit_offset(2)
+        .bit_precision(12)
+        .build()?;
+    let base = original.with_integer_layout(&layout)?;
+
+    let sequence = Datatype::vlen(&base)?;
+
+    assert_eq!(sequence.base()?.integer_layout()?, layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_vlen_preserves_bitfield_layout() -> hdf5::Result<()> {
+    let layout = BitfieldLayout::builder()
+        .size(3)
+        .byte_order(ByteOrder::BigEndian)
+        .bit_offset(2)
+        .bit_precision(20)
+        .high_padding(Padding::One)
+        .build()?;
+    let base = Datatype::from_bitfield_layout(&layout)?;
+
+    let sequence = Datatype::vlen(&base)?;
+
+    assert_eq!(sequence.base()?.bitfield_layout()?, layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_vlen_outlives_base() -> hdf5::Result<()> {
+    let original = Datatype::from_type::<u16>()?;
+    let layout =
+        original.integer_layout()?.to_builder().byte_order(ByteOrder::BigEndian).build()?;
+    let base = original.with_integer_layout(&layout)?;
+
+    let sequence = Datatype::vlen(&base)?;
+    drop(base);
+
+    assert_eq!(sequence.base()?.integer_layout()?, layout);
+    Ok(())
+}
+
+#[test]
+pub fn test_vlen_nested() -> hdf5::Result<()> {
+    let inner = Datatype::vlen(&Datatype::from_type::<u8>()?)?;
+
+    let outer = Datatype::vlen(&inner)?;
+
+    let element = TD::VarLenArray(Box::new(TD::Unsigned(IntSize::U1)));
+    assert_eq!(outer.to_descriptor()?, TD::VarLenArray(Box::new(element)));
+    Ok(())
+}
+
+#[test]
+pub fn test_vlen_committed_base() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    file.commit_datatype("base", &Datatype::from_type::<u16>()?)?;
+    let committed = file.committed_datatype("base")?;
+
+    let sequence = Datatype::vlen(committed.as_datatype())?;
+
+    assert!(!sequence.is_committed());
+    assert!(committed.as_datatype().is_committed());
+    Ok(())
+}

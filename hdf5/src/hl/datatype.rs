@@ -622,6 +622,33 @@ impl Datatype {
         h5lock!(Self::from_id(h5try!(H5Tcreate(H5T_class_t::H5T_OPAQUE, size))))
     }
 
+    /// Creates a variable-length sequence datatype with the specified base datatype.
+    ///
+    /// The sequence stores a copy of `base`, so the base keeps its full
+    /// representation, including properties that [`to_descriptor`](Self::to_descriptor)
+    /// cannot represent. `base` is left unchanged and does not need to outlive
+    /// the sequence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if HDF5 cannot create the datatype.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{Datatype, types::{IntSize, TypeDescriptor}};
+    ///
+    /// let base = Datatype::from_type::<u16>()?;
+    /// let sequence = Datatype::vlen(&base)?;
+    ///
+    /// let element = TypeDescriptor::Unsigned(IntSize::U2);
+    /// assert_eq!(sequence.to_descriptor()?, TypeDescriptor::VarLenArray(Box::new(element)));
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn vlen(base: &Self) -> Result<Self> {
+        h5lock!(Self::from_id(h5try!(H5Tvlen_create(base.id()))))
+    }
+
     /// Creates a datatype from a concrete type.
     pub fn from_type<T: H5Type>() -> Result<Self> {
         Self::from_descriptor(&<T as H5Type>::type_descriptor())
