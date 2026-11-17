@@ -330,6 +330,44 @@ impl Datatype {
         })
     }
 
+    /// Returns the base datatype of this array, enum, or variable-length sequence
+    /// datatype.
+    ///
+    /// The base keeps its full representation, including properties that
+    /// [`to_descriptor`](Self::to_descriptor) cannot represent. The returned
+    /// datatype is an independent copy, so this datatype is left unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if this is not an array, enum, or variable-length sequence
+    /// datatype, or HDF5 cannot copy the base.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{Datatype, types::{IntSize, TypeDescriptor, VarLenArray}};
+    ///
+    /// let sequence = Datatype::from_type::<VarLenArray<u16>>()?;
+    ///
+    /// let base = sequence.base()?;
+    /// assert_eq!(base.to_descriptor()?, TypeDescriptor::Unsigned(IntSize::U2));
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn base(&self) -> Result<Self> {
+        h5lock!({
+            let class = H5Tget_class(self.id());
+            h5try!(class as i32);
+            ensure!(
+                matches!(
+                    class,
+                    H5T_class_t::H5T_ARRAY | H5T_class_t::H5T_ENUM | H5T_class_t::H5T_VLEN
+                ),
+                "Expected an array, enum, or variable-length datatype"
+            );
+            Self::from_id(h5try!(H5Tget_super(self.id())))
+        })
+    }
+
     /// Whether this datatype is a committed datatype stored in a file.
     pub fn is_committed(&self) -> bool {
         h5call!(H5Tcommitted(self.id())).unwrap_or(0) > 0
