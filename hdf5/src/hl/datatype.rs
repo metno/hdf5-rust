@@ -29,7 +29,7 @@ mod string;
 
 pub use self::bitfield::{BitfieldLayout, BitfieldLayoutBuilder};
 pub use self::compound::CompoundMember;
-pub use self::enumeration::EnumVariant;
+pub use self::enumeration::{EncodedEnumVariant, EnumVariant};
 pub use self::float::{FloatLayout, FloatLayoutBuilder, Normalization};
 pub use self::integer::{IntegerLayout, IntegerLayoutBuilder};
 pub use self::string::StringPadding;
