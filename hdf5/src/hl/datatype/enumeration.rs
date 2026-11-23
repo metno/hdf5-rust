@@ -26,6 +26,20 @@ pub struct EnumVariant {
     pub value: i128,
 }
 
+/// A named value of an enum datatype, as stored.
+///
+/// Returned by [`Datatype::encoded_enum_variants`]. The value holds the bytes
+/// stored for the variant, in the representation of the enum's integer base
+/// datatype, including its padding bits. Unlike [`EnumVariant`], it can
+/// represent values of any width.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EncodedEnumVariant {
+    /// The variant name, unique within the enum datatype.
+    pub name: String,
+    /// The stored value, with the same size in bytes as the enum datatype.
+    pub value: Box<[u8]>,
+}
+
 impl Datatype {
     /// Returns the variants of this enum datatype in index order.
     ///
@@ -79,10 +93,7 @@ impl Datatype {
         }
 
         h5lock!({
-            ensure!(
-                h5try!(H5Tget_class(self.id()) as i32) == H5T_class_t::H5T_ENUM as i32,
-                "Expected an enum datatype"
-            );
+            let encoded = self.encoded_enum_variants()?;
             let base = Self::from_id(h5try!(H5Tget_super(self.id())))?;
             let native = Self::from_integer_layout(
                 &IntegerLayout::builder()
@@ -103,18 +114,11 @@ impl Datatype {
                 Some(abort_out_of_range),
                 ptr::from_ref(&out_of_range).cast_mut().cast()
             ));
-            let count = h5try!(H5Tget_nmembers(self.id()));
-            (0..count as u32)
-                .map(|index| {
-                    let name_ptr = H5Tget_member_name(self.id(), index);
-                    if name_ptr.is_null() {
-                        return Err(Error::query().unwrap_or_else(|error| error));
-                    }
-                    let name = CStr::from_ptr(name_ptr).to_str().map(str::to_owned);
-                    h5_free_memory(name_ptr.cast());
-                    let name = name.map_err(|_| "Enum member name is not valid UTF-8")?;
-                    let mut buffer = vec![0_u8; base.size().max(size_of::<i128>())];
-                    h5try!(H5Tget_member_value(self.id(), index, buffer.as_mut_ptr().cast()));
+            encoded
+                .into_iter()
+                .map(|EncodedEnumVariant { name, value }| {
+                    let mut buffer = value.into_vec();
+                    buffer.resize(buffer.len().max(size_of::<i128>()), 0);
                     let converted = h5call!(H5Tconvert(
                         base.id(),
                         native.id(),
@@ -132,6 +136,61 @@ impl Datatype {
                     let value =
                         i128::from_ne_bytes(buffer[..size_of::<i128>()].try_into().unwrap());
                     Ok(EnumVariant { name, value })
+                })
+                .collect()
+        })
+    }
+
+    /// Returns the variants of this enum datatype in index order, with values
+    /// as stored.
+    ///
+    /// Each value is returned without conversion, in the byte representation of
+    /// the integer base datatype. Use [`enum_variants`](Self::enum_variants) to
+    /// decode the values to integers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if this is not an enum datatype, a variant name is not
+    /// valid UTF-8, or HDF5 cannot read a variant.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hdf5_metno::{Datatype, datatype::EncodedEnumVariant};
+    /// use hdf5_metno::types::{EnumMember, EnumType, IntSize, TypeDescriptor};
+    ///
+    /// let level = Datatype::from_descriptor(&TypeDescriptor::Enum(EnumType {
+    ///     size: IntSize::U2,
+    ///     signed: false,
+    ///     members: vec![EnumMember { name: "High".into(), value: 258 }],
+    /// }))?;
+    ///
+    /// assert_eq!(
+    ///     level.encoded_enum_variants()?,
+    ///     [EncodedEnumVariant { name: "High".into(), value: 258_u16.to_ne_bytes().into() }]
+    /// );
+    /// # Ok::<(), hdf5_metno::Error>(())
+    /// ```
+    pub fn encoded_enum_variants(&self) -> Result<Vec<EncodedEnumVariant>> {
+        h5lock!({
+            ensure!(
+                h5try!(H5Tget_class(self.id()) as i32) == H5T_class_t::H5T_ENUM as i32,
+                "Expected an enum datatype"
+            );
+            let size = self.size();
+            let count = h5try!(H5Tget_nmembers(self.id()));
+            (0..count as u32)
+                .map(|index| {
+                    let name_ptr = H5Tget_member_name(self.id(), index);
+                    if name_ptr.is_null() {
+                        return Err(Error::query().unwrap_or_else(|error| error));
+                    }
+                    let name = CStr::from_ptr(name_ptr).to_str().map(str::to_owned);
+                    h5_free_memory(name_ptr.cast());
+                    let name = name.map_err(|_| "Enum member name is not valid UTF-8")?;
+                    let mut value = vec![0_u8; size];
+                    h5try!(H5Tget_member_value(self.id(), index, value.as_mut_ptr().cast()));
+                    Ok(EncodedEnumVariant { name, value: value.into_boxed_slice() })
                 })
                 .collect()
         })

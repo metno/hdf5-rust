@@ -3,6 +3,7 @@
 ## hdf5 unreleased
 - Fixed external dataset storage when HDF5 uses a different file-offset width from Rust's libc
 - Recognized HDF5 1.10.11 and 1.12.3 version features
+- Added `EncodedEnumVariant` with `Datatype::encoded_enum_variants` to inspect stored enum values
 - Added `CompoundMember` with `Datatype::compound_members` to inspect compound datatype members
 - Added `Datatype::base` to inspect the base datatype of array, enum, and variable-length sequence datatypes
 - Added `EnumVariant` with `Datatype::enum_variants` to inspect enum datatype variants

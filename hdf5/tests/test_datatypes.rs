@@ -2,8 +2,8 @@
 mod common;
 
 use hdf5::datatype::{
-    BitfieldLayout, ByteOrder, CompoundMember, EnumVariant, FloatLayout, IntegerLayout,
-    Normalization, Padding, StringPadding,
+    BitfieldLayout, ByteOrder, CompoundMember, EncodedEnumVariant, EnumVariant, FloatLayout,
+    IntegerLayout, Normalization, Padding, StringPadding,
 };
 use hdf5::types::{TypeDescriptor as TD, *};
 use hdf5::{Datatype, H5Type, MajorErrorCode, MinorErrorCode, from_id};
@@ -1375,5 +1375,125 @@ pub fn test_compound_members_rejects_integer_datatype() -> hdf5::Result<()> {
         panic!("Expected a datatype class error, got {error:?}");
     };
     assert_str_eq!(message, "Expected a compound datatype");
+    Ok(())
+}
+
+#[test]
+pub fn test_encoded_enum_variants_unsigned() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U2,
+        signed: false,
+        members: vec![
+            EnumMember { name: "Zero".into(), value: 0 },
+            EnumMember { name: "High".into(), value: 258 },
+        ],
+    }))?;
+
+    let variants = enum_type.encoded_enum_variants()?;
+
+    assert_eq!(
+        variants,
+        vec![
+            EncodedEnumVariant { name: "Zero".into(), value: 0_u16.to_ne_bytes().into() },
+            EncodedEnumVariant { name: "High".into(), value: 258_u16.to_ne_bytes().into() },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_encoded_enum_variants_signed() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U2,
+        signed: true,
+        members: vec![EnumMember { name: "Low".into(), value: -2_i64 as u64 }],
+    }))?;
+
+    let variants = enum_type.encoded_enum_variants()?;
+
+    assert_eq!(
+        variants,
+        vec![EncodedEnumVariant { name: "Low".into(), value: (-2_i16).to_ne_bytes().into() }]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_encoded_enum_variants_eight_bytes() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U8,
+        signed: true,
+        members: vec![EnumMember { name: "Min".into(), value: i64::MIN as u64 }],
+    }))?;
+
+    let variants = enum_type.encoded_enum_variants()?;
+
+    assert_eq!(
+        variants,
+        vec![EncodedEnumVariant { name: "Min".into(), value: i64::MIN.to_ne_bytes().into() }]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_encoded_enum_variants_bool() -> hdf5::Result<()> {
+    let boolean = Datatype::from_type::<bool>()?;
+
+    let variants = boolean.encoded_enum_variants()?;
+
+    assert_eq!(
+        variants,
+        vec![
+            EncodedEnumVariant { name: "FALSE".into(), value: [0].into() },
+            EncodedEnumVariant { name: "TRUE".into(), value: [1].into() },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_encoded_enum_variants_empty() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U2,
+        signed: false,
+        members: vec![],
+    }))?;
+
+    let variants = enum_type.encoded_enum_variants()?;
+
+    assert_eq!(variants, Vec::new());
+    Ok(())
+}
+
+#[test]
+pub fn test_encoded_enum_variants_committed_datatype() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let original = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U2,
+        signed: true,
+        members: vec![
+            EnumMember { name: "Low".into(), value: -1_i64 as u64 },
+            EnumMember { name: "High".into(), value: 1 },
+        ],
+    }))?;
+    file.commit_datatype("level", &original)?;
+    let committed = file.committed_datatype("level")?;
+
+    let variants = committed.as_datatype().encoded_enum_variants()?;
+
+    assert_eq!(variants, original.encoded_enum_variants()?);
+    Ok(())
+}
+
+#[test]
+pub fn test_encoded_enum_variants_rejects_integer_datatype() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<u16>()?;
+
+    let error = integer.encoded_enum_variants().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected an enum datatype");
     Ok(())
 }
