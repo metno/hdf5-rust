@@ -178,8 +178,8 @@ fn validate_runtime_version(config: &Config) {
             }
         }
     }
-    // A static-only install (e.g. R's Rhdf5lib ships just libhdf5.a) has no
-    // binary to load: trust the version parsed from its headers.
+    // If a static-only install there are no dylibs, in which case we
+    // skip the runtime checks
     let static_libs = &["libhdf5.a", "hdf5.lib", "libhdf5.lib"];
     for link_path in &config.link_paths {
         for name in static_libs {
