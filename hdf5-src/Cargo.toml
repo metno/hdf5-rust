@@ -47,7 +47,7 @@ include = [
     "!ext/hdf5/docs/**",
     "!ext/hdf5/docs",
 ]
-version = "0.10.4"  # !V
+version = "0.10.5"  # !V
 rust-version.workspace = true
 authors.workspace = true
 keywords.workspace = true

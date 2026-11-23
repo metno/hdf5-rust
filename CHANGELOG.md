@@ -1,6 +1,13 @@
 # Changelog
 
 ## hdf5 unreleased
+## hdf5-derive unreleased
+## hdf5-types unreleased
+## hdf5-sys unreleased
+## hdf5-src unreleased
+
+## hdf5 0.15.2
+Release date: Nov 24, 2026
 - Fixed external dataset storage when HDF5 uses a different file-offset width from Rust's libc
 - Recognized HDF5 1.10.11 and 1.12.3 version features
 - Added `Datatype::enumeration` to construct enum datatypes from an existing integer base datatype
@@ -17,14 +24,16 @@
 - Added `IntegerLayout`, `IntegerLayoutBuilder`, and `Padding` with `Datatype::integer_layout`, `from_integer_layout`, and `with_integer_layout` for integer storage representation inspection and configuration
 - Added `Datatype::with_byte_order` to return a copy with the requested byte order
 - Added `File::free_sections` and `FreeSection` to enumerate HDF5-tracked free-space sections (HDF5 1.10.0+)
-## hdf5-derive unreleased
-## hdf5-types unreleased
-## hdf5-sys unreleased
-- Accepted an `HDF5_DIR` holding only a static library (`libhdf5.a`), taking the version from its headers
+
+## hdf5-sys 0.12.6
+Release date: Nov 24, 2026
+- Added support for `HDF5_DIR` holding only a static hdf5 library such `libhdf5.a`
 - Fixed the offset ABI of `H5Pset_external` and `H5Pget_external` to match the linked HDF5 configuration
 - Recognized HDF5 1.10.11 and 1.12.3 version features
 - Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs
-## hdf5-src unreleased
+
+## hdf5-src 0.10.5
+Release date: Nov 24, 2026
 - Fixed static library discovery for bundled HDF5 Debug builds, including the high-level library
 - Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs
 
