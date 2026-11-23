@@ -17,6 +17,7 @@
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
+- Accepted an `HDF5_DIR` holding only a static library (`libhdf5.a`), taking the version from its headers
 - Fixed the offset ABI of `H5Pset_external` and `H5Pget_external` to match the linked HDF5 configuration
 - Recognized HDF5 1.10.11 and 1.12.3 version features
 - Fixed use of `cfg!(target_os)` and `cfg!(target_env)` in build.rs

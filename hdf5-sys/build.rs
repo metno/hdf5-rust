@@ -178,6 +178,18 @@ fn validate_runtime_version(config: &Config) {
             }
         }
     }
+    // A static-only install (e.g. R's Rhdf5lib ships just libhdf5.a) has no
+    // binary to load: trust the version parsed from its headers.
+    let static_libs = &["libhdf5.a", "hdf5.lib", "libhdf5.lib"];
+    for link_path in &config.link_paths {
+        for name in static_libs {
+            let path = link_path.join(name);
+            if path.is_file() {
+                println!("Found static library {path:?} only; using the headers' version.");
+                return;
+            }
+        }
+    }
     panic!("Unable to infer HDF5 library runtime version (can't find the binary).");
 }
 
