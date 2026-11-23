@@ -2,7 +2,8 @@
 mod common;
 
 use hdf5::datatype::{
-    BitfieldLayout, ByteOrder, FloatLayout, IntegerLayout, Normalization, Padding, StringPadding,
+    BitfieldLayout, ByteOrder, EnumVariant, FloatLayout, IntegerLayout, Normalization, Padding,
+    StringPadding,
 };
 use hdf5::types::{TypeDescriptor as TD, *};
 use hdf5::{Datatype, H5Type, MajorErrorCode, MinorErrorCode, from_id};
@@ -1023,5 +1024,147 @@ pub fn test_with_string_padding_committed_datatype() -> hdf5::Result<()> {
     assert_eq!(configured.string_padding()?, StringPadding::SpacePadded);
     assert!(committed.as_datatype().is_committed());
     assert_eq!(committed.as_datatype().string_padding()?, StringPadding::NullPadded);
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_signed() -> hdf5::Result<()> {
+    let level = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U1,
+        signed: true,
+        members: vec![
+            EnumMember { name: "Low".into(), value: -1_i64 as u64 },
+            EnumMember { name: "High".into(), value: 1 },
+        ],
+    }))?;
+
+    let variants = level.enum_variants()?;
+
+    assert_eq!(
+        variants,
+        vec![
+            EnumVariant { name: "Low".into(), value: -1 },
+            EnumVariant { name: "High".into(), value: 1 },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_signed_minimum() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U8,
+        signed: true,
+        members: vec![EnumMember { name: "Min".into(), value: i64::MIN as u64 }],
+    }))?;
+
+    let variants = enum_type.enum_variants()?;
+
+    assert_eq!(variants, vec![EnumVariant { name: "Min".into(), value: i64::MIN.into() }]);
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_signed_maximum() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U8,
+        signed: true,
+        members: vec![EnumMember { name: "Max".into(), value: i64::MAX as u64 }],
+    }))?;
+
+    let variants = enum_type.enum_variants()?;
+
+    assert_eq!(variants, vec![EnumVariant { name: "Max".into(), value: i64::MAX.into() }]);
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_unsigned_byte_maximum() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U1,
+        signed: false,
+        members: vec![EnumMember { name: "Max".into(), value: u8::MAX.into() }],
+    }))?;
+
+    let variants = enum_type.enum_variants()?;
+
+    assert_eq!(variants, vec![EnumVariant { name: "Max".into(), value: u8::MAX.into() }]);
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_unsigned_beyond_i64() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U8,
+        signed: false,
+        members: vec![EnumMember { name: "Max".into(), value: u64::MAX }],
+    }))?;
+
+    let variants = enum_type.enum_variants()?;
+
+    assert_eq!(variants, vec![EnumVariant { name: "Max".into(), value: u64::MAX.into() }]);
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_bool() -> hdf5::Result<()> {
+    let boolean = Datatype::from_type::<bool>()?;
+
+    let variants = boolean.enum_variants()?;
+
+    assert_eq!(
+        variants,
+        vec![
+            EnumVariant { name: "FALSE".into(), value: 0 },
+            EnumVariant { name: "TRUE".into(), value: 1 },
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_empty() -> hdf5::Result<()> {
+    let enum_type = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U2,
+        signed: false,
+        members: vec![],
+    }))?;
+
+    let variants = enum_type.enum_variants()?;
+
+    assert_eq!(variants, Vec::new());
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_committed_datatype() -> hdf5::Result<()> {
+    let file = new_in_memory_file()?;
+    let original = Datatype::from_descriptor(&TD::Enum(EnumType {
+        size: IntSize::U2,
+        signed: true,
+        members: vec![
+            EnumMember { name: "Low".into(), value: -1_i64 as u64 },
+            EnumMember { name: "High".into(), value: 1 },
+        ],
+    }))?;
+    file.commit_datatype("level", &original)?;
+    let committed = file.committed_datatype("level")?;
+
+    let variants = committed.as_datatype().enum_variants()?;
+
+    assert_eq!(variants, original.enum_variants()?);
+    Ok(())
+}
+
+#[test]
+pub fn test_enum_variants_rejects_integer_datatype() -> hdf5::Result<()> {
+    let integer = Datatype::from_type::<u16>()?;
+
+    let error = integer.enum_variants().unwrap_err();
+
+    let hdf5::Error::Internal(message) = error else {
+        panic!("Expected a datatype class error, got {error:?}");
+    };
+    assert_str_eq!(message, "Expected an enum datatype");
     Ok(())
 }
