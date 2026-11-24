@@ -922,6 +922,17 @@ fn test_dcpl_external() -> hdf5::Result<()> {
     Ok(())
 }
 
+#[test]
+// Before 2.0, HDF5's own HDoff_t on Windows is a 32-bit `off_t`, so such offsets cannot exist there
+#[cfg(all(target_pointer_width = "64", any(not(windows), feature = "2.0.0")))]
+fn test_dcpl_external_offset_beyond_32_bits() -> hdf5::Result<()> {
+    // Fails if HDoff_t is narrower than the linked HDF5's, e.g. 32-bit on Windows with HDF5 2.x
+    let offset = 1 << 33;
+    let pl = DCB::new().external("foo", offset, 1).finish()?;
+    assert_eq!(pl.get_external()?[0].offset, offset);
+    Ok(())
+}
+
 #[cfg(feature = "1.10.0")]
 #[test]
 fn test_dcpl_virtual_map() -> hdf5::Result<()> {

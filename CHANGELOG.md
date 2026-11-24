@@ -6,6 +6,7 @@
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
 - Added the `H5Lget_info` alias for `H5Lget_info1`/`H5Lget_info2`, matching `H5Literate`
+- Fixed detection of `H5_HAVE_WIN32_API`, which left `HDoff_t` 32-bit on Windows with HDF5 2.x
 ## hdf5-src unreleased
 
 ## hdf5 0.15.2
