@@ -1,13 +1,19 @@
 # Changelog
 
 ## hdf5 unreleased
-- Added `Group::link_info` to read a link's metadata by name without following it
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
+## hdf5-src unreleased
+
+## hdf5 0.15.3
+Release date: Nov 24, 2026
+- Added `Group::link_info` to read a link's metadata by name without following it
+
+## hdf5-sys 0.12.7
+Release date: Nov 24, 2026
 - Added the `H5Lget_info` alias for `H5Lget_info1`/`H5Lget_info2`, matching `H5Literate`
 - Fixed `HDoff_t` width being incorrectly parsed from configuration
-## hdf5-src unreleased
 
 ## hdf5 0.15.2
 Release date: Nov 24, 2026
