@@ -736,11 +736,9 @@ impl Config {
             println!("cargo::metadata=version_{}_{}_{}=1", v.major, v.minor, v.micro);
         }
 
-        // HDF5 1.8.8 and later define this on every Windows build, so missing it means the config
-        // header was misparsed, and `HDoff_t` below would silently get the wrong size.
         assert!(
             !is_msvc() || version < Version::new(1, 8, 8) || self.header.have_win32_api,
-            "H5_HAVE_WIN32_API not found in the HDF5 config header of an MSVC build"
+            "H5_HAVE_WIN32_API not found in the HDF5 config header of an MSVC build but should exist in this configuration"
         );
         // HDF5 can enable 64-bit file offsets independently of Rust's libc configuration.
         let mut offset_size = self.header.sizeof_off_t;
