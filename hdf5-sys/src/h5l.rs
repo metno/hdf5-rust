@@ -364,11 +364,13 @@ unsafe extern "C" {
 
 #[cfg(not(feature = "1.12.0"))]
 pub use self::{
-    H5L_info1_t as H5L_info_t, H5L_iterate1_t as H5L_iterate_t, H5Literate1 as H5Literate,
+    H5L_info1_t as H5L_info_t, H5L_iterate1_t as H5L_iterate_t, H5Lget_info1 as H5Lget_info,
+    H5Literate1 as H5Literate,
 };
 #[cfg(feature = "1.12.0")]
 pub use self::{
-    H5L_info2_t as H5L_info_t, H5L_iterate2_t as H5L_iterate_t, H5Literate2 as H5Literate,
+    H5L_info2_t as H5L_info_t, H5L_iterate2_t as H5L_iterate_t, H5Lget_info2 as H5Lget_info,
+    H5Literate2 as H5Literate,
 };
 
 #[cfg(feature = "1.14.0")]

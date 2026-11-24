@@ -1,9 +1,11 @@
 # Changelog
 
 ## hdf5 unreleased
+- Added `Group::link_info` to read a link's metadata by name without following it
 ## hdf5-derive unreleased
 ## hdf5-types unreleased
 ## hdf5-sys unreleased
+- Added the `H5Lget_info` alias for `H5Lget_info1`/`H5Lget_info2`, matching `H5Literate`
 ## hdf5-src unreleased
 
 ## hdf5 0.15.2
