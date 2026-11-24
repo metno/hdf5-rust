@@ -216,7 +216,7 @@ impl Header {
         let contents = fs::read_to_string(header).unwrap();
         let mut hdr = Self::default();
 
-        let num_def_re = Regex::new(r"(?m)^#define\s+(H5_[A-Z_]+)\s+([0-9]+)\s*$").unwrap();
+        let num_def_re = Regex::new(r"(?m)^#define\s+(H5_[A-Z0-9_]+)\s+([0-9]+)\s*$").unwrap();
         for captures in num_def_re.captures_iter(&contents) {
             let name = captures.get(1).unwrap().as_str();
             let value = captures.get(2).unwrap().as_str().parse::<i64>().unwrap();
@@ -736,6 +736,10 @@ impl Config {
             println!("cargo::metadata=version_{}_{}_{}=1", v.major, v.minor, v.micro);
         }
 
+        assert!(
+            !is_msvc() || version < Version::new(1, 8, 8) || self.header.have_win32_api,
+            "H5_HAVE_WIN32_API not found in the HDF5 config header of an MSVC build but should exist in this configuration"
+        );
         // HDF5 can enable 64-bit file offsets independently of Rust's libc configuration.
         let mut offset_size = self.header.sizeof_off_t;
         // HDF5 2.x uses int64_t for HDoff_t on Windows even with off_t being 32-bit.

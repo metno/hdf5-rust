@@ -922,6 +922,19 @@ fn test_dcpl_external() -> hdf5::Result<()> {
     Ok(())
 }
 
+#[test]
+// HDoff_t changed size in HDF5 2.0 to match target pointer width on 64bit platforms
+// which was not the case for windows in previous versions
+#[cfg(all(target_pointer_width = "64", any(not(windows), feature = "2.0.0")))]
+fn test_dcpl_external_offset_beyond_32_bits() -> hdf5::Result<()> {
+    assert_eq!(std::mem::size_of::<hdf5_sys::h5::HDoff_t>(), 8);
+    // Fails if HDoff_t is narrower than the linked HDF5's, e.g. 32-bit on Windows with HDF5 2.x
+    let offset = 1 << 33;
+    let pl = DCB::new().external("foo", offset, 1).finish()?;
+    assert_eq!(pl.get_external()?[0].offset, offset);
+    Ok(())
+}
+
 #[cfg(feature = "1.10.0")]
 #[test]
 fn test_dcpl_virtual_map() -> hdf5::Result<()> {
